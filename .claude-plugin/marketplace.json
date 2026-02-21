@@ -1,0 +1,17 @@
+{
+  "name": "jimmys-marketplace",
+  "owner": {
+    "name": "Jimmy's Marketplace"
+  },
+  "metadata": {
+    "description": "Marketplace containing curated plugins for the personal use of Jimmy",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "jc",
+      "source": "./plugins/jc",
+      "strict": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "jc",
+  "description": "Jimmy's Claude Toolkit",
+  "version": "0.0.1",
+  "homepage": "https://github.com/jamesacarr/claude",
+  "license": "UNLICENSED",
+  "keywords": ["workflow", "agents", "planning", "tdd", "code-review", "debugging"]
+}
