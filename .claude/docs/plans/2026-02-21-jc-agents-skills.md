@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T22:59:58Z
+updated: 2026-02-22T23:04:51Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -117,7 +117,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add planner agent`
 
-- [ ] **Step 13:** Create plan skill — `skills/plan/`
+- [x] **Step 13:** Create plan skill — `skills/plan/` (TDD: RED baseline showed agents skip codebase map gate rationalizing "planner can read codebase directly" and skip critique rationalizing "I can review it myself", GREEN fixed with hard gate principles + anti-patterns table, audit applied)
   - See [Plan Skill Spec](#plan-skill)
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add plan skill`
