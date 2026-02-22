@@ -124,7 +124,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
 
 ### Execution
 
-- [ ] **Step 14:** Create executor agent — `agents/team-executor.md`
+- [x] **Step 14:** Create executor agent — `agents/team-executor.md`
   - See [Executor Agent Spec](#executor-agent)
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add executor agent`
