@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T21:11:34Z
+updated: 2026-02-22T21:19:10Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -88,7 +88,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
 
 ### Codebase Mapping
 
-- [ ] **Step 8:** Create mapper agent — `agents/team-mapper.md`
+- [x] **Step 8:** Create mapper agent — `agents/team-mapper.md`
   - See [Mapper Agent Spec](#mapper-agent)
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add mapper agent`
