@@ -72,14 +72,14 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - `SKILL.md` — RED → GREEN → REFACTOR process
   - References `jc:test` for test-writing guidance
   - User-invocable as `/jc:test-driven-development`, preloaded into Executor
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add test-driven-development skill`
 
 - [ ] **Step 6:** Create verify-completion skill — `skills/verify-completion/`
   - `SKILL.md` — evidence-based completion verification
   - Extracted from `wc:verify-completion`
   - User-invocable as `/jc:verify-completion`, preloaded into Verifier
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add verify-completion skill`
 
 - [ ] **Step 7:** Update `plugin.json`
@@ -90,92 +90,92 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
 
 - [ ] **Step 8:** Create mapper agent — `agents/team-mapper.md`
   - See [Mapper Agent Spec](#mapper-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add mapper agent`
 
 - [ ] **Step 9:** Create map skill — `skills/map/`
   - See [Map Skill Spec](#map-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add map skill`
 
 ### Research
 
 - [ ] **Step 10:** Create researcher agent — `agents/team-researcher.md`
   - See [Researcher Agent Spec](#researcher-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add researcher agent`
 
 - [ ] **Step 11:** Create research skill — `skills/research/`
   - See [Research Skill Spec](#research-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add research skill`
 
 ### Planning
 
 - [ ] **Step 12:** Create planner agent — `agents/team-planner.md`
   - See [Planner Agent Spec](#planner-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add planner agent`
 
 - [ ] **Step 13:** Create plan skill — `skills/plan/`
   - See [Plan Skill Spec](#plan-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add plan skill`
 
 ### Execution
 
 - [ ] **Step 14:** Create executor agent — `agents/team-executor.md`
   - See [Executor Agent Spec](#executor-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add executor agent`
 
 - [ ] **Step 15:** Create verifier agent — `agents/team-verifier.md`
   - See [Verifier Agent Spec](#verifier-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add verifier agent`
 
 - [ ] **Step 16:** Create reviewer agent — `agents/team-reviewer.md`
   - See [Reviewer Agent Spec](#reviewer-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add reviewer agent`
 
 - [ ] **Step 17:** Create debugger agent — `agents/team-debugger.md`
   - See [Debugger Agent Spec](#debugger-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add debugger agent`
 
 - [ ] **Step 18:** Create debug skill — `skills/debug/`
   - See [Debug Skill Spec](#debug-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add debug skill`
 
 ### Orchestration
 
 - [ ] **Step 19:** Create implement skill — `skills/implement/`
   - See [Implement Skill Spec](#implement-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add implement skill`
 
 - [ ] **Step 20:** Create resume skill — `skills/resume/`
   - See [Resume Skill Spec](#resume-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add resume skill`
 
 - [ ] **Step 21:** Create status skill — `skills/status/`
   - See [Status Skill Spec](#status-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add status skill`
 
 - [ ] **Step 22:** Create cleanup skill — `skills/cleanup/`
   - See [Cleanup Skill Spec](#cleanup-skill)
-  - Use `/wc:author-skill` to create
+  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add cleanup skill`
 
 ### Team Leader
 
 - [ ] **Step 23:** Create team leader agent — `agents/team-leader.md`
   - See [Team Leader Agent Spec](#team-leader-agent)
-  - Use `/wc:author-agent` to create
+  - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add team leader agent`
 
 ### Integration Testing
