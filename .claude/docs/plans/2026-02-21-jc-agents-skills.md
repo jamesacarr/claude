@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T23:53:42Z
+updated: 2026-02-22T23:58:14Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -144,7 +144,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add debugger agent`
 
-- [ ] **Step 18:** Create debug skill — `skills/debug/`
+- [x] **Step 18:** Create debug skill — `skills/debug/` (TDD: RED baseline showed agents debug directly rather than spawning the debugger agent, rationalizing "simple bug doesn't need the scientific method", GREEN fixed with Essential Principle 1 + Anti-Patterns table, audit applied)
   - See [Debug Skill Spec](#debug-skill)
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add debug skill`
