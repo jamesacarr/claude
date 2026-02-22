@@ -61,7 +61,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - See [Plan Schema Spec](#plan-schema-spec)
   - Commit: `docs(jc): define plan document schema`
 
-- [ ] **Step 4:** Create test skill — `skills/test/`
+- [x] **Step 4:** Create test skill — `skills/test/` (TDD: RED baseline showed over-mocking/weak naming, GREEN fixed all core failures, audit applied)
   - `SKILL.md` + `references/testing-anti-patterns.md`
   - Extracted from `wc:tdd` — test quality principles
   - User-invocable as `/jc:test`, preloaded into Executor and Verifier
