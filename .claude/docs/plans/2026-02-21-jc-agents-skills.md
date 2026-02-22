@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T21:19:10Z
+updated: 2026-02-22T21:24:12Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -93,7 +93,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add mapper agent`
 
-- [ ] **Step 9:** Create map skill — `skills/map/`
+- [x] **Step 9:** Create map skill — `skills/map/`
   - See [Map Skill Spec](#map-skill)
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add map skill`
