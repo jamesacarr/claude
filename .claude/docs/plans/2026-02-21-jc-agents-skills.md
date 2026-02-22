@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T22:48:43Z
+updated: 2026-02-22T22:55:05Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -105,7 +105,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add researcher agent`
 
-- [ ] **Step 11:** Create research skill — `skills/research/`
+- [x] **Step 11:** Create research skill — `skills/research/` (TDD: RED baseline showed agents skip task-id confirmation rationalizing it as "internal detail", GREEN fixed with Principle 2 + format validation, audit applied)
   - See [Research Skill Spec](#research-skill)
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add research skill`
