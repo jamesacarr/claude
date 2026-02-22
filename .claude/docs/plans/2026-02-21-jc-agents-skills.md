@@ -134,7 +134,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add verifier agent`
 
-- [ ] **Step 16:** Create reviewer agent — `agents/team-reviewer.md`
+- [x] **Step 16:** Create reviewer agent — `agents/team-reviewer.md`
   - See [Reviewer Agent Spec](#reviewer-agent)
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add reviewer agent`
