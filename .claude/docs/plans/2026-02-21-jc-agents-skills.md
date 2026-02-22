@@ -129,7 +129,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add executor agent`
 
-- [ ] **Step 15:** Create verifier agent — `agents/team-verifier.md`
+- [x] **Step 15:** Create verifier agent — `agents/team-verifier.md`
   - See [Verifier Agent Spec](#verifier-agent)
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add verifier agent`
