@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T22:31:17Z
+updated: 2026-02-22T22:48:43Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -235,7 +235,7 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 | Status skill | Include in v1 | `/jc:status` reports on `.planning/` state without modifying anything |
 | Skill naming | Namespaced (`jc:*`) | `jc:map`, `jc:research`, `jc:plan`, `jc:implement`, `jc:resume`, `jc:debug`, `jc:status`, `jc:cleanup`. Avoids collisions with other plugins |
 | Agent naming | `team-` prefix on all agents except Team Leader | Agents live in a flat `agents/` directory (subdirectories not supported). Prefix ensures team agents group together alphabetically as unrelated agents are added to the plugin. Team Leader already has the prefix naturally |
-| Model preferences | Inherit from parent + optional override | Agents inherit the session model by default. Skills can override per-agent when stakes warrant it (e.g., final verification on Opus). No user-facing config |
+| Model preferences | Inherit from parent + optional override | Agents inherit the session model by default (omit `model` from frontmatter). Skills can override per-agent when stakes warrant it (e.g., final verification on Opus) by setting `model` in frontmatter. No user-facing config |
 | Plan document format | Defined in Step 3 as core contract | Plan schema is consumed by Implement, Resume, Status, Verifier, and Reviewer. Must be stable before any consumers are built |
 | `.planning/` lifecycle | Task-scoped directories + shared codebase map | `.planning/{task-id}/` for each task. `.planning/codebase/` shared across all tasks. Multiple tasks can coexist. `/jc:cleanup` handles removal of completed task directories |
 | Templates | Shared I/O contract + inline formats | One shared doc defines the agent calling convention (Task/Context/Input/Expected Output). Each agent `.md` inlines its own output format. No separate template files |
@@ -245,7 +245,8 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 | Codebase map gate | Hard gate (missing) + soft gate (stale) in Plan skill | Plan skill checks `.planning/codebase/` existence (hard gate → prompt `/jc:map`). If map exists, counts source commits since last map (`git log --oneline <last-map-commit>..HEAD -- ':!.planning/'`). If >50 commits, prompts user to regenerate (soft gate — user decides) |
 | Parallel file conflicts | Planner prevents + pre-flight fallback | Planner must ensure no file overlap within a wave. Implement skill runs a pre-flight check before each wave: parses the "files affected" field from each task in PLAN.md, builds a file-to-task map, and if any file appears in multiple tasks, runs those tasks sequentially instead of in parallel. Deterministic, no runtime heuristics — logs the fallback so the user knows it happened |
 | Git worktrees | Worktree at implementation time only | Research, planning, and codebase mapping run in main tree (documentation only, no source changes). `/jc:implement` commits `.planning/` docs, creates a worktree, and executes there. Team Leader does the same — enters worktree when transitioning from planning to execution. Keeps worktree lifecycle simple and avoids cross-session worktree discovery problems |
-| Reusing existing skills | Preload via agent `skills` field | Subagents can't invoke skills at runtime. Instead, preload relevant skills into agent context at startup via the `skills` field. Avoids duplicating methodology knowledge in agent prompts |
+| Reusing existing skills | Preload via agent `skills` frontmatter field | Subagents can't invoke skills at runtime. Instead, preload relevant skills into agent context at startup via the YAML frontmatter `skills` field (e.g., `skills: [jc:test, jc:test-driven-development]`). Full skill content is injected at startup. Avoids duplicating methodology knowledge in agent prompts |
+| MCP server access | Declare via agent `mcpServers` frontmatter field | Agents that need MCP access (e.g., Context7) declare it in YAML frontmatter `mcpServers` field (e.g., `mcpServers: context7`). This allows explicit `tools` for least-privilege while still granting MCP access. Without `mcpServers`, specifying `tools` would exclude MCP tools |
 | Test vs TDD skills | Split into `jc:test` + `jc:test-driven-development` | Extracted from `wc:tdd` as independent copies. Test quality is a separate concern from TDD process — applicable to verifier, reviewer, and any agent that writes/evaluates tests. `test-driven-development` references `test` for how to write tests, focuses on the RED → GREEN → REFACTOR discipline |
 | Debug/review methodology | Inlined in agent prompts, not preloaded skills | `wc:debug-code` and `wc:audit-code` are orchestrator skills that spawn their own subagents — preloading them gives instructions to spawn agents, not the actual methodology. Only the debugger debugs; only the reviewer reviews. Inline the knowledge directly in the agent `.md` |
 | Verify-completion | Extracted to `jc:verify-completion` | Independent copy from `wc:verify-completion`. Ensures jc plugin works without wc installed (different repos — jc is personal, wc is work) |
@@ -415,9 +416,11 @@ Execution modifies source code. All execution happens in a git worktree to isola
 7. Coordinates executors, verifiers, reviewer, debugger → all in worktree
 8. On completion: worktree branch is ready for user to merge
 
-## Preloaded Skills
+## Preloaded Skills & MCP Servers
 
-Subagents cannot invoke skills at runtime. Instead, relevant skills are preloaded into agent context at startup via the `skills` field in the agent `.md` frontmatter.
+Subagents cannot invoke skills at runtime. Instead, relevant skills are preloaded into agent context at startup via the `skills` YAML frontmatter field. Similarly, MCP server access is granted via the `mcpServers` frontmatter field.
+
+### Skills (via `skills` frontmatter)
 
 | Skill | Preloaded Into | Purpose |
 |-------|---------------|---------|
@@ -429,6 +432,14 @@ Subagents cannot invoke skills at runtime. Instead, relevant skills are preloade
 - **Mapper** — codebase exploration methodology. Only the mapper maps
 - **Debugger** — scientific method investigation approach (from `wc:debug-code`). Only the debugger debugs
 - **Reviewer** — code quality criteria (from `wc:audit-code`). Only the reviewer reviews
+
+### MCP Servers (via `mcpServers` frontmatter)
+
+| MCP Server | Used By | Purpose |
+|-----------|---------|---------|
+| `context7` | Researcher, Planner | Library/API documentation lookup (per user CLAUDE.md: always use Context7 for docs) |
+
+Agents that specify explicit `tools` in frontmatter lose access to MCP tools unless `mcpServers` is also declared. Agents that omit `tools` inherit everything including MCP, but this violates least-privilege. Use `mcpServers` alongside explicit `tools` for best of both.
 
 ---
 
@@ -448,7 +459,7 @@ Subagents cannot invoke skills at runtime. Instead, relevant skills are preloade
 - Includes prescriptive guidance: not just "this is how things are" but "when adding new code, follow this pattern"
 - **Security:** Never quotes contents of `.env`, credential files, private keys, or service account files. Notes their existence only
 - Writes documents directly to `.planning/codebase/` — returns a short confirmation to the orchestrator to minimise context load
-- Tool access: Read, Write, Bash, Grep, Glob
+- Frontmatter `tools`: Read, Write, Bash, Grep, Glob
 - Handles both modes: explicit prompt (subagent) or team context (Agent Team)
 
 ### Researcher Agent
@@ -458,7 +469,8 @@ Subagents cannot invoke skills at runtime. Instead, relevant skills are preloade
 - Accepts a focus area and task description
 - Uses Context7 MCP as primary documentation source (per user CLAUDE.md)
 - Writes structured findings to `.planning/{task-id}/research/{focus-area}.md` (output format defined inline in agent)
-- Tool access: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, Context7 MCP
+- Frontmatter `tools`: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch
+- Frontmatter `mcpServers`: context7
 - Handles both modes: explicit prompt (subagent) or team context (Agent Team)
 
 ### Planner Agent
@@ -500,7 +512,8 @@ Operates in three modes, controlled by the Plan skill:
 
 **Replan mode:** (orthogonal — applies when existing plan has completed tasks) Preserves completed tasks as-is and replans remaining work. Critique loop reviews only the new/changed tasks.
 
-- Tool access: Read, Write, Bash, Glob, Grep, WebFetch, Context7 MCP
+- Frontmatter `tools`: Read, Write, Bash, Glob, Grep, WebFetch
+- Frontmatter `mcpServers`: context7
 
 ### Executor Agent
 
@@ -512,8 +525,8 @@ Operates in three modes, controlled by the Plan skill:
 - Makes small, atomic commits per task
 - Handles deviations: auto-fixes within scope (max 3 attempts), then escalates to caller
 - Reports completion status and any deviations back to caller
-- Tool access: Read, Write, Edit, Bash, Grep, Glob
-- Preloaded skills: `jc:test`, `jc:test-driven-development`
+- Frontmatter `tools`: Read, Write, Edit, Bash, Grep, Glob
+- Frontmatter `skills`: jc:test, jc:test-driven-development
 
 ### Verifier Agent
 
@@ -526,8 +539,8 @@ Operates in three modes, controlled by the Plan skill:
 - Two modes:
   - **Task verification:** Verify a single executor's work → writes `task-{n}-VERIFICATION.md`
   - **Plan verification:** Verify the entire plan's goals → writes `PLAN-VERIFICATION.md`. Must verify every success criterion including NFRs. Flags any criterion it cannot verify with evidence
-- Tool access: Read, Write, Bash, Grep, Glob
-- Preloaded skills: `jc:test`, `jc:verify-completion`
+- Frontmatter `tools`: Read, Write, Bash, Grep, Glob
+- Frontmatter `skills`: jc:test, jc:verify-completion
 
 ### Reviewer Agent
 
@@ -541,7 +554,7 @@ Operates in three modes, controlled by the Plan skill:
   - **Wave review:** Lightweight convention check after a wave completes. Focused on convention adherence from `CONVENTIONS.md`. Writes findings to stdout (not persisted). One fix round per wave max
   - **Plan review:** Full quality review after all waves → writes `PLAN-REVIEW.md`. Cross-references plan success criteria against actual test coverage — flags any criterion without corresponding tests
 - Can request executor revisions via structured feedback (specific file, line, issue, suggestion)
-- Tool access: Read, Write, Bash, Grep, Glob
+- Frontmatter `tools`: Read, Write, Bash, Grep, Glob
 - Review methodology inlined in agent prompt
 
 ### Debugger Agent
@@ -553,7 +566,7 @@ Operates in three modes, controlled by the Plan skill:
 - Forms hypotheses, designs experiments, narrows scope
 - Writes findings to `.planning/{task-id}/debug/{session-id}.md`
 - Returns: root cause, recommended fix, confidence level
-- Tool access: Read, Write, Edit, Bash, Grep, Glob, WebSearch
+- Frontmatter `tools`: Read, Write, Edit, Bash, Grep, Glob, WebSearch
 - Debug methodology inlined in agent prompt
 
 ### Team Leader Agent
