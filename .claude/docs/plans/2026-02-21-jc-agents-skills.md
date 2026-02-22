@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T23:43:12Z
+updated: 2026-02-22T23:53:42Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -139,7 +139,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add reviewer agent`
 
-- [ ] **Step 17:** Create debugger agent — `agents/team-debugger.md`
+- [x] **Step 17:** Create debugger agent — `agents/team-debugger.md`
   - See [Debugger Agent Spec](#debugger-agent)
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add debugger agent`
