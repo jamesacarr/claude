@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T20:35:34Z
+updated: 2026-02-22T21:05:48Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -68,7 +68,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - Use `/wc:author-skill` to create
   - Commit: `feat(jc): add test skill`
 
-- [ ] **Step 5:** Create TDD skill — `skills/test-driven-development/`
+- [x] **Step 5:** Create TDD skill — `skills/test-driven-development/` (TDD: RED baseline showed interleaving rationalization on "obvious" tasks, GREEN fixed with phase boundaries + rationalizations table, audit applied)
   - `SKILL.md` — RED → GREEN → REFACTOR process
   - References `jc:test` for test-writing guidance
   - User-invocable as `/jc:test-driven-development`, preloaded into Executor
