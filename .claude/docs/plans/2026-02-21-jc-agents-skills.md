@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T23:04:51Z
+updated: 2026-02-22T23:43:12Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -177,6 +177,24 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - See [Team Leader Agent Spec](#team-leader-agent)
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add team leader agent`
+
+### Heading Normalisation
+
+- [ ] **Step 23.5:** Normalise agent heading conventions across all agents
+  - All agents MUST follow the canonical heading structure from `/wc:author-agent`:
+    - `## Role`, `## Focus Areas`, `## Constraints`, `## Workflow`, `## Output Format`, `## Success Criteria`
+  - **Specific changes needed:**
+    - **All 6 agents:** Fold `## Confirmation Response` into `## Output Format` (as a subsection or combined)
+    - **planner, verifier, reviewer:** Move `## Modes` content under `## Role` as `### Modes` subsection
+    - **planner, executor, verifier, reviewer:** Move `## Codebase Map Reference` under `## Role` as `### Codebase Map Reference` subsection
+    - **planner, verifier, reviewer:** Convert `## Workflow: X` headings to `### X` subsections under a single `## Workflow`
+    - **verifier, reviewer:** Convert `## Output Format: X` headings to `### X` subsections under a single `## Output Format`
+    - **planner, executor, verifier, reviewer:** Add `## Focus Areas` section (3-6 specific concerns the agent evaluates)
+    - **executor:** Move `## Deviation Handling` under `## Workflow` as `### Deviation Handling`
+    - **reviewer:** Move `## Review Methodology` under `## Workflow` as `### Review Methodology` or under `## Role`
+    - **reviewer:** Move `## Revision Request Format` under `## Output Format` as a subsection
+  - Edit each agent to apply the heading changes, then run `/wc:author-agent` (audit workflow) on every agent to validate the restructured headings. Fix any critical issues before proceeding
+  - Commit: `refactor(jc): normalise agent heading conventions`
 
 ### Integration Testing
 
