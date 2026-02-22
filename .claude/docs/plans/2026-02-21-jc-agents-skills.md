@@ -55,7 +55,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - See [Agent I/O Contract Spec](#agent-io-contract-spec)
   - Commit: `docs(jc): define agent I/O contract`
 
-- [ ] **Step 3:** Define plan document schema — `docs/plan-schema.md`
+- [x] **Step 3:** Define plan document schema — `docs/plan-schema.md`
   - Plan format: frontmatter, task structure, wave definitions, status fields, resume state, NFR section
   - Central contract consumed by Implement, Resume, Status, Verifier, Reviewer
   - See [Plan Schema Spec](#plan-schema-spec)
