@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T21:05:48Z
+updated: 2026-02-22T21:10:41Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -75,7 +75,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add test-driven-development skill`
 
-- [ ] **Step 6:** Create verify-completion skill — `skills/verify-completion/`
+- [x] **Step 6:** Create verify-completion skill — `skills/verify-completion/` (TDD: RED baseline passed all 4 scenarios — agents already good at verification. Skill codifies consistent process/report format. Audit applied)
   - `SKILL.md` — evidence-based completion verification
   - Extracted from `wc:verify-completion`
   - User-invocable as `/jc:verify-completion`, preloaded into Verifier
