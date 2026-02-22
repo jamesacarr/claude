@@ -50,7 +50,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - Empty `.gitkeep` files where needed to preserve structure
   - Commit: `chore(jc): create plugin directory structure`
 
-- [ ] **Step 2:** Define agent I/O contract — `docs/agent-io-contract.md`
+- [x] **Step 2:** Define agent I/O contract — `docs/agent-io-contract.md`
   - Standardised Task/Context/Input/Expected Output structure for all agents
   - See [Agent I/O Contract Spec](#agent-io-contract-spec)
   - Commit: `docs(jc): define agent I/O contract`
