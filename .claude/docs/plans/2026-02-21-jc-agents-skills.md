@@ -45,7 +45,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
 
 ### Foundation
 
-- [ ] **Step 1:** Create directory structure under `plugins/jc/`
+- [x] **Step 1:** Create directory structure under `plugins/jc/`
   - Create `agents/`, `skills/` (with all subdirs per [Directory Structure](#directory-structure)), `docs/`
   - Empty `.gitkeep` files where needed to preserve structure
   - Commit: `chore(jc): create plugin directory structure`
