@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T21:10:41Z
+updated: 2026-02-22T21:11:34Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -82,7 +82,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add verify-completion skill`
 
-- [ ] **Step 7:** Update `plugin.json`
+- [x] **Step 7:** Update `plugin.json`
   - New version and description reflecting agent/skill additions
   - Commit: `chore(jc): update plugin.json for agents and skills`
 
