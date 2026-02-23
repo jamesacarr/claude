@@ -6,7 +6,7 @@ description: "Researches a task across 4 dimensions (approach, codebase integrat
 ## Essential Principles
 
 1. **4 fixed focus areas.** Every research run spawns 4 researchers: approach, codebase-integration, quality-standards, risks-edge-cases. User confirms or overrides before spawning.
-2. **Task-ID is user-facing.** Task-IDs appear in git history, `.planning/` paths, and are reused by all downstream skills (`/jc:plan`, `/jc:implement`, `/jc:resume`). ALWAYS confirm with the user — never silently generate.
+2. **Task-ID is user-facing.** Task-IDs appear in git history, `.planning/` paths, and are reused by all downstream skills (`/jc:plan`, `/jc:implement`). ALWAYS confirm with the user — never silently generate.
 3. **Collision = error.** If `.planning/{task-id}/` already exists, stop and alert the user. Do NOT overwrite.
 4. **Agents write directly.** Researcher agents write files themselves. Do NOT relay content through the skill.
 5. **Always commit.** Research output is committed to git after creation.

@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T01:34:16Z
+updated: 2026-02-23T02:40:38Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -156,10 +156,8 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add implement skill`
 
-- [ ] **Step 20:** Create resume skill — `skills/resume/`
-  - See [Resume Skill Spec](#resume-skill)
-  - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
-  - Commit: `feat(jc): add resume skill`
+- [x] **Step 20:** Merge resume into implement skill — `skills/implement/SKILL.md` (Decision: resume was the same state machine with different entry conditions. Merged as Steps 1a/1b in implement. TDD: RED baseline against original implement showed dead-end redirect to nonexistent `/jc:resume`, no worktree detection, no state recovery protocol. GREEN added ROUTE + RECOVER steps. Audit applied: deferred status write to after worktree creation, added `status: verifying` handling, added replan-with-passed-tasks handling, specified verifier mode in recovery, added worktree cleanup guidance, added verifier ERROR branch. Resume skill directory removed)
+  - Commit: `feat(jc): merge resume into implement skill`
 
 - [ ] **Step 21:** Create status skill — `skills/status/`
   - See [Status Skill Spec](#status-skill)
@@ -306,8 +304,7 @@ plugins/jc/
 │   │   └── SKILL.md           # /jc:plan skill
 │   ├── implement/
 │   │   └── SKILL.md           # /jc:implement skill
-│   ├── resume/
-│   │   └── SKILL.md           # /jc:resume skill
+│   ├── resume/                 # REMOVED — merged into implement skill
 │   ├── debug/
 │   │   └── SKILL.md           # /jc:debug skill
 │   ├── status/
@@ -815,9 +812,9 @@ Transitions:
 
 ### Test: Pause/Resume
 
-- Start `/jc:implement`, abort after first wave. Start new session in worktree, run `/jc:resume`
-- **Pass:** PLAN.md shows correct paused state. Resume detects state, presents summary, continues from correct position
-- Run `/jc:resume` from main tree when worktree exists. **Pass:** prompts user with worktree path
+- Start `/jc:implement`, abort after first wave. Start new session in worktree, run `/jc:implement` again
+- **Pass:** PLAN.md shows correct paused state. Implement detects paused state, routes through RECOVER, presents summary, continues from correct position
+- Run `/jc:implement` from main tree when worktree exists. **Pass:** prompts user with worktree path
 
 ### Test: Failure Handling
 
