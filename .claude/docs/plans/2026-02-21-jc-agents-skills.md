@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T02:40:38Z
+updated: 2026-02-23T02:49:07Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -159,7 +159,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
 - [x] **Step 20:** Merge resume into implement skill — `skills/implement/SKILL.md` (Decision: resume was the same state machine with different entry conditions. Merged as Steps 1a/1b in implement. TDD: RED baseline against original implement showed dead-end redirect to nonexistent `/jc:resume`, no worktree detection, no state recovery protocol. GREEN added ROUTE + RECOVER steps. Audit applied: deferred status write to after worktree creation, added `status: verifying` handling, added replan-with-passed-tasks handling, specified verifier mode in recovery, added worktree cleanup guidance, added verifier ERROR branch. Resume skill directory removed)
   - Commit: `feat(jc): merge resume into implement skill`
 
-- [ ] **Step 21:** Create status skill — `skills/status/`
+- [x] **Step 21:** Create status skill — `skills/status/` (TDD: RED baseline showed agents modify PLAN.md status when asked, rationalizing "it's just a text file, no integrity constraints". GREEN fixed with Essential Principle 1 + Anti-Patterns table. Audit applied: added Quick Start, explicit research file names, git command edge case handling, Unknown phase fallback, empty .planning/ handling, current_task in report)
   - See [Status Skill Spec](#status-skill)
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add status skill`
