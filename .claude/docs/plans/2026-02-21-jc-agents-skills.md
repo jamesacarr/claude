@@ -171,7 +171,7 @@ Both patterns use the same underlying agent `.md` files. Each agent supports bot
 
 ### Team Leader
 
-- [ ] **Step 23:** Create team leader agent — `agents/team-leader.md`
+- [x] **Step 23:** Create team leader agent — `agents/team-leader.md`
   - See [Team Leader Agent Spec](#team-leader-agent)
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add team leader agent`
