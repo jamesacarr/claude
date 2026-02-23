@@ -1,10 +1,10 @@
 {
-  "name": "jimmys-marketplace",
+  "name": "james-plugins",
   "owner": {
-    "name": "Jimmy's Marketplace"
+    "name": "James' Claude Plugins"
   },
   "metadata": {
-    "description": "Marketplace containing curated plugins for the personal use of Jimmy",
+    "description": "Marketplace containing curated plugins for the personal use of James",
     "version": "1.0.0"
   },
   "plugins": [

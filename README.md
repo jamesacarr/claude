@@ -8,7 +8,7 @@ A personal marketplace containing curated plugins for Claude Code.
 .claude-plugin/
   marketplace.json    # Marketplace manifest
 plugins/
-  jc/                 # Jimmy's Claude Toolkit
+  jc/                 # James' Claude Toolkit
     .claude-plugin/
       plugin.json     # Plugin manifest
 ```
@@ -17,7 +17,7 @@ plugins/
 
 | Plugin | Description | Version |
 |--------|-------------|---------|
-| `jc`  | Jimmy's Claude Toolkit | 0.0.1 |
+| `jc`  | James' Claude Toolkit | 0.0.1 |
 
 ## Usage
 
