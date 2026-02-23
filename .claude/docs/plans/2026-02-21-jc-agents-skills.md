@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T02:55:41Z
+updated: 2026-02-23T03:44:31Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -34,10 +34,10 @@ feature: JC Plugin - Agents & Skills
 
 Build a complete agent-based workflow system for the JC (James's Claude Toolkit) plugin. The system supports two invocation patterns:
 
-1. **Skills + Task subagents** — User invokes a skill (e.g., `/jc:research`, `/jc:plan`, `/jc:implement`), which orchestrates subagents via the Task tool
-2. **Agent Team** — A Team Leader agent coordinates the same agents as an Agent Team, with shared context
+1. **Skills + Task subagents** — User invokes a skill (e.g., `/jc:research`, `/jc:plan`, `/jc:implement`), which orchestrates subagents via the Task tool. User orchestrates between skills — skills never invoke other skills
+2. **Agent Team** — A Team Leader agent coordinates teammates (separate Claude Code sessions) via the Agent Teams model. Lead-delegated assignment, peer-to-peer messaging, pipelined execution. Handles the full lifecycle autonomously
 
-Both patterns use the same underlying agent definitions. The user orchestrates between skills — skills never invoke other skills.
+Both patterns use the same underlying agent `.md` files. Each agent supports both Task-tool subagent mode and Agent Team teammate mode.
 
 ---
 
@@ -176,13 +176,28 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-agent` to create this agent.** Do NOT write the agent `.md` file directly — invoke the skill and follow its workflow
   - Commit: `feat(jc): add team leader agent`
 
+### Agent Team Compatibility
+
+- [ ] **Step 23.1:** Add Agent Team behavior to existing agents
+  - Add an `## Agent Team Behavior` section to 5 agents describing how they operate as Agent Team teammates alongside their existing Task-tool subagent behavior
+  - **Planner** — Add collaborative mode: when spawned as Author, draft PLAN.md then message Critic teammate. When spawned as Critic, read plan, write CRITIQUE.md, message Author with objections. Negotiate via messaging until convergence or 3 rounds. Existing plan/critique/revise modes remain for skills workflow
+  - **Verifier** — Add pipelined behavior: pick up tasks as executors complete (don't wait for full wave). Message the specific executor directly with feedback when issues found. Existing return-to-caller behavior remains for skills workflow
+  - **Reviewer** — Add pipelined behavior: pick up tasks as verifier confirms. Message the specific executor directly with feedback when issues found. Existing return-to-caller behavior remains for skills workflow
+  - **Executor** — Add messaging awareness: expect and respond to direct messages from verifier, reviewer, and debugger teammates with feedback/fix requests. Existing return-to-caller behavior remains for skills workflow
+  - **Debugger** — Add messaging awareness: executors may message directly with investigation requests (in addition to being spawned fresh by skill/lead). Existing return-to-caller behavior remains for skills workflow
+  - **Mapper, Researcher** — No changes needed (work independently, write files, same in both modes)
+  - Edit each agent, then run `/wc:author-agent` (audit workflow) to validate changes
+  - Commit: `feat(jc): add agent team behavior to agents`
+
 ### Heading Normalisation
 
-- [ ] **Step 23.5:** Normalise agent heading conventions across all agents
+- [ ] **Step 23.5:** Normalise agent heading conventions across all 8 agents
   - All agents MUST follow the canonical heading structure from `/wc:author-agent`:
     - `## Role`, `## Focus Areas`, `## Constraints`, `## Workflow`, `## Output Format`, `## Success Criteria`
+    - `## Agent Team Behavior` remains as its own top-level section (distinct operating mode, not a workflow sub-step). Applies to planner, executor, verifier, reviewer, debugger (added in Step 23.1)
+    - Team Leader agent has a different structure (lifecycle, coordination model, etc.) — normalise where possible but don't force subagent-style headings onto a lead agent
   - **Specific changes needed:**
-    - **All 6 agents:** Fold `## Confirmation Response` into `## Output Format` (as a subsection or combined)
+    - **mapper, researcher, planner, executor, verifier, reviewer, debugger:** Fold `## Confirmation Response` into `## Output Format` (as a subsection or combined)
     - **planner, verifier, reviewer:** Move `## Modes` content under `## Role` as `### Modes` subsection
     - **planner, executor, verifier, reviewer:** Move `## Codebase Map Reference` under `## Role` as `### Codebase Map Reference` subsection
     - **planner, verifier, reviewer:** Convert `## Workflow: X` headings to `### X` subsections under a single `## Workflow`
@@ -234,7 +249,7 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Team Leader vs Skills | Coexist independently | Skills = subagent orchestration, Team Leader = Agent Team. Same agents, different coordination |
+| Team Leader vs Skills | Coexist independently | Skills = Task tool subagent orchestration, Team Leader = Agent Team with separate sessions, messaging, and lead-delegated coordination. Same underlying agent `.md` files, fundamentally different coordination model |
 | Skill delegation | Eliminated | Skills never invoke other skills. Each skill is self-contained. User orchestrates the workflow (`/jc:map` → `/jc:research` → `/jc:plan` → `/jc:implement`). Skills prompt user to run prerequisites if missing |
 | Summariser | Removed | Planner reads all research docs directly. No separate synthesis step — the Planner needs to deeply understand the research anyway. Avoids information loss from summarization |
 | Researcher count | Always 4 | Every research run spawns 4 researchers with fixed focus areas (approach, codebase integration, quality & standards, risks & edge cases). Keeps the system simple and consistent. Focus areas presented to user before spawning — user can override |
@@ -245,11 +260,11 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 | PROJECT-CONTEXT.md | Eliminated | With the codebase map providing persistent project-wide conventions and the plan containing task-specific guidance, PROJECT-CONTEXT.md was a redundant intermediate layer. Executors read the plan (task-specific instructions) + `STACK.md` and `TESTING.md` from the codebase map (language, framework, test runner). The critique loop ensures the plan contains correct guidance. Removing it simplifies the Planner's job and eliminates a source of inconsistency |
 | Debugger | Include in v1 | Executor escalates to Debugger when auto-fix attempts exhausted |
 | Failure handling | Hard limits + user options | Max 3 retries per loop (executor→verifier→fix). After that, present user with options: skip task, provide guidance, implement manually, or abort execution |
-| Resume skill | Include in v1 | Essential for pause/resume workflow in Implement skill |
+| Resume flow | Merged into implement skill | Resume was the same state machine with different entry conditions. Merged as ROUTE + RECOVER steps in `/jc:implement` (Step 20). No separate `/jc:resume` skill |
 | Verifier agent | Separate from Reviewer | Verifier = "does the work meet spec?", Reviewer = "is the code good?" Different concerns, different cadence. Verifier does not write tests — executors handle that via TDD |
-| Team Leader routing | Smart routing, default to research | Team Leader dynamically decides workflow scope based on task complexity. Skips research only when confident task is small, well-scoped, and in well-understood code. Any ambiguity → research |
+| Team Leader routing | Smart routing + smart resume | Team Leader checks `.planning/` state on startup to determine entry point (skip completed phases). Dynamically decides workflow scope based on task complexity. Skips research only when confident task is small, well-scoped, and in well-understood code. Any ambiguity → research |
 | Status skill | Include in v1 | `/jc:status` reports on `.planning/` state without modifying anything |
-| Skill naming | Namespaced (`jc:*`) | `jc:map`, `jc:research`, `jc:plan`, `jc:implement`, `jc:resume`, `jc:debug`, `jc:status`, `jc:cleanup`. Avoids collisions with other plugins |
+| Skill naming | Namespaced (`jc:*`) | `jc:map`, `jc:research`, `jc:plan`, `jc:implement`, `jc:debug`, `jc:status`, `jc:cleanup`, `jc:test`, `jc:test-driven-development`, `jc:verify-completion`. Avoids collisions with other plugins |
 | Agent naming | `team-` prefix on all agents except Team Leader | Agents live in a flat `agents/` directory (subdirectories not supported). Prefix ensures team agents group together alphabetically as unrelated agents are added to the plugin. Team Leader already has the prefix naturally |
 | Model preferences | Inherit from parent + optional override | Agents inherit the session model by default (omit `model` from frontmatter). Skills can override per-agent when stakes warrant it (e.g., final verification on Opus) by setting `model` in frontmatter. No user-facing config |
 | Plan document format | Defined in Step 3 as core contract | Plan schema is consumed by Implement, Resume, Status, Verifier, and Reviewer. Must be stable before any consumers are built |
@@ -267,10 +282,18 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 | Debug/review methodology | Inlined in agent prompts, not preloaded skills | `wc:debug-code` and `wc:audit-code` are orchestrator skills that spawn their own subagents — preloading them gives instructions to spawn agents, not the actual methodology. Only the debugger debugs; only the reviewer reviews. Inline the knowledge directly in the agent `.md` |
 | Verify-completion | Extracted to `jc:verify-completion` | Independent copy from `wc:verify-completion`. Ensures jc plugin works without wc installed (different repos — jc is personal, wc is work) |
 | Non-functional requirements | Enforced through plan schema + verification chain | Plan schema requires explicit NFR section (security, performance, a11y). Planner surfaces NFRs from research as testable criteria. Verifier verifies all criteria including NFRs. Reviewer checks NFR test coverage gaps |
-| Adversarial plan critique | Always-on critique loop in Plan skill | After Planner produces PLAN.md, a second Planner invocation (critique mode) adversarially reviews the plan for gaps, over/under-engineering, unclear specs, and codebase convention violations. Planner revises based on critique, critic reviews revision. Capped at 1 revision round — unresolved objections after revision are genuine ambiguities that go to the user. Reduces human guidance burden: users confirm approach rather than finding problems. Critique docs written to `.planning/{task-id}/plans/` as audit trail |
+| Adversarial plan critique | Sequential (skills) or collaborative (Team Leader) | **Skills:** Sequential critique loop — Planner produces PLAN.md, second Planner invocation critiques, Planner revises, capped at 1 revision round. **Team Leader:** Two planner teammates (Author + Critic) negotiate via messaging, converge collaboratively. Both approaches cap at 3 rounds of back-and-forth before escalating unresolved objections to the user. CRITIQUE.md written as audit trail in both cases |
 | Plan amendment | Replan mode in Plan skill | When `/jc:plan` detects an existing PLAN.md with completed tasks, it offers two modes: "replace" (start fresh) or "replan" (preserve completed tasks, rewrite remaining). Critique loop runs on replanned portion only — completed tasks are not re-critiqued |
-| Review cadence | Wave + plan level | Lightweight convention check after each wave (catches systematic executor drift early — wrong naming, bad abstractions, misused patterns). Full quality review at plan level after all waves. Wave review is focused: convention adherence and pattern consistency against `CONVENTIONS.md` only — not a deep quality audit. One fix round per wave max to prevent loops |
+| Review cadence | Wave + plan (skills) or pipelined + plan (Team Leader) | **Skills:** Lightweight convention check after each wave, full quality review at plan level. Wave review focused on `CONVENTIONS.md` adherence only. One fix round per wave max. **Team Leader:** Persistent reviewer reviews tasks as they're verified (pipelined, no wave-level checkpoint). Plan-level review at the end for cross-cutting concerns |
 | `.planning/` cleanup | `/jc:cleanup` skill in v1 | `.planning/` directories accumulate as tasks complete. Cleanup skill lists completed tasks, user selects which to remove, commits the removal. Prevents repo noise without automatic deletion |
+| Team Leader coordination | Lead-delegated assignment | Lead explicitly assigns tasks to specific teammates rather than relying on self-claiming task list. Task list used for progress tracking and visibility. Messaging used for coordination and feedback. Prevents greedy-agent problem where one teammate claims all tasks |
+| Team Leader teammate lifecycle | Spawn per phase, selective persistence | Mappers, researchers, planners: spawn for their phase, shut down on completion. Executors: persist through their wave's verification/review cycle (retains context for fixing issues). Verifier + reviewer: persist across all waves (builds cumulative understanding). Debugger: spawned on-demand at first escalation, persists for remainder of execution |
+| Team Leader collaborative planning | Author + Critic via messaging | Two planner teammates negotiate via direct messaging rather than sequential invoke-critique-revise. More natural fit for Agent Teams' messaging model. Lead monitors and escalates if they deadlock after 3 rounds |
+| Team Leader pipelined execution | Verify/review as tasks complete | No wave-level verification checkpoint. Verifier picks up tasks as executors complete them. Reviewer picks up tasks as verifier confirms them. Feedback goes directly to the relevant executor via messaging. Wave boundaries enforce task dependency ordering only |
+| Team Leader debugger lifecycle | On-demand spawn, persist once spawned | Not pre-spawned (wastes tokens idling). Spawned when first executor escalation occurs. Persists for remainder of execution so it's immediately available for subsequent escalations. Executors message it directly |
+| Team Leader overlapped phases | Parallel map refresh + research | When codebase map exists but is stale, lead spawns mappers to refresh while simultaneously spawning researchers (who start with existing map). Planner gets fresh map when it starts. Saves sequential wait |
+| Team Leader smart resume | Single entry point for any state | Lead checks `.planning/` state on startup: map exists → skip map, research exists → skip research, plan exists → skip planning, worktree with partial execution → enter worktree and resume. Same command regardless of where the user left off |
+| Team Leader systematic failure detection | Pause and suggest replan | Lead monitors verification feedback across tasks. If multiple consecutive tasks fail for the same root cause, pauses execution and suggests replanning rather than exhausting per-task retries. Leverages the lead's full lifecycle context — something the skills state machine can't do |
 
 ## Directory Structure
 
@@ -303,8 +326,7 @@ plugins/jc/
 │   ├── plan/
 │   │   └── SKILL.md           # /jc:plan skill
 │   ├── implement/
-│   │   └── SKILL.md           # /jc:implement skill
-│   ├── resume/                 # REMOVED — merged into implement skill
+│   │   └── SKILL.md           # /jc:implement skill (includes resume flow)
 │   ├── debug/
 │   │   └── SKILL.md           # /jc:debug skill
 │   ├── status/
@@ -339,7 +361,7 @@ Produced by `/jc:map`. Shared across all tasks. Referenced by the Planner (for p
 
 Each task gets its own scoped directory under `.planning/{task-id}/`.
 
-**Task ID convention:** The first skill in the chain (typically `/jc:research`) generates the task-id. If a ticket reference is provided (e.g., `WC-123`), that is used directly. Otherwise, a slug is generated from the task description (e.g., `add-auth-button`) and presented to the user for confirmation/override. Subsequent skills reuse the existing task-id by detecting `.planning/{task-id}/` directories. If the generated task-id already exists in `.planning/`, the skill errors and alerts the user — it does not overwrite.
+**Task ID convention:** In the skills workflow, the first skill in the chain (typically `/jc:research`) generates the task-id. In the Team Leader workflow, the lead generates it during ASSESS. If a ticket reference is provided (e.g., `WC-123`), that is used directly. Otherwise, a slug is generated from the task description (e.g., `add-auth-button`) and presented to the user for confirmation/override. Subsequent skills reuse the existing task-id by detecting `.planning/{task-id}/` directories. If the generated task-id already exists in `.planning/`, the skill/lead errors and alerts the user — it does not overwrite.
 
 ```
 .planning/
@@ -398,8 +420,8 @@ Execution modifies source code. All execution happens in a git worktree to isola
 /jc:map       →  main tree  →  writes .planning/codebase/
 /jc:research  →  main tree  →  writes .planning/{task-id}/research/
 /jc:plan      →  main tree  →  writes .planning/{task-id}/plans/
-/jc:implement →  commits .planning/ docs  →  creates worktree  →  executes in worktree
-/jc:resume    →  detects existing worktree  →  resumes execution in worktree
+/jc:implement →  fresh: commits .planning/ docs → creates worktree → executes in worktree
+              →  resume: detects existing worktree/paused state → resumes execution
 /jc:debug     →  runs in current tree (main or worktree, depending on context)
 /jc:status    →  main tree  →  reads .planning/ (read-only)
 ```
@@ -413,23 +435,25 @@ Execution modifies source code. All execution happens in a git worktree to isola
 5. Execute plan (waves, verification, review)
 6. On completion: worktree branch is ready for user to merge back to main
 
-### Resume skill worktree flow
+### Implement skill resume worktree flow
+
+Resume is handled by `/jc:implement`'s ROUTE + RECOVER steps (merged in Step 20):
 
 1. Check if session is already in a worktree → if yes, proceed with execution
 2. If in main tree: look for existing worktree via `git worktree list` matching `{task-id}`
-3. If worktree found: **prompt user** to start their session in the worktree (`claude --cwd <worktree-path>`) then re-run `/jc:resume`
-4. If no worktree found: something went wrong — prompt user to run `/jc:implement` instead
+3. If worktree found: **prompt user** to start their session in the worktree (`claude --cwd <worktree-path>`) then re-run `/jc:implement`
+4. If no worktree found and PLAN.md has paused state: something went wrong — re-enter WORKTREE state
 
 ### Team Leader worktree flow
 
-1. Team Leader starts in main tree
-2. Checks for codebase map in `.planning/codebase/` — if missing or stale, coordinates mapper agents first
-3. Coordinates researchers → write to `.planning/{task-id}/` in main tree
-4. Coordinates planner → writes plan to `.planning/{task-id}/` in main tree
-5. Commits `.planning/` docs
-6. Calls `EnterWorktree` → session switches to worktree
-7. Coordinates executors, verifiers, reviewer, debugger → all in worktree
-8. On completion: worktree branch is ready for user to merge
+1. Lead starts in main tree (or detects existing worktree on resume)
+2. Pre-execution phases (map, research, plan) run in main tree — all teammates write to `.planning/`
+3. All pre-execution teammates shut down before worktree transition
+4. Lead commits `.planning/` docs to current branch
+5. Lead calls `EnterWorktree` → session switches to worktree
+6. Execution-phase teammates (executors, verifier, reviewer, debugger) spawned after worktree switch — they inherit the worktree cwd
+7. On completion: worktree branch is ready for user to merge
+8. On resume: lead detects worktree via `git worktree list`, enters it, spawns fresh execution teammates to continue from current PLAN.md state
 
 ## Preloaded Skills & MCP Servers
 
@@ -492,7 +516,7 @@ Agents that specify explicit `tools` in frontmatter lose access to MCP tools unl
 
 **File:** `agents/team-planner.md`
 
-Operates in three modes, controlled by the Plan skill:
+Operates in four modes. Plan, critique, and revise modes are controlled by the Plan skill (sequential invocations). Collaborative mode is used by the Team Leader (two planner teammates negotiate via messaging).
 
 **Plan mode:**
 - Combines roadmapping (phase breakdown, dependency mapping, success criteria) with detailed task planning (task decomposition, verification steps, execution waves)
@@ -525,10 +549,18 @@ Operates in three modes, controlled by the Plan skill:
 - Addresses each objection: accepts and revises, or explicitly rebuts with reasoning
 - Writes revised plan to `.planning/{task-id}/plans/PLAN.md` (overwrites)
 
+**Collaborative mode (Agent Team only):**
+- Used when two planner teammates are spawned by the Team Leader as Author and Critic
+- **As Author:** Drafts PLAN.md, messages Critic teammate for review. Receives objections via messaging, revises plan, messages Critic to re-review. Continues until convergence or lead intervenes (3 rounds max)
+- **As Critic:** Reads Author's PLAN.md, writes CRITIQUE.md, messages Author with specific objections. Re-reviews revisions, signs off when satisfied or escalates unresolved objections
+- Same planning and critique standards as plan/critique modes — collaborative mode changes the coordination mechanism, not the quality bar
+- Both Author and Critic write to `.planning/{task-id}/plans/` (same artifacts as sequential modes)
+
 **Replan mode:** (orthogonal — applies when existing plan has completed tasks) Preserves completed tasks as-is and replans remaining work. Critique loop reviews only the new/changed tasks.
 
 - Frontmatter `tools`: Read, Write, Bash, Glob, Grep, WebFetch
 - Frontmatter `mcpServers`: context7
+- Handles both modes: explicit prompt with mode parameter (subagent) or collaborative Author/Critic via messaging (Agent Team)
 
 ### Executor Agent
 
@@ -542,6 +574,7 @@ Operates in three modes, controlled by the Plan skill:
 - Reports completion status and any deviations back to caller
 - Frontmatter `tools`: Read, Write, Edit, Bash, Grep, Glob
 - Frontmatter `skills`: jc:test, jc:test-driven-development
+- Handles both modes: receives task from caller (subagent) or receives task assignment + direct feedback from verifier/reviewer/debugger via messaging (Agent Team)
 
 ### Verifier Agent
 
@@ -556,6 +589,7 @@ Operates in three modes, controlled by the Plan skill:
   - **Plan verification:** Verify the entire plan's goals → writes `PLAN-VERIFICATION.md`. Must verify every success criterion including NFRs. Flags any criterion it cannot verify with evidence
 - Frontmatter `tools`: Read, Write, Bash, Grep, Glob
 - Frontmatter `skills`: jc:test, jc:verify-completion
+- Handles both modes: invoked per-task by caller (subagent) or persistent across waves, picks up tasks as executors complete, messages executors directly with feedback (Agent Team)
 
 ### Reviewer Agent
 
@@ -571,6 +605,7 @@ Operates in three modes, controlled by the Plan skill:
 - Can request executor revisions via structured feedback (specific file, line, issue, suggestion)
 - Frontmatter `tools`: Read, Write, Bash, Grep, Glob
 - Review methodology inlined in agent prompt
+- Handles both modes: invoked per-wave/plan by caller (subagent) or persistent across waves, reviews tasks as verifier confirms, messages executors directly with feedback (Agent Team)
 
 ### Debugger Agent
 
@@ -583,25 +618,90 @@ Operates in three modes, controlled by the Plan skill:
 - Returns: root cause, recommended fix, confidence level
 - Frontmatter `tools`: Read, Write, Edit, Bash, Grep, Glob, WebSearch
 - Debug methodology inlined in agent prompt
+- Handles both modes: spawned fresh by caller (subagent) or spawned on-demand by lead, receives direct messages from executors, persists for remainder of execution (Agent Team)
 
 ### Team Leader Agent
 
 **File:** `agents/team-leader.md`
 
-- NOT a subagent — used as the entry point for Agent Team coordination
+- **Agent Team lead** — NOT a subagent. The lead session itself, coordinating teammates (separate Claude Code sessions) via the Agent Teams model
 - Accepts: feature description or task to implement
-- Coordinates Mapper, Researcher, Planner, Executor, Verifier, Reviewer, Debugger as team members
-- **Codebase map awareness:** Checks `.planning/codebase/` before starting. If missing, coordinates mapper agents first. If stale (>50 source commits), prompts user to regenerate. Reads the full codebase map for routing decisions
-- **Smart routing:** dynamically decides workflow scope based on task assessment:
-  - Evaluates: task description complexity, estimated blast radius, test coverage in affected area, requirement ambiguity
-  - Skip research only when confident task is small, well-scoped, and in well-understood code
-  - **Default to research when unsure**
-  - Transparent about what it skips and why
-- Applies same failure handling as skills: max 3 retries per loop, then escalates to user
-- Manages information flow between agents (shares context rather than passing docs)
-- Handles the full lifecycle: (map →) research → plan (with critique loop) → execute → verify/review → debug (if needed)
-- **Worktree transition:** After research and planning, commits `.planning/` docs and calls `EnterWorktree` before coordinating execution agents
+- Coordinates Mapper, Researcher, Planner, Executor, Verifier, Reviewer, Debugger as Agent Team teammates
+- Ensures all teammates write outputs to `.planning/` (same artifacts as skills workflow). Provides task-specific context when spawning teammates alongside doc references
+
+**Smart resume — single entry point for any state:**
+- On startup, checks `.planning/` state to determine entry point:
+  - No codebase map → start at ASSESS/MAP
+  - Codebase map exists, no research → start at RESEARCH
+  - Research exists, no plan → start at PLAN
+  - Plan exists, no worktree → start at WORKTREE
+  - Worktree exists with partial execution → enter worktree, resume at EXECUTE
+  - Everything complete → report completion
+- Same command regardless of whether this is a fresh task or resuming after a session died
+
+**Smart routing:**
+- Evaluates: task description complexity, estimated blast radius, test coverage in affected area, requirement ambiguity
+- Skip research only when confident task is small, well-scoped, and in well-understood code
+- **Default to research when unsure**
+- Transparent about what it skips and why
+
+**Codebase map awareness:**
+- Checks `.planning/codebase/` before starting. If missing, coordinates mapper teammates first
+- If stale (>50 source commits): can overlap map refresh with research (researchers start with existing map, planner gets fresh map)
+- Reads the full codebase map for routing decisions
+
+**Teammate lifecycle:**
+
+```
+ASSESS        Lead only: check .planning/ state, evaluate task, determine entry point.
+              Generate task-id (slug from description, or ticket ref). Confirm with
+              user. Error if .planning/{task-id}/ already exists
+MAP           If needed: spawn 4 mapper teammates → assigns focus areas → complete → shut down
+RESEARCH      Spawn 4 researcher teammates → assigns focus areas → complete → shut down
+              (can overlap with map refresh if map is stale-but-exists)
+PLAN          Spawn 2 planner teammates (Author + Critic) → they negotiate via
+              messaging → converge or escalate after 3 rounds → shut down
+WORKTREE      Commit .planning/ docs, enter worktree
+EXECUTE       Per wave:
+                Pre-flight file overlap check (same as implement skill): parse
+                  "files affected" per task, if overlap → assign those tasks
+                  sequentially instead of in parallel, log the fallback
+                Spawn N executor teammates → lead assigns 1 task each
+                Spawn persistent verifier + persistent reviewer (first wave only)
+                Pipelined: verifier picks up tasks as executors complete,
+                  reviewer picks up tasks as verifier confirms,
+                  feedback goes directly executor ↔ verifier/reviewer via messaging
+                Debugger spawned on first escalation, persists after that
+                Wave boundaries enforce task dependency ordering only
+                Executors shut down after wave is fully verified/reviewed
+              Verifier + reviewer persist across all waves
+FINAL         Verifier: plan-level verification
+              Reviewer: plan-level review (cross-cutting concerns)
+              → shut down all remaining teammates
+```
+
+**Coordination model:**
+- **Lead-delegated assignment:** Lead explicitly assigns tasks to specific teammates (not self-claiming task list). Prevents greedy-agent problem
+- **Task list for tracking:** Tasks created for progress visibility, lead updates task status
+- **PLAN.md status tracking:** Lead owns all PLAN.md status updates (task status, wave status, plan status, pause state). Teammates report completion/failure to lead via messaging; lead writes the status. Keeps status logic out of individual agents and ensures consistency
+- **Peer-to-peer messaging for feedback:** Verifier ↔ executor, reviewer ↔ executor, planner Author ↔ Critic communicate directly. Lead monitors but does not relay
+- **Lead intervenes on:** retry limit hit (3 attempts), teammate deadlock, escalation to user, phase transitions, teammate lifecycle (spawn/shutdown)
+
+**Failure handling:**
+- Max 3 retries per executor ↔ verifier loop. After that, lead escalates to user with options: skip task, provide guidance, implement manually, or abort
+- If downstream tasks depend on a skipped task, lead flags them immediately
+- **Systematic failure detection:** Lead monitors verification feedback across tasks. If multiple consecutive tasks fail for the same underlying reason (e.g., wrong API assumption, missing dependency, incorrect interface), the lead pauses execution and suggests replanning rather than grinding through per-task retries. Presents the pattern to the user with options: replan remaining tasks, provide guidance on the root issue, or continue as-is
 - Writes status updates to `.planning/{task-id}/plans/PLAN.md` for resume capability
+
+**Collaborative planning:**
+1. Lead spawns two planner teammates: Author and Critic
+2. Author drafts PLAN.md, messages Critic
+3. Critic reads plan, writes CRITIQUE.md, messages Author with objections
+4. Author revises, messages Critic to re-review
+5. They converge (Critic signs off) — or after 3 rounds, lead escalates unresolved objections to the user
+6. Both planners shut down
+
+- Frontmatter: no explicit `tools` (lead needs full access for lifecycle management)
 
 ---
 
@@ -747,19 +847,9 @@ Transitions:
 - **Implement manually** — mark as `manual`, user fixes it, then `/jc:resume`
 - **Abort execution** — save state, worktree persists, user can `/jc:resume` later
 
-### Resume Skill
+### Resume Flow (merged into Implement Skill)
 
-**File:** `skills/resume/SKILL.md`
-
-- Checks worktree state:
-  - Already in the task's worktree → proceed
-  - In main tree and worktree exists → prompt user to start session in worktree and re-run
-  - No worktree found → prompt user to run `/jc:implement` instead
-- Reads PLAN.md to determine current state
-- Identifies completed, in-progress, and remaining tasks
-- Handles partially-updated PLAN.md: `in_progress` tasks with no verification report → re-execute
-- Presents status summary, asks for confirmation to continue
-- Executes remaining work using the same state machine as Implement (from WAVE_START onward)
+Resume was merged into `/jc:implement` in Step 20. See the Implement Skill's ROUTE + RECOVER steps and [Implement skill resume worktree flow](#implement-skill-resume-worktree-flow) for details.
 
 ### Status Skill
 
@@ -845,8 +935,16 @@ Transitions:
 
 ### Test: Team Leader
 
-- Give Team Leader a small feature task on a repo with existing codebase map
-- **Pass:** Team Leader checks map freshness, coordinates research → plan (with critique) → commits `.planning/` → creates worktree → executes → verifies → reviews. PLAN.md reflects final state
+- **Fresh task:** Give Team Leader a small feature task on a repo with existing codebase map
+  - **Pass:** Lead checks map freshness, spawns researcher teammates (4 parallel), spawns planner teammates (Author + Critic, negotiate via messaging), commits `.planning/`, enters worktree, spawns executor + verifier + reviewer teammates, pipelined execution, PLAN.md reflects final state. All outputs in `.planning/` match skills workflow artifacts
+- **Smart resume:** Start Team Leader on a task that already has research + plan in `.planning/`
+  - **Pass:** Lead skips map/research/plan phases, enters worktree, resumes execution from current PLAN.md state
+- **Collaborative planning:** Verify Author and Critic planner teammates negotiate via messaging
+  - **Pass:** Both PLAN.md and CRITIQUE.md written, messages exchanged between planners (not relayed through lead)
+- **Pipelined execution:** Verify verifier picks up tasks as executors complete (not waiting for full wave)
+  - **Pass:** Verifier starts work before all executors in the wave have finished
+- **Lead-delegated assignment:** Verify lead assigns tasks explicitly to specific executors
+  - **Pass:** Each executor receives exactly 1 task, no self-claiming race conditions
 
 ---
 
@@ -856,7 +954,7 @@ Transitions:
 - **Agent prompt quality:** The effectiveness of this system hinges entirely on how well the agent `.md` files are written. Plan for iteration
 - **Plan document schema stability:** The plan schema is consumed by 5 different consumers (Implement, Resume, Status, Verifier, Reviewer). Changes to the schema require updating all consumers. Get it right in Step 3
 - **Error cascading:** If a researcher produces poor output, it cascades through planner → executor. Each agent needs to flag uncertainty rather than propagate garbage. The 3-retry limit with user escalation provides a safety net but doesn't prevent bad research from reaching the planner
-- **Resume state consistency:** If the Implement skill crashes mid-update to `PLAN.md`, the plan doc could be in an inconsistent state. The Resume skill handles this by treating `in_progress` tasks with no verification report as needing re-execution
+- **Resume state consistency:** If the Implement skill crashes mid-update to `PLAN.md`, the plan doc could be in an inconsistent state. The implement skill's resume flow handles this by treating `in_progress` tasks with no verification report as needing re-execution
 - **Worktree cross-session resume:** When a session ends mid-implementation, the worktree persists but the new session starts in the main tree. `/jc:resume` can detect the worktree but can't switch into it — it must prompt the user to start their session in the worktree directory. UX friction but unavoidable with current tooling
 - **Replan state preservation:** When replanning mid-implementation, the Planner must correctly identify which completed tasks are still valid. Conservative approach: only preserve tasks explicitly marked `passed`
 - **Codebase map staleness:** The commit-count threshold (50) is a rough proxy. For v1, the threshold is a simple heuristic. User can skip regeneration or run `/jc:map` manually. Can be tuned based on real usage
@@ -865,3 +963,9 @@ Transitions:
 - **Critique mode pedantry:** The critic must distinguish between genuine gaps and stylistic preferences. Safeguards: (1) every objection must be backed by evidence, (2) the bar is "would an executor get stuck, build the wrong thing, produce inconsistent code, or fail verification?" If no, it's not an objection. Test 29 specifically validates this calibration
 - **Wave review cost vs value:** Wave review adds a Reviewer invocation after each wave. Mitigated by keeping it lightweight (convention check only). Acceptable insurance against systematic drift
 - **Greenfield map accuracy:** Prescriptive docs from user input depend on the user knowing what they want upfront. `/jc:map` is cheap to re-run and staleness check will catch drift
+- **Agent Teams experimental status:** Agent Teams requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. The feature may change or have rough edges. The Team Leader is designed to degrade gracefully — if Agent Teams proves unreliable, the skills workflow covers the same lifecycle
+- **Agent Teams token cost:** Each teammate is a separate Claude Code session with its own context window. A full Team Leader run spawns 10+ teammates across phases. Token usage will be significantly higher than the skills workflow. Spawn-per-phase lifecycle mitigates by limiting concurrent sessions
+- **Worktree propagation to teammates:** Design assumes teammates spawned after `EnterWorktree` inherit the lead's cwd. If this doesn't hold, the lead would need to explicitly pass the worktree path to execution teammates. Needs validation in Step 33
+- **Teammate messaging reliability:** The pipelined execution model depends on verifier ↔ executor and reviewer ↔ executor messaging working reliably. If messages are dropped or delayed, the pipeline stalls. The lead monitors for stalls and intervenes
+- **Collaborative planning convergence:** Two planner teammates might not converge — they could agree too easily (rubber-stamping) or deadlock on subjective preferences. The 3-round cap with user escalation prevents infinite loops. Real-world testing in Step 33 will calibrate whether the Author/Critic dynamic produces better plans than sequential critique
+- **Systematic failure detection accuracy:** The lead's detection of "same root cause across tasks" is a fuzzy heuristic, not a precise rule. Risk of false positives (pausing execution when failures are actually unrelated) and false negatives (missing a pattern). Left as a general instruction rather than a rigid algorithm — real-world testing will show if it needs tightening
