@@ -37,13 +37,19 @@ Check `.planning/codebase/` for the 6 expected files: `STACK.md`, `INTEGRATIONS.
 
 **If missing entirely:** Report "Codebase map: Not found. Run `/jc:map` to create."
 
-**If exists:** Count source commits since last map update:
+**If exists:** Count source commits since last map update — run as two separate Bash tool calls (no variable interpolation):
 
+1. Get the commit that last modified the codebase map:
 ```bash
-git log --oneline "$(git log -1 --format=%H -- .planning/codebase/)..HEAD" -- . ':!.planning/' | wc -l
+git log -1 --format=%H -- .planning/codebase/
 ```
 
-If the inner `git log -1` returns empty (codebase map never committed), report commit count as "unknown".
+2. If step 1 returned a commit hash, count source commits since then (paste the hash literally):
+```bash
+git log --oneline <paste-hash-here>..HEAD -- . ':!.planning/' | wc -l
+```
+
+If step 1 returned empty (codebase map never committed), report commit count as "unknown".
 
 Report: exists, number of commits since last map, list any of the 6 files that are missing.
 

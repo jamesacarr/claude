@@ -45,16 +45,19 @@ If exactly one task directory exists, use that task-id. If multiple exist, prese
 | **Stale** | >50 source commits since last map (heuristic for significant drift) | **Soft prompt.** AskUserQuestion: "regenerate map?" or "proceed with current map" |
 | **Recent** | ≤50 source commits since last map | Proceed |
 
-Staleness check:
+Staleness check — run as two separate Bash tool calls (no variable interpolation):
 
+1. Get the commit that last modified the codebase map:
 ```bash
-# Get the commit that last modified .planning/codebase/
-last_map_commit=$(git log -1 --format=%H -- .planning/codebase/)
-# Count source commits since then (excluding .planning/ changes)
-git log --oneline "$last_map_commit"..HEAD -- . ':!.planning/' | wc -l
+git log -1 --format=%H -- .planning/codebase/
 ```
 
-If `last_map_commit` is empty (map exists but not committed), treat as stale.
+2. If step 1 returned a commit hash, count source commits since then (paste the hash literally):
+```bash
+git log --oneline <paste-hash-here>..HEAD -- . ':!.planning/' | wc -l
+```
+
+If step 1 returned empty (map exists but not committed), treat as stale.
 
 ### Step 3: Research Gate
 
