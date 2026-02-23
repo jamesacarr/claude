@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T18:32:03Z
+updated: 2026-02-23T18:37:27Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -234,7 +234,7 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 - [x] **Step 30:** Test wave review — convention check after wave, fix round if needed (REVISE PASS: spawned reviewer in wave mode against 2 convention-violating files — returned REVISE with 8 findings (5 blocking, 3 suggestions). All planted violations caught: agent naming (PascalCase, no `team-` prefix), lowercase headings, missing `tools` frontmatter, skill camelCase directory, missing `description` frontmatter, missing required sections. Each finding references CONVENTIONS.md sections with line numbers. PASS path PASS: spawned reviewer against canonical files (`team-executor.md`, `implement/SKILL.md`) — returned PASS with "No convention violations found", verified all 12 convention dimensions per file. Implement skill spec verified: Step 6 correctly collects files, spawns reviewer with I/O contract fields, handles PASS/REVISE. REVISE→fix flow verified: 1 fix round max, re-review scoped to previously-blocking items only (prevents infinite loops), escalation to user if still failing. Test fixtures cleaned up)
   - See [Test: Wave Review](#test-wave-review)
 
-- [ ] **Step 31:** Test status and cleanup skills
+- [x] **Step 31:** Test status and cleanup skills (Status PASS: 7 task directories across all phases correctly identified — Executing with wave/task progress, Paused with reason, Planned, Research complete, Research incomplete with missing file list, Unknown, Completed with verification/review existence. Codebase map reported with 7 commits since last map, all 6 files present. No files modified. Cleanup PASS: scanned 7 directories, excluded `codebase/`, determined correct status labels, presented multiSelect — user selected test-completed + test-unknown, only those removed, deletions verified. Commit step structurally correct but skipped since fixtures were untracked. Finding: AskUserQuestion 4-option max required splitting 7 directories across 2 questions — acceptable UX but skill could note this limitation)
   - See [Test: Status & Cleanup](#test-status--cleanup)
 
 - [ ] **Step 32:** Test debug skill — known bug, root cause identification
