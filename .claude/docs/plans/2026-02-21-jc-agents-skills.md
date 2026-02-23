@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T15:55:53Z
+updated: 2026-02-23T17:55:32Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -222,7 +222,7 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 - [x] **Step 26:** Test end-to-end skill workflow — `/jc:map` → `/jc:research` → `/jc:plan` → `/jc:implement` (E2E PASS: task "validate-agents" — map spawned 4 mappers producing 6 files, research spawned 4 researchers producing 4 docs, plan passed critique loop with 1 revision round (4 unresolved objections carried to execution — all addressed by executors), implement created worktree, 2 waves executed (3 tasks total, all passed), wave reviews both PASS, plan verification PASS, plan review PASS, PLAN.md status=completed. Findings: (1) EnterWorktree branches from old HEAD requiring merge to get .planning/ files — implement skill should handle this, (2) skill Step 1 routes `status: planning` with no passed tasks as error but that's the normal fresh-plan state, (3) staleness check $() subshell commands caused permission prompts — fixed in separate commit. Worktree branch `worktree-validate-agents` preserved as test evidence)
   - See [Test: E2E Workflow](#test-e2e-workflow)
 
-- [ ] **Step 27:** Test pause/resume flow — abort mid-wave, resume from worktree
+- [x] **Step 27:** Test pause/resume flow — abort mid-wave, resume from worktree (ROUTE detection PASS: created synthetic paused PLAN.md (status: paused, wave 1 completed, wave 2 pending, pause_reason set) with verification reports for wave 1 tasks. Invoked `/jc:implement test-pause-resume` from validate-agents worktree — skill correctly detected "different worktree" and stopped with message to switch. Created test-pause-resume worktree manually, re-invoked — skill correctly detected worktree exists via `git worktree list`, included target path in message (`claude --cwd {path}`). RECOVER walkthrough PASS: manually walked RECOVER logic against paused state — correctly produces summary (2 passed, 2 pending, resume Wave 2 Task 2.1). `in_progress` recovery PASS: modified PLAN.md to `status: executing` with Task 2.1 `in_progress` and no verification report — RECOVER correctly requires spawning verifier first (verify-before-re-execute principle), preserves retry counter. "Main tree, worktree exists" PASS: verified `git worktree list` from main repo shows test-pause-resume worktree with full path — ROUTE would match "In main tree, worktree exists" and prompt with path. Could not test full RECOVER→execution flow from correct worktree due to EnterWorktree limitation (can't nest worktree sessions). Finding: ROUTE table "different worktree" row doesn't specify including target worktree path if it exists — skill inferred this correctly but the template could be explicit. Test fixtures cleaned up: worktree removed, branch deleted, fixture commit reverted)
   - See [Test: Pause/Resume](#test-pauseresume)
 
 - [ ] **Step 28:** Test failure handling — retry exhaustion, escalation options, skip with dependents
