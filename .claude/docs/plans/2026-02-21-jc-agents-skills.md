@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T02:49:07Z
+updated: 2026-02-23T02:55:41Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -164,7 +164,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add status skill`
 
-- [ ] **Step 22:** Create cleanup skill — `skills/cleanup/`
+- [x] **Step 22:** Create cleanup skill — `skills/cleanup/` (TDD: RED baseline showed agents skip multiSelect confirmation when user expresses urgency ("just do it"), rationalizing "Adding confirmation is sycophantic friction". GREEN fixed with Essential Principle 1 + Anti-Patterns table. Audit applied: description scope fix, directory-only ls, rm -rf error handling, Related Skills section)
   - See [Cleanup Skill Spec](#cleanup-skill)
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add cleanup skill`
