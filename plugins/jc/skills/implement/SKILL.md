@@ -173,16 +173,17 @@ d. **Verify** — Spawn `team-verifier` (`subagent_type: "team-verifier"`, mode:
 4. Re-spawn executor with previous failure context appended:
    - Add to Input: `- Previous failure: {failure description from verifier/executor}`
    - Add to Input: `- Retry attempt: {n} of 3`
-5. Return to verification in Step 3d
+5. Parse executor result at Step 3c (if FAIL and retries ≥ 3 → Step 5, otherwise proceed to verification at Step 3d)
 
 ### Step 5: TASK_ESCALATE
 
-Present via AskUserQuestion with these options:
+1. Update PLAN.md: task status → `failed`, `updated: <timestamp>`
+2. Present via AskUserQuestion with these options:
 
 | Option | Label | Action |
 |--------|-------|--------|
 | 1 | **Skip task** | Mark task `skipped`. Check if downstream tasks (later waves) reference any of this task's "Files affected". If so, warn: `"Tasks {list} may be affected by skipping {n.m}"` |
-| 2 | **Provide guidance** | User enters guidance text. Reset retry counter to 0. Re-execute with guidance appended to Input |
+| 2 | **Provide guidance** | User enters guidance text. Update task: status → `in_progress`, retry counter → 0. Re-execute with guidance appended to Input |
 | 3 | **Implement manually** | Mark task `manual`. Inform user to make changes, then re-run `/jc:implement {task-id}` to resume |
 | 4 | **Abort execution** | Update PLAN.md: `status: paused`, `pause_reason: "user abort after task {n.m} escalation"`. Stop execution. Worktree persists — re-run `/jc:implement {task-id}` to resume |
 
