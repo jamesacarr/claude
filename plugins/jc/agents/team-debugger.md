@@ -154,7 +154,7 @@ Written to `.planning/{task-id}/debug/{session-id}.md`:
 {high | medium | low} — {justification}
 ```
 
-## Confirmation Response
+### Confirmation Response
 
 On success (root cause found):
 

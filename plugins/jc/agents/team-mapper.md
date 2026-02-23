@@ -248,7 +248,7 @@ Values are never shown — names and purposes only.
 <What to watch out for when making changes, common mistakes to avoid>
 ```
 
-## Confirmation Response
+### Confirmation Response
 
 After writing all files for your focus area, return:
 

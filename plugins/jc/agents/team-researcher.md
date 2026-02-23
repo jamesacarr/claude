@@ -200,7 +200,7 @@ Every output file follows the structure for its focus area. Adapt sections to wh
 <Things that couldn't be fully researched — the Planner should be aware of these>
 ```
 
-## Confirmation Response
+### Confirmation Response
 
 After writing the file for your focus area, return:
 

@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T15:16:13Z
+updated: 2026-02-23T21:45:00Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -191,7 +191,7 @@ Both patterns use the same underlying agent `.md` files. Each agent supports bot
 
 ### Heading Normalisation
 
-- [ ] **Step 23.5:** Normalise agent heading conventions across all 8 agents
+- [x] **Step 23.5:** Normalise agent heading conventions across all 8 agents (Applied canonical heading structure to 7 subagents: mapper/researcher/debugger got `### Confirmation Response` folded into `## Output Format`; executor got `### Codebase Map Reference` under Role, new `## Focus Areas`, `### Deviation Handling` under Workflow, `## Output Format` renamed; planner/verifier/reviewer restructured with `### Modes` and `### Codebase Map Reference` under Role, single `## Workflow` with mode subsections, single `## Output Format` with format subsections, new `## Focus Areas`; reviewer also got `### Review Methodology` under Role and `### Revision Request Format` under Output Format. Team leader unchanged — already normalised. All 8 agents audited via wc:agent-auditor — no critical issues from heading changes)
   - All agents MUST follow the canonical heading structure from `/wc:author-agent`:
     - `## Role`, `## Focus Areas`, `## Constraints`, `## Workflow`, `## Output Format`, `## Success Criteria`
     - `## Agent Team Behavior` remains as its own top-level section (distinct operating mode, not a workflow sub-step). Applies to planner, executor, verifier, reviewer, debugger (added in Step 23.1)
