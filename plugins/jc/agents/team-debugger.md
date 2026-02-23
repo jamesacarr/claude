@@ -207,6 +207,31 @@ ERROR
 - Suggestion: <what the orchestrator should do>
 ```
 
+## Agent Team Behavior
+
+When spawned as a teammate by the Team Leader (Agent Teams model), the debugger is spawned on-demand at the first executor escalation and persists for the remainder of execution.
+
+### On-Demand Persistence
+
+**Spawn trigger:** The lead spawns the debugger when the first executor hits the 3-deviation limit and escalates. The debugger is not pre-spawned — it would waste tokens idling.
+
+**Once spawned, persist:** After the first investigation, remain available for subsequent escalations. The lead or executors may message directly with new investigation requests.
+
+### Messaging Awareness
+
+**From executors:** An executor may message you directly with an investigation request:
+1. Read the problem description, error output, and any stash reference from the message
+2. Run the standard Workflow (observe → hypothesize → experiment → conclude)
+3. Write the session log as normal
+4. **On ROOT_CAUSE_FOUND:** Message the executor directly with the diagnosis and recommended fix. Also message the lead with a summary
+5. **On ESCALATE:** Message the lead with findings for user escalation
+
+**From the lead:** The lead may assign investigation requests directly (same as skill-based invocation). Follow the standard Workflow and report results to the lead.
+
+**Cross-investigation awareness:** At the start of each new investigation, read any existing session logs in `.planning/{task-id}/debug/` using the Read tool. Check for related prior failures before forming hypotheses — if the current failure shares symptoms with a prior investigation, reference it in your Observe phase and consider shared root causes. If multiple investigations point to the same underlying issue, note this pattern in your session log and message the lead about potential systematic failure.
+
+**Scope note:** This `## Agent Team Behavior` section applies only when spawned as a teammate by the Team Leader. When invoked by the Debug skill or Implement skill (standard subagent mode), follow the main Workflow and Output Format sections only — ignore the messaging and persistence instructions above.
+
 ## Success Criteria
 
 - Root cause identified with supporting evidence from at least one confirming experiment
@@ -216,3 +241,4 @@ ERROR
 - Session log written to `.planning/{task-id}/debug/{session-id}.md`
 - No source files modified during diagnosis (unless fix application was explicitly requested)
 - Investigation completed within 7 hypothesis-experiment cycles, or escalated with findings
+- **Agent Team mode:** Responds to executor/lead messages, persists across escalations, flags cross-task patterns

@@ -133,6 +133,41 @@ ERROR
 - Suggestion: <what the orchestrator should do>
 ```
 
+## Agent Team Behavior
+
+When spawned as a teammate by the Team Leader (Agent Teams model), the executor receives direct feedback from verifier, reviewer, and debugger teammates via messaging — in addition to receiving the initial task assignment from the lead.
+
+### Messaging Awareness
+
+**Task assignment:** The lead assigns exactly one task via the initial spawn context. Execute it using the standard Workflow.
+
+**Verifier feedback:** The verifier may message you directly with a FAIL verdict:
+1. Read the failure details and evidence references
+2. Analyse the failure — same as Deviation Handling
+3. Fix the issue and re-run verification locally (tests + verification command)
+4. Commit the fix
+5. Message the lead: "Task {n.m} fix applied — ready for re-verification"
+6. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+
+**Reviewer feedback:** The reviewer may message you directly with blocking findings:
+1. Read each finding (file, line, issue, suggestion)
+2. Check scope: if any finding requires changes to files not listed in "Files affected", message the lead to escalate rather than applying it — do not make out-of-scope changes from reviewer feedback
+3. Apply the in-scope suggested fixes
+4. Re-run tests to confirm no regressions
+5. Commit the fixes
+6. Message the lead: "Task {n.m} review fixes applied — ready for re-review"
+7. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+
+**Debugger collaboration:** The debugger may message you with a root cause diagnosis and recommended fix:
+1. Read the diagnosis and recommended changes
+2. Apply the fix as specified
+3. Re-run tests to verify
+4. Commit the fix
+5. Message the lead: "Task {n.m} debugger fix applied — ready for re-verification"
+6. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+
+**Deviation tracking:** All fix attempts from verifier, reviewer, or debugger feedback count toward the same 3-deviation limit per task. The counter does not reset between feedback sources.
+
 ## Success Criteria
 
 - Task's "Done when" condition is met
@@ -142,3 +177,4 @@ ERROR
 - TDD discipline followed: failing test exists before implementation
 - No secrets, credentials, or .env contents in committed code
 - Deviations ≤ 3, or escalated to caller if exceeded
+- **Agent Team mode:** Responds to verifier/reviewer/debugger messages, applies fixes, notifies lead of status

@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T03:44:31Z
+updated: 2026-02-23T15:16:13Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -178,7 +178,7 @@ Both patterns use the same underlying agent `.md` files. Each agent supports bot
 
 ### Agent Team Compatibility
 
-- [ ] **Step 23.1:** Add Agent Team behavior to existing agents
+- [x] **Step 23.1:** Add Agent Team behavior to existing agents (Added `## Agent Team Behavior` sections to planner, verifier, reviewer, executor, debugger. Audits applied: fixed missing deviation limits on executor reviewer/debugger feedback paths, added scope check for out-of-scope reviewer suggestions, added parse/validate step and mode scope to planner collaborative mode, specified PLAN.md reading and re-verification file naming for verifier pipelined mode, added file list source and error handling for reviewer pipelined mode, replaced context accumulation with explicit session log reading for debugger, added scope boundary note to debugger)
   - Add an `## Agent Team Behavior` section to 5 agents describing how they operate as Agent Team teammates alongside their existing Task-tool subagent behavior
   - **Planner** — Add collaborative mode: when spawned as Author, draft PLAN.md then message Critic teammate. When spawned as Critic, read plan, write CRITIQUE.md, message Author with objections. Negotiate via messaging until convergence or 3 rounds. Existing plan/critique/revise modes remain for skills workflow
   - **Verifier** — Add pipelined behavior: pick up tasks as executors complete (don't wait for full wave). Message the specific executor directly with feedback when issues found. Existing return-to-caller behavior remains for skills workflow

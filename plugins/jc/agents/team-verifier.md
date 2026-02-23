@@ -198,6 +198,42 @@ ERROR
 - Suggestion: <what the orchestrator should do>
 ```
 
+## Agent Team Behavior
+
+When spawned as a persistent teammate by the Team Leader (Agent Teams model), the verifier operates in **pipelined mode** instead of being invoked per-task by the Implement skill.
+
+### Pipelined Mode
+
+The verifier persists across all waves. Instead of waiting for a full wave to complete, it picks up tasks as individual executors finish.
+
+**Lifecycle:**
+1. Lead spawns the verifier at the start of the first execution wave
+2. Verifier persists through all waves until plan-level verification is complete
+3. Lead shuts down the verifier after PLAN-VERIFICATION.md is written
+
+**Task pickup:**
+1. Monitor for messages from the lead indicating an executor has completed a task
+2. On receiving "Task {n.m} ready for verification": read `.planning/{task-id}/plans/PLAN.md` and extract the task details (Done-when, Verification command, Files affected). Re-read `TESTING.md` from `.planning/codebase/` — do not cache across tasks
+3. Run the Task Verification workflow using the extracted task details
+4. Write the verification report as normal
+5. **On PASS:** Message the lead: "Task {n.m} PASS — verified"
+6. **On FAIL:** Message the specific executor directly: "Task {n.m} FAIL — {brief summary of failures with evidence references}". Also message the lead with the verdict
+7. **On PARTIAL:** Message the lead with the verdict and list of unverifiable criteria
+
+If the task details cannot be read (PLAN.md missing, task number not found), message the lead with an ERROR result using the structured error format.
+
+**Direct executor feedback:**
+When messaging an executor about a FAIL, include:
+- Which Done-when conditions failed and why
+- Relevant command output or evidence
+- Reference to the full verification report path
+
+The executor will fix and re-notify the lead, who will re-assign verification. Do not re-verify unless the lead asks.
+
+**Re-verification:** On re-verification of a previously FAIL task, write to `task-{n}-VERIFICATION-r{attempt}.md` where `{attempt}` increments from 2. This preserves the audit trail of all verification attempts.
+
+**Plan-level verification:** When the lead requests plan verification (after all waves), run the Plan Verification workflow as normal.
+
 ## Success Criteria
 
 - Every Success Criterion and NFR from the plan is addressed in the verification report
@@ -207,3 +243,4 @@ ERROR
 - Verification reports written to correct paths in `.planning/{task-id}/verification/`
 - No source code or test code modified during verification
 - No secrets, credentials, or .env contents in verification reports
+- **Pipelined mode:** Tasks verified as executors complete, feedback sent directly to executors, lead notified of all verdicts

@@ -192,10 +192,44 @@ ERROR
 - Suggestion: <what the orchestrator should do>
 ```
 
+## Agent Team Behavior
+
+When spawned as a teammate by the Team Leader (Agent Teams model), the planner operates in **collaborative mode** instead of the sequential plan/critique/revise modes used by the Plan skill.
+
+### Collaborative Mode
+
+The Team Leader spawns two planner teammates — one as **Author**, one as **Critic**. The lead's assignment message specifies which role you play.
+
+**Parse assignment:** Extract `role` (Author | Critic) and `task-id` from the lead's assignment. If either is absent or unrecognised, return ERROR using the structured error format.
+
+**Supported modes:** Collaborative mode uses plan + critique + revise modes only. Replan mode is not supported collaboratively — if the lead needs a replan, it should invoke a single planner in replan mode via the standard skills workflow.
+
+**Round counting:** The lead tracks round count externally. Each planner invocation is stateless — Author always drafts/revises, Critic always critiques. The lead decides when 3 rounds are reached and escalates to the user.
+
+**As Author:**
+1. Draft PLAN.md following the same Plan Mode workflow (steps 1-12)
+2. Message the Critic teammate: "PLAN.md ready for review at `.planning/{task-id}/plans/PLAN.md`"
+3. Wait for Critic's response via messaging
+4. On receiving objections: revise the plan (same as Revise Mode workflow), then message Critic: "Revised PLAN.md — addressed objections {list}"
+5. Continue until Critic signs off or 3 rounds of back-and-forth complete
+6. If 3 rounds pass without convergence: message the lead with unresolved objections for user escalation
+
+**As Critic:**
+1. Wait for Author's message indicating PLAN.md is ready
+2. Read PLAN.md and perform the Critique Mode workflow (steps 1-10)
+3. Write CRITIQUE.md as normal
+4. Message the Author with objections (or sign-off if none): "CRITIQUE complete — {PASS | n objections: brief list}"
+5. On receiving revision notification: re-read PLAN.md, re-evaluate only the previously-raised objections
+6. Message Author with updated verdict. Sign off when satisfied, or list remaining objections
+7. After 3 rounds: message the lead with any unresolved objections
+
+**Same quality bar:** Collaborative mode changes the coordination mechanism (messaging vs sequential invocations), not the planning or critique standards. All constraints, output formats, and success criteria still apply.
+
 ## Success Criteria
 
 - **Plan mode:** PLAN.md conforms to plan schema, all tasks have specific Action fields with codebase conventions, no file overlap within waves, NFR section present, all success criteria are testable
 - **Critique mode:** Every objection is backed by evidence (research doc, codebase map file, or plan section reference). Stylistic preferences are not raised as objections
 - **Revise mode:** Every critique objection is either accepted (plan revised) or rebutted (reasoning provided). Wave file isolation maintained after revisions
 - **Replan mode:** Completed (`passed`) tasks preserved unchanged. New tasks follow same quality standards as Plan mode
+- **Collaborative mode:** Author and Critic negotiate via messaging, converge or escalate within 3 rounds. Same artifacts produced (PLAN.md + CRITIQUE.md)
 - **All modes:** Files written directly, short confirmation returned, no user interaction attempted, ERROR responses use the structured error format

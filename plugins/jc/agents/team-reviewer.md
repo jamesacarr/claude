@@ -225,6 +225,35 @@ ERROR
 - Suggestion: <what the orchestrator should do>
 ```
 
+## Agent Team Behavior
+
+When spawned as a persistent teammate by the Team Leader (Agent Teams model), the reviewer operates in **pipelined mode** instead of being invoked per-wave/plan by the Implement skill.
+
+### Pipelined Mode
+
+The reviewer persists across all waves. Instead of reviewing after each wave completes, it picks up individual tasks as the verifier confirms them.
+
+**Lifecycle:**
+1. Lead spawns the reviewer at the start of the first execution wave
+2. Reviewer persists through all waves until plan-level review is complete
+3. Lead shuts down the reviewer after PLAN-REVIEW.md is written
+
+**Task pickup:**
+1. Monitor for messages from the lead indicating the verifier has confirmed a task
+2. On receiving "Task {n.m} verified — ready for review": read `.planning/{task-id}/plans/PLAN.md` and parse the "Files affected" field for task {n.m} to build the file list. Read `CONVENTIONS.md` from `.planning/codebase/` (re-read per task — do not cache)
+3. Read each file in the file list and apply the full Review Methodology (all quality dimensions), not just the wave-level convention check
+4. **On PASS (no blocking issues):** Message the lead: "Task {n.m} PASS — no blocking issues"
+5. **On REVISE (blocking issues):** Message the specific executor directly with structured findings using the Revision Request Format. Also message the lead: "Task {n.m} REVISE — {count} blocking issues sent to executor"
+
+If the task details cannot be read (PLAN.md missing, task number not found, files not readable), message the lead with an ERROR result using the structured error format from the Confirmation Response section.
+
+**Direct executor feedback:**
+When messaging an executor about blocking issues, include the full structured findings (file, line, issue, suggestion, convention reference). The executor will fix and re-notify the lead. The lead will re-request review for the specific findings — re-evaluate only previously-blocking items per the re-review handling rule.
+
+**No wave-level checkpoint:** In pipelined mode, there is no separate wave review pass. The per-task review replaces it. Wave boundaries are for task dependency ordering only.
+
+**Plan-level review:** When the lead requests plan review (after all waves), run the Plan Review workflow as normal. This catches cross-cutting concerns that per-task review misses.
+
 ## Success Criteria
 
 - Every changed file is reviewed against the applicable quality dimensions
@@ -235,3 +264,4 @@ ERROR
 - Wave review stays lightweight — convention adherence only, no deep analysis
 - No secrets, credentials, or .env contents in review reports
 - Blocking vs suggestion vs observation severity is consistently applied
+- **Pipelined mode:** Tasks reviewed as verifier confirms them, feedback sent directly to executors, lead notified of all verdicts
