@@ -51,7 +51,7 @@ Staleness check:
 # Get the commit that last modified .planning/codebase/
 last_map_commit=$(git log -1 --format=%H -- .planning/codebase/)
 # Count source commits since then (excluding .planning/ changes)
-git log --oneline "$last_map_commit"..HEAD -- ':!.planning/' | wc -l
+git log --oneline "$last_map_commit"..HEAD -- . ':!.planning/' | wc -l
 ```
 
 If `last_map_commit` is empty (map exists but not committed), treat as stale.

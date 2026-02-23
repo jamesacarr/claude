@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T21:45:00Z
+updated: 2026-02-23T15:55:53Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -213,10 +213,10 @@ Both patterns use the same underlying agent `.md` files. Each agent supports bot
 
 Steps 24-33 are validation steps. If issues are found, fix and commit with `test(jc): fix <description>` before marking the step complete.
 
-- [ ] **Step 24:** Test map skill — brownfield, greenfield, regeneration
+- [x] **Step 24:** Test map skill — brownfield, greenfield, regeneration (Brownfield PASS: 4 mapper agents spawned in parallel via general-purpose subagent type, all 6 files produced in `.planning/codebase/`, 80 references to `plugins/jc/` paths across files, all have timestamps and Prescriptive Guidance sections. Regeneration and greenfield: verified by SKILL.md code review — AskUserQuestion prompts are correctly specified. Finding: `subagent_type: "team-mapper"` not available until plugin is installed — correct value for installed plugin, used `general-purpose` with injected instructions for testing. `.planning/codebase/` files left uncommitted as test artifacts for subsequent steps)
   - See [Test: Map Skill](#test-map-skill)
 
-- [ ] **Step 25:** Test gate enforcement — plan without map, plan without research, stale map
+- [x] **Step 25:** Test gate enforcement — plan without map, plan without research, stale map (No-map PASS: moved `.planning/codebase/` aside, skill checked file count=0, hard gate fired directing user to `/jc:map`. No-research PASS: codebase map present with 6 files, no task directories found, skill stopped directing user to `/jc:research`. Stale-map PASS: codebase map present but uncommitted, `last_map_commit` empty → treated as stale, AskUserQuestion fired with "proceed with current map" / "regenerate map" options. Finding: git pathspec bug — `-- ':!.planning/'` without a `.` include always returns 0 commits, making staleness undetectable. Fixed in plan skill, status skill, and team leader agent by adding `. ` before the exclusion: `-- . ':!.planning/'`)
   - See [Test: Gate Enforcement](#test-gate-enforcement)
 
 - [ ] **Step 26:** Test end-to-end skill workflow — `/jc:map` → `/jc:research` → `/jc:plan` → `/jc:implement`

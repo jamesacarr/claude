@@ -40,7 +40,7 @@ Check `.planning/codebase/` for the 6 expected files: `STACK.md`, `INTEGRATIONS.
 **If exists:** Count source commits since last map update:
 
 ```bash
-git log --oneline "$(git log -1 --format=%H -- .planning/codebase/)..HEAD" -- ':!.planning/' | wc -l
+git log --oneline "$(git log -1 --format=%H -- .planning/codebase/)..HEAD" -- . ':!.planning/' | wc -l
 ```
 
 If the inner `git log -1` returns empty (codebase map never committed), report commit count as "unknown".

@@ -178,7 +178,7 @@ On startup, check `.planning/` state and route to the appropriate phase:
 
 **Task recovery:** treat tasks with `status: in_progress` but no verification report as needing re-execution. Reset to `pending`.
 
-**Codebase map staleness:** count source commits since last map commit (`git log --oneline <last-map-commit>..HEAD -- ':!.planning/'`). If >50 commits, prompt user to regenerate (soft gate). Can overlap map refresh with research — researchers start with existing map, planner gets fresh map.
+**Codebase map staleness:** count source commits since last map commit (`git log --oneline <last-map-commit>..HEAD -- . ':!.planning/'`). If >50 commits, prompt user to regenerate (soft gate). Can overlap map refresh with research — researchers start with existing map, planner gets fresh map.
 
 ## Smart Routing
 
