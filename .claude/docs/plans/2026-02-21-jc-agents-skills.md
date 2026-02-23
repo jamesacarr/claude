@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-22T23:58:14Z
+updated: 2026-02-23T01:34:16Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -151,7 +151,7 @@ Both patterns use the same underlying agent definitions. The user orchestrates b
 
 ### Orchestration
 
-- [ ] **Step 19:** Create implement skill — `skills/implement/`
+- [x] **Step 19:** Create implement skill — `skills/implement/` (TDD: RED baseline chose correctly on all 3 scenarios — agents understand orchestration concepts but may execute inconsistently. Skill codifies exact state machine protocol, PLAN.md tracking, and escalation options. GREEN showed consistent step-by-step citations. Audit applied: error handling for git/worktree failures, empty "Files affected" handling, worktree cleanup instruction, description broadened)
   - See [Implement Skill Spec](#implement-skill)
   - **You MUST use `/wc:author-skill` to create this skill.** Do NOT write files directly — invoke the skill and follow its TDD workflow (RED baseline → GREEN → REFACTOR → structural audit)
   - Commit: `feat(jc): add implement skill`
