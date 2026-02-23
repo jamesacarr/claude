@@ -1,6 +1,6 @@
 ---
 created: 2026-02-21T22:47:02Z
-updated: 2026-02-23T18:18:56Z
+updated: 2026-02-23T18:32:03Z
 status: draft
 feature: JC Plugin - Agents & Skills
 ---
@@ -231,7 +231,7 @@ Steps 24-33 are validation steps. If issues are found, fix and commit with `test
 - [x] **Step 29:** Test plan critique loop — weak plan triggers objections, revision addresses them (Initial critique PASS: 5 objections raised against deliberately weak plan — (1) wrong file paths `src/` vs `plugins/jc/` citing CONVENTIONS.md + ARCHITECTURE.md, (2) Wave 1 file overlap on SKILL.md, (3) untestable success criteria + nonexistent `jest` runner citing TESTING.md, (4) wrong agent path `src/agents/executor.md` vs `plugins/jc/agents/team-executor.md`, (5) vague action fields lacking canonical examples. All objections backed by specific codebase map file references and plan task numbers. Revision PASS: all 5 objections accepted — paths corrected, file overlap resolved by moving ref doc to Wave 2, success criteria replaced with 7 testable outcomes, NFR section added with 3 testable criteria from research, action fields now reference canonical examples with exact frontmatter/section specifications. Re-critique PASS: found 4 *new* objections (over-engineering risk unaddressed, debugger YAML insertion ambiguity, verifier agent excluded without justification, no discoverability verification) — none were re-raised originals, proving revision successfully addressed first critique. Both PLAN.md and CRITIQUE.md persisted correctly. Test fixtures cleaned up)
   - See [Test: Critique Loop](#test-critique-loop)
 
-- [ ] **Step 30:** Test wave review — convention check after wave, fix round if needed
+- [x] **Step 30:** Test wave review — convention check after wave, fix round if needed (REVISE PASS: spawned reviewer in wave mode against 2 convention-violating files — returned REVISE with 8 findings (5 blocking, 3 suggestions). All planted violations caught: agent naming (PascalCase, no `team-` prefix), lowercase headings, missing `tools` frontmatter, skill camelCase directory, missing `description` frontmatter, missing required sections. Each finding references CONVENTIONS.md sections with line numbers. PASS path PASS: spawned reviewer against canonical files (`team-executor.md`, `implement/SKILL.md`) — returned PASS with "No convention violations found", verified all 12 convention dimensions per file. Implement skill spec verified: Step 6 correctly collects files, spawns reviewer with I/O contract fields, handles PASS/REVISE. REVISE→fix flow verified: 1 fix round max, re-review scoped to previously-blocking items only (prevents infinite loops), escalation to user if still failing. Test fixtures cleaned up)
   - See [Test: Wave Review](#test-wave-review)
 
 - [ ] **Step 31:** Test status and cleanup skills
