@@ -13,52 +13,58 @@ Every completion claim requires evidence. No exceptions.
 4. **Partial verification is honest.** Report exactly what was proven and by what means. PARTIALLY VERIFIED with an explanation is better than a false VERIFIED.
 5. **Run it yourself.** Never accept another agent's claim that "tests pass" without running them yourself.
 
+## Quick Start
+
+Invoke with `/jc:verify-completion`. Provide or reference a plan/task with explicit success criteria. The skill extracts criteria, delegates evidence collection to a subagent, and presents a summary table.
+
 ## Process
 
 ### Step 1: List Criteria
 
-Extract every success criterion from the plan task. Include NFR criteria if present. If no explicit criteria exist, return UNVERIFIED with "no criteria defined" and escalate.
+Extract every success criterion from the plan task or user request. Include NFR criteria if present. If no explicit criteria exist, return UNVERIFIED with "no criteria defined" and escalate.
 
-### Step 2: Gather Evidence
+### Step 2: Delegate Evidence Collection
 
-For each criterion, run the appropriate verification:
+Spawn a `general-purpose` agent via the Task tool. The agent does ALL evidence gathering — tests, commands, file checks — and returns a structured summary. Main context never sees raw output.
 
-| Evidence Type | When to Use | What to Capture |
-|--------------|-------------|-----------------|
-| Test output | Criterion has corresponding tests | Command run + pass/fail output |
-| Command output | Criterion is about system behavior | Command run + observed result |
-| File verification | Criterion is about file existence/content | Path check + content match |
-| Manual check | Criterion requires runtime observation | Steps taken + observed behavior |
+Agent prompt must include:
 
-Reading code is permitted to evaluate whether a test actually asserts the claimed behavior — it is not permitted as a substitute for running that test.
+1. **The criteria list** from Step 1
+2. **Full methodology inline** (do NOT reference this skill — the agent carries its own instructions):
+   - Evidence over confidence: "tests pass" means run them, "feature works" means demonstrate it. Code review is not verification.
+   - Verify every criterion. Each gets its own evidence entry. No silent skips.
+   - Flag what you can't verify as UNVERIFIED with reason. Never claim VERIFIED from code review alone.
+   - Run it yourself. Never trust another agent's claim without running the check.
+   - Evidence types: test output (run tests, capture pass/fail), command output (run commands, capture result), file verification (check path + content), manual check (steps + observed behavior).
+   - Reading code is permitted to evaluate whether a test asserts the claimed behavior — not as a substitute for running it.
+   - On re-verification: re-run ALL evidence, not just previously failed criteria.
+3. **Return format:**
 
-On re-verification (after a fix): re-run all evidence, not just previously failed criteria. Fixes can introduce regressions.
+```
+## Result
+PASS | PARTIAL | FAIL
 
-### Step 3: Classify Each Criterion
+## Summary
+{n}/{total} criteria verified
 
-| Status | Meaning |
-|--------|---------|
-| VERIFIED | Evidence proves the criterion is met |
-| PARTIALLY VERIFIED | Some aspects proven, others lack evidence. Document what's proven and what's not |
-| UNVERIFIED | Cannot gather evidence with available tools. Document why |
-| FAILED | Evidence shows the criterion is NOT met |
+## Criteria
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| {text} | VERIFIED / PARTIALLY VERIFIED / UNVERIFIED / FAILED | {1-line evidence} |
+```
 
-### Step 4: Write Report
+Classification rules for the agent: VERIFIED = evidence proves criterion met. PARTIALLY VERIFIED = some aspects proven, others lack evidence. UNVERIFIED = cannot gather evidence with available tools. FAILED = evidence shows criterion NOT met.
 
-Report each criterion in this format:
+### Step 3: Present Results
 
-| Criterion | Status | Evidence | Notes |
-|-----------|--------|----------|-------|
-| Description from plan | VERIFIED / PARTIALLY VERIFIED / UNVERIFIED / FAILED | What was run, what was observed | Gaps, caveats, recommendations |
+Present the agent's summary table to the user as-is. Do not add raw test output or command output — the table's Evidence column is sufficient.
 
-**FAILED:** Return to Executor with which criteria failed, what evidence was gathered, what was expected vs. observed.
+**FAILED:** Report which criteria failed using the table. The Evidence column shows what was expected vs observed.
 
-**UNVERIFIED:** Include in report with reason and recommendation. The caller decides whether to accept the risk or address the gap.
+**UNVERIFIED:** Include in report with reason. The caller decides whether to accept the risk.
 
 ## Anti-Patterns
 
-- **Trust-based verification:** "The Executor is reliable, so I'll take their word" — verify it yourself
-- **Code-review-as-evidence:** Reading implementation and concluding it works is not running it
 - **Silent skip:** Omitting a hard-to-verify criterion rather than flagging it as UNVERIFIED
 - **Test-as-proof mismatch:** A passing test that doesn't assert the claimed behavior is not evidence for that criterion
 
@@ -68,4 +74,4 @@ Report each criterion in this format:
 - [ ] Every VERIFIED criterion has concrete evidence (command output, test results)
 - [ ] No criterion is claimed VERIFIED based solely on code review
 - [ ] Unverifiable criteria are flagged as UNVERIFIED with reason
-- [ ] Tests were run by the verifier, not trusted from Executor claims
+- [ ] Tests were run by the delegated agent, not trusted from Executor claims

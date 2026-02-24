@@ -53,7 +53,7 @@ No existing agents are modified. No new agents are created. The skills spawn gen
 
 ### Step 1: Commit plan
 
-- [ ] Commit this plan file to git.
+- [x] Commit this plan file to git.
 
   Commit: `docs(jc): add context pollution reduction plan`
 
@@ -61,7 +61,7 @@ No existing agents are modified. No new agents are created. The skills spawn gen
 
 ### Step 2: Refactor verify-completion skill — delegate evidence collection
 
-- [ ] Modify `skills/verify-completion/SKILL.md` to spawn a generic agent for evidence collection.
+- [x] Modify `skills/verify-completion/SKILL.md` to spawn a generic agent for evidence collection.
 
   **Pre-read:**
   - `plugins/jc/skills/verify-completion/SKILL.md` — current skill to modify
