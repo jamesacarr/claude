@@ -80,7 +80,7 @@ Use AskUserQuestion to gather key decisions:
 3. **Testing** — "What test framework and patterns will you use?"
 4. **Conventions** — "Any specific naming, style, or tooling conventions to follow?"
 
-Write all 6 files directly to `.planning/codebase/` as prescriptive guides based on user answers. Use the same output format as the team-mapper agent (see `plugins/jc/agents/team-mapper.md` for templates). Get the timestamp via `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+Write all 6 files directly to `.planning/codebase/` as prescriptive guides based on user answers. Use the same output format as the team-mapper agent (see `plugins/jc/agents/team-mapper.md` for templates). Get the timestamp via `mcp__time__get_current_time`.
 
 ### Step 4: Verify
 

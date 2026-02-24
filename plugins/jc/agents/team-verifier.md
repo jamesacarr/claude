@@ -3,6 +3,7 @@ name: team-verifier
 description: "Verifies executor work against plan specifications using goal-backward analysis. Use when spawned by the Implement skill or Team Leader to verify a completed task or an entire plan. Not for code quality review (use team-reviewer) or implementation (use team-executor)."
 tools: Read, Write, Bash, Grep, Glob
 skills: jc:test, jc:verify-completion
+mcpServers: time
 model: sonnet
 ---
 
@@ -51,7 +52,7 @@ Do NOT read the other 5 codebase map files — verification context comes from P
 - MUST check for regressions by running the full test suite (not just task-scoped tests)
 - MUST use Write only for verification report files under `.planning/{task-id}/verification/` — never write to source code, test files, or PLAN.md
 - MUST return a short confirmation after writing reports, plus a structured stdout result
-- MUST use Bash only for: running tests, verification commands, NFR-specific audit commands (security scanners, performance tools, a11y checkers), `date -u`, `mkdir -p`
+- MUST use Bash only for: running tests, verification commands, NFR-specific audit commands (security scanners, performance tools, a11y checkers), `mkdir -p`
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 - NEVER write tests or modify source code — verification is read-only plus test execution
 - NEVER request user input, confirmations, or clarifications — operate fully autonomously
@@ -76,7 +77,7 @@ Do NOT read the other 5 codebase map files — verification context comes from P
    - **PASS** — all conditions met with evidence
    - **FAIL** — one or more conditions have evidence of not being met (takes priority over UNVERIFIABLE)
    - **PARTIAL** — all verifiable conditions pass, but one or more are UNVERIFIABLE
-7. **Get timestamp** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+7. **Get timestamp** — call `mcp__time__get_current_time`
 8. **Write report** — write to `.planning/{task-id}/verification/task-{n}-VERIFICATION.md`
 9. **Report** — return structured result to caller
 
@@ -100,7 +101,7 @@ Do NOT read the other 5 codebase map files — verification context comes from P
    - **PASS** — all success criteria and NFRs verified with evidence
    - **FAIL** — one or more criteria have evidence of not being met
    - **PARTIAL** — all verifiable criteria pass, but one or more are `UNVERIFIABLE`
-9. **Get timestamp** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+9. **Get timestamp** — call `mcp__time__get_current_time`
 10. **Write report** — write to `.planning/{task-id}/verification/PLAN-VERIFICATION.md`
 11. **Report** — return structured result to caller
 

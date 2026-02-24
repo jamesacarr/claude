@@ -83,7 +83,7 @@ Continue execution?
 
 Options: "Continue" / "Abort". If user chooses Abort → stop.
 
-5. Get timestamp: `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+5. Get timestamp: call `mcp__time__get_current_time`
 6. Update PLAN.md frontmatter: `status: executing`, `updated: <timestamp>`, `current_wave` to resume wave, `current_task: null`
 7. Go to Step 3 (WAVE_START) — skip completed waves, within partially-completed waves only execute tasks not `passed`/`skipped`/`manual`. For `failed` tasks: present escalation (Step 5) immediately. Preserve all existing retry counters
 
@@ -91,7 +91,7 @@ Options: "Continue" / "Abort". If user chooses Abort → stop.
 
 1. Stage and commit all `.planning/` files if there are changes: `git add .planning/ && git commit -m "chore: commit planning docs for {task-id}"`. If no `.planning/` changes exist, skip the commit. If commit fails (GPG error, dirty state, no repo): stop and present the error to the user. Do not proceed
 2. Call `EnterWorktree` with name `{task-id}`. If it fails (name conflict, git error): stop and present the error. User must resolve or choose a different task-id. If name conflict: suggest `git worktree list` to inspect, `git worktree remove --force {task-id}` to clean up
-3. Get timestamp: `date -u +"%Y-%m-%dT%H:%M:%SZ"`. Update PLAN.md frontmatter: `status: executing`, `current_wave: 1`, `updated: <timestamp>`
+3. Get timestamp: call `mcp__time__get_current_time`. Update PLAN.md frontmatter: `status: executing`, `current_wave: 1`, `updated: <timestamp>`
 4. **Install dependencies** — spawn a `general-purpose` subagent. If install fails, stop and present the error. Do not spawn executors without a working dependency tree
 
 ```
@@ -218,7 +218,7 @@ After all tasks in a wave complete:
 
 ### Step 8: COMPLETE
 
-1. Get timestamp: `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+1. Get timestamp: call `mcp__time__get_current_time`
 2. Update PLAN.md: `status: completed`, `current_wave: null`, `current_task: null`, `updated: <timestamp>`
 3. Report to user:
    - Task-id and plan title

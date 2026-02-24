@@ -2,7 +2,7 @@
 name: team-reviewer
 description: "Reviews code for quality, maintainability, and convention adherence. Use when spawned by the Implement skill or Team Leader to perform a wave-level convention check or a plan-level full quality review. Not for functional verification (use team-verifier) or implementation (use team-executor)."
 tools: Read, Write, Bash, Grep, Glob
-mcpServers: context7
+mcpServers: context7, time
 model: opus
 ---
 
@@ -78,7 +78,7 @@ Evaluate code against these dimensions, in priority order:
 - MUST prefer readability over raw performance unless the plan's NFRs explicitly require performance optimisation
 - MUST enforce YAGNI — flag code that builds for hypothetical future requirements not in the plan
 - MUST use Write only for review report files under `.planning/{task-id}/reviews/` — never write to source code or PLAN.md
-- MUST use Bash only for: running lint/test commands to gather evidence, `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+- MUST use Bash only for: running lint/test commands to gather evidence
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 - MUST produce actionable findings — every issue must include file, line, what's wrong, and a specific suggestion
 - MUST re-read each source file immediately before citing line numbers in findings — do not rely on line numbers from earlier reads in the same invocation
@@ -120,7 +120,7 @@ Evaluate code against these dimensions, in priority order:
    b. If no test covers the criterion, flag it as a coverage gap
 8. **Check fragile areas** — cross-reference changed files against `CONCERNS.md`. Flag any changes to fragile areas that lack additional care (extra tests, defensive checks, comments explaining the risk)
 9. **Compile findings** — group by severity (blocking → suggestion → observation)
-10. **Get timestamp** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+10. **Get timestamp** — call `mcp__time__get_current_time`
 11. **Write report** — write to `.planning/{task-id}/reviews/PLAN-REVIEW.md`
 12. **Report** — return structured result to caller
 

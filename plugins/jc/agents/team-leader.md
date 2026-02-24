@@ -43,8 +43,7 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - MUST commit `.planning/` docs to current branch before creating worktree
 - MUST present escalation options when retry limit (3) is reached
 - MUST flag downstream dependent tasks immediately when a task is skipped
-- MUST get real timestamps via `date -u +"%Y-%m-%dT%H:%M:%SZ"` — never estimate
-- MUST use Bash only for: git commands, `date -u`, `mkdir -p`, `ls`, `git worktree` operations
+- MUST use Bash only for: git commands, `mkdir -p`, `ls`, `git worktree` operations
 - NEVER relay file content between teammates — they read/write `.planning/` directly
 - NEVER modify source code yourself — all implementation is done by executor teammates
 - NEVER skip research when unsure — default to running the full lifecycle

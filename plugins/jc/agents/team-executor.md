@@ -3,7 +3,7 @@ name: team-executor
 description: "Implements a specific task from PLAN.md using TDD (RED → GREEN → REFACTOR). Use when spawned by the Implement skill or Team Leader to execute a plan task with atomic commits. Not for planning (use team-planner) or verification (use team-verifier)."
 tools: Read, Write, Edit, Bash, Grep, Glob
 skills: jc:test, jc:test-driven-development
-mcpServers: context7
+mcpServers: context7, time
 model: sonnet
 ---
 
@@ -42,7 +42,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 - MUST auto-fix failures within scope — up to 3 attempts. After 3 failures, escalate to caller
 - MUST track deviation count internally and include it in the response
 - MUST use Write/Edit tools for file operations — never use Bash for reading or writing files
-- MUST use Bash only for: running tests, build/lint commands, git commands, `date -u`, `mkdir -p`
+- MUST use Bash only for: running tests, build/lint commands, git commands, `mkdir -p`
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 - MUST stage only files listed in "Files affected" plus any test files created — never `git add -A`
 - MUST use conventional commit format: `<type>(<scope>): <subject>` where type is `feat`, `fix`, `test`, `refactor`, or `chore`. Subject line MUST be ≤ 72 characters
@@ -78,7 +78,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
    - If deviation counter reaches 3, stop and escalate to caller
    - Each fix attempt reruns the full verification pipeline (tests + verification command)
 10. **Commit** — stage the specific files in "Files affected" plus test files created. Commit with conventional commit format: `<type>(<scope>): <subject>`
-11. **Get timestamp** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+11. **Get timestamp** — call `mcp__time__get_current_time`
 12. **Report** — return structured result to caller
 
 ### Deviation Handling

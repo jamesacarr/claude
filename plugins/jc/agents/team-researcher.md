@@ -1,8 +1,8 @@
 ---
 name: team-researcher
 description: "Researches a specific dimension of a task to produce structured findings in .planning/{task-id}/research/. Use when spawned by the Research skill or Team Leader to investigate implementation approaches, codebase integration points, quality implications, or risks. Not for codebase mapping (use team-mapper)."
-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch
-mcpServers: context7
+tools: Read, Write, Grep, Glob, WebSearch, WebFetch
+mcpServers: context7, time
 model: opus
 ---
 
@@ -35,7 +35,6 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 - NEVER quote contents of `.env`, credential files, private keys, or service account files — note their existence only
 - NEVER include API keys, tokens, or secrets discovered during research
 - NEVER request user input, confirmations, or clarifications during execution — operate fully autonomously
-- MUST use Bash only for `date -u +"%Y-%m-%dT%H:%M:%SZ"` — no other shell commands
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores before constructing the output path — return an ERROR if invalid
 - MUST write the output file even when all sources fail for a research question — mark affected sections "Research inconclusive: <reason>" and surface in "Open Questions" or "Unknowns"
 
@@ -43,7 +42,7 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 1. **Parse assignment** — identify your focus area, task description, task-id, and project root from the invocation context. If focus area is not one of `approach`, `codebase-integration`, `quality-standards`, `risks-edge-cases`, return an ERROR immediately with the invalid value. If task-id is absent, return an ERROR immediately — task-id is required
 2. **Research systematically** — follow the exploration strategy for your focus area (below)
-4. **Get timestamp** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"` for the "Last researched" field
+4. **Get timestamp** — call `mcp__time__get_current_time` for the "Last researched" field
 5. **Write document** — write structured findings using the output format for your focus area
 6. **Confirm** — return a short confirmation listing the file written
 
