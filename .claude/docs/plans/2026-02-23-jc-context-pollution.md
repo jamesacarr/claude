@@ -124,7 +124,7 @@ No existing agents are modified. No new agents are created. The skills spawn gen
 
 ### Step 4: Refactor status skill — delegate scanning
 
-- [ ] Modify `skills/status/SKILL.md` to spawn a generic agent for directory scanning.
+- [x] Modify `skills/status/SKILL.md` to spawn a generic agent for directory scanning.
 
   **Pre-read:**
   - `plugins/jc/skills/status/SKILL.md` — current skill to modify

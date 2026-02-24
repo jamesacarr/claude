@@ -17,45 +17,28 @@ Run without arguments. Scans `.planning/` and prints a structured status report.
 
 ## Process
 
-### Step 1: Scan .planning/ directory
+### Step 1: Delegate Scanning
 
-```bash
-ls -1 .planning/ 2>/dev/null
-```
+Spawn a `general-purpose` agent via the Task tool. The agent does ALL scanning — directory listing, frontmatter parsing, git commands — and returns the formatted report. Main context never sees raw output.
 
-If `.planning/` doesn't exist: report "No `.planning/` directory found" and stop.
+**CRITICAL: Include "NEVER modify any file in .planning/" in the agent prompt.**
 
-If `.planning/` exists but contains no subdirectories: report "No tasks found" (codebase map section still applies if `codebase/` exists).
+Agent prompt must include the full scanning methodology:
 
-Separate results into:
-- `codebase/` — shared codebase map
-- Everything else — task-scoped directories
+**Directory scanning:**
+- List `.planning/` contents. If missing: report "No `.planning/` directory found" and stop.
+- If no subdirectories: report "No tasks found" (codebase map section still applies if `codebase/` exists).
+- Separate `codebase/` (shared map) from task directories.
 
-### Step 2: Report codebase map status
+**Codebase map check:**
+- Check `.planning/codebase/` for 6 expected files: `STACK.md`, `INTEGRATIONS.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`.
+- If missing entirely: report "Codebase map: Not found. Run `/jc:map` to create."
+- If exists: count source commits since last map — two separate commands (no variable interpolation):
+  1. `git log -1 --format=%H -- .planning/codebase/`
+  2. If hash returned: `git log --oneline <paste-hash>..HEAD -- . ':!.planning/' | wc -l`
+  3. If no hash (never committed): report "unknown"
 
-Check `.planning/codebase/` for the 6 expected files: `STACK.md`, `INTEGRATIONS.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`.
-
-**If missing entirely:** Report "Codebase map: Not found. Run `/jc:map` to create."
-
-**If exists:** Count source commits since last map update — run as two separate Bash tool calls (no variable interpolation):
-
-1. Get the commit that last modified the codebase map:
-```bash
-git log -1 --format=%H -- .planning/codebase/
-```
-
-2. If step 1 returned a commit hash, count source commits since then (paste the hash literally):
-```bash
-git log --oneline <paste-hash-here>..HEAD -- . ':!.planning/' | wc -l
-```
-
-If step 1 returned empty (codebase map never committed), report commit count as "unknown".
-
-Report: exists, number of commits since last map, list any of the 6 files that are missing.
-
-### Step 3: Report each task
-
-For each task directory in `.planning/` (excluding `codebase/`), determine phase from contents:
+**Phase detection per task directory** (excluding `codebase/`):
 
 | Phase | How to detect |
 |-------|---------------|
@@ -68,17 +51,9 @@ For each task directory in `.planning/` (excluding `codebase/`), determine phase
 | **Verifying** | `plans/PLAN.md` frontmatter `status: verifying` |
 | **Completed** | `plans/PLAN.md` frontmatter `status: completed` |
 
-**For tasks with a PLAN.md**, also report:
-- Current wave / total waves (from frontmatter `current_wave` and wave count)
-- Current task (from frontmatter `current_task`, if executing)
-- Task counts by status (passed, failed, skipped, in_progress, pending)
-- `pause_reason` if paused
-- Whether verification reports exist in `verification/`
-- Whether a review report exists in `reviews/`
+For tasks with PLAN.md, also report: current wave/total waves, current task (if executing), task counts by status, `pause_reason` (if paused), verification report existence, review report existence.
 
-### Step 4: Present report
-
-Format as a structured summary. Group tasks by phase (active first, completed last).
+**Report format** — group tasks by phase (active first, completed last):
 
 ```
 ## Codebase Map
@@ -99,6 +74,10 @@ Tasks: {n} passed, {n} pending, {n} in_progress, {n} failed, {n} skipped
 Research docs: {n}/4
 Missing: {list}
 ```
+
+### Step 2: Present Report
+
+Present the agent's report to the user as-is. Do not add intermediate tool output or scanning details. If the agent returns an error or non-report output, surface the error and suggest re-running `/jc:status`.
 
 ## Anti-Patterns
 
