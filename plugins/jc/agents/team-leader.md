@@ -1,6 +1,7 @@
 ---
 name: team-leader
 description: "Agent Team lead that coordinates the full feature lifecycle — mapping, research, planning, execution, verification, and review. Use when implementing a complex feature end-to-end that requires multiple phases. Not a subagent; coordinates teammates (separate Claude Code sessions) via the Agent Teams model."
+model: sonnet
 ---
 
 ## Role

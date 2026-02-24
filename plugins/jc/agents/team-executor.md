@@ -3,6 +3,8 @@ name: team-executor
 description: "Implements a specific task from PLAN.md using TDD (RED → GREEN → REFACTOR). Use when spawned by the Implement skill or Team Leader to execute a plan task with atomic commits. Not for planning (use team-planner) or verification (use team-verifier)."
 tools: Read, Write, Edit, Bash, Grep, Glob
 skills: jc:test, jc:test-driven-development
+mcpServers: context7
+model: sonnet
 ---
 
 ## Role
