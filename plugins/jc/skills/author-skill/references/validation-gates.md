@@ -35,7 +35,7 @@ Read references/token-efficiency.md. Run the checklist against all new or change
 
 ## Subagent I/O Contract Compliance
 
-If the skill instructs spawning subagents via the Task tool, verify each prompt follows the I/O contract format from `plugins/jc/docs/agent-io-contract.md`:
+If the skill instructs spawning subagents via the Task tool, verify each prompt follows the I/O contract format (read `../../docs/agent-io-contract.md` relative to this skill's directory):
 
 | Section | Check |
 |---------|-------|

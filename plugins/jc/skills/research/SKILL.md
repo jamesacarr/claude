@@ -23,6 +23,11 @@ description: "Researches a task across 4 dimensions (approach, codebase integrat
 
 ## Process
 
+### Step 0: Resolve Paths
+
+Resolve from the skill's base directory (the directory containing this SKILL.md):
+- `{plugin-docs}` = `{skill-base-dir}/../../docs/`
+
 ### Step 1: Resolve Task-ID
 
 | Input | Task-ID | Action |
@@ -64,7 +69,7 @@ User can override individual focus areas (e.g., replace "risks-edge-cases" with 
 
 Get the absolute project root via `pwd`. Spawn all 4 `team-researcher` agents in a **single message** (parallel execution) via the Task tool.
 
-Prompt template per agent, following the I/O contract in `plugins/jc/docs/agent-io-contract.md`:
+Prompt template per agent, following the I/O contract in `{plugin-docs}/agent-io-contract.md`:
 
 ```
 ## Task
@@ -128,5 +133,5 @@ Report to user:
 
 ## References
 
-- Agent definition: `plugins/jc/agents/team-researcher.md`
-- I/O contract: `plugins/jc/docs/agent-io-contract.md`
+- Agent definition: `../../agents/team-researcher.md` (relative to skill directory)
+- I/O contract: `{plugin-docs}/agent-io-contract.md`

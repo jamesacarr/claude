@@ -41,7 +41,7 @@ You think goal-backward: start from "what must be true when this is done?" and w
 
 ## Constraints
 
-- MUST conform to plan schema in the project's `plugins/jc/docs/plan-schema.md`
+- MUST conform to plan schema — read the path from the assignment's `Plan schema` input field. If no plan schema path is provided, return ERROR directing the caller to include it
 - MUST ensure no file overlap within a wave — if two tasks touch the same file, put them in different waves
 - MUST include a `## Non-Functional Requirements` section in every plan. "None identified" with rationale is valid; omitting the section is not
 - MUST embed task-specific conventions from the codebase map into Action fields (e.g., "create `src/services/auth.ts` following the service pattern in `src/services/user.ts`")

@@ -22,6 +22,12 @@ description: "Maps a codebase to produce structured analysis documents in .plann
 
 ## Process
 
+### Step 0: Resolve Paths
+
+Resolve from the skill's base directory (the directory containing this SKILL.md):
+- `{plugin-docs}` = `{skill-base-dir}/../../docs/`
+- `{agents-dir}` = `{skill-base-dir}/../../agents/`
+
 ### Step 1: Detect Mode
 
 Check for project indicators — any of: package manifests (`package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `Gemfile`, `pom.xml`, `build.gradle`, etc.), `src/` or `lib/` directories, or a build/bundler config.
@@ -43,7 +49,7 @@ If user cancels, stop and report current map paths.
 
 Spawn 4 `team-mapper` agents in parallel via the Task tool. Each agent gets one focus area.
 
-Use this prompt template for each, following the I/O contract in `plugins/jc/docs/agent-io-contract.md`:
+Use this prompt template for each, following the I/O contract in `{plugin-docs}/agent-io-contract.md`:
 
 ```
 ## Task
@@ -80,7 +86,7 @@ Use AskUserQuestion to gather key decisions:
 3. **Testing** — "What test framework and patterns will you use?"
 4. **Conventions** — "Any specific naming, style, or tooling conventions to follow?"
 
-Write all 6 files directly to `.planning/codebase/` as prescriptive guides based on user answers. Use the same output format as the team-mapper agent (see `plugins/jc/agents/team-mapper.md` for templates). Get the timestamp via `mcp__time__get_current_time`.
+Write all 6 files directly to `.planning/codebase/` as prescriptive guides based on user answers. Use the same output format as the team-mapper agent (see `{agents-dir}/team-mapper.md` for templates). Get the timestamp via `mcp__time__get_current_time`.
 
 ### Step 4: Verify
 
@@ -120,5 +126,5 @@ Report to user:
 
 ## References
 
-- Agent definition: `plugins/jc/agents/team-mapper.md`
-- I/O contract: `plugins/jc/docs/agent-io-contract.md`
+- Agent definition: `{agents-dir}/team-mapper.md`
+- I/O contract: `{plugin-docs}/agent-io-contract.md`

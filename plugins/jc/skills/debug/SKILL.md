@@ -3,11 +3,16 @@ name: debug
 description: "Investigates bugs and failures by spawning the team-debugger agent. Use when encountering test failures, runtime errors, or executor escalations during implementation. Do NOT use for code review (use team-reviewer) or implementation (use /jc:implement)."
 ---
 
+## Path Resolution
+
+Resolve from the skill's base directory (the directory containing this SKILL.md):
+- `{plugin-docs}` = `{skill-base-dir}/../../docs/`
+
 ## Essential Principles
 
 1. **Always spawn the debugger.** Every investigation goes through `team-debugger` — no exceptions, regardless of how "simple" the bug appears. The agent writes a session log for audit trail and follows the scientific method for consistent root-cause analysis.
 2. **Collect context first.** Gather the problem description, error output, and any executor escalation details before spawning. The debugger cannot ask for more information — it runs autonomously.
-3. **Follow the I/O contract.** Every debugger invocation uses the standard prompt format from `plugins/jc/docs/agent-io-contract.md`: Task, Context, Input, Expected Output.
+3. **Follow the I/O contract.** Every debugger invocation uses the standard prompt format from `{plugin-docs}/agent-io-contract.md`: Task, Context, Input, Expected Output.
 4. **One bug, one session.** Each invocation investigates one problem. For multiple failures, spawn separate debugger invocations.
 
 ## Quick Start

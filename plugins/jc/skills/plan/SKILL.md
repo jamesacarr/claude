@@ -23,6 +23,11 @@ description: "Creates implementation plans through a plan-critique-revise loop u
 
 ## Process
 
+### Step 0: Resolve Paths
+
+Resolve from the skill's base directory (the directory containing this SKILL.md):
+- `{plugin-docs}` = `{skill-base-dir}/../../docs/`
+
 ### Step 1: Resolve Task-ID
 
 If user provided a task-id, use it. Otherwise, detect from existing `.planning/` directories:
@@ -87,7 +92,7 @@ If no completed tasks, proceed with fresh plan (overwrite).
 
 Get the absolute project root via `pwd`. All planner invocations use `subagent_type: "team-planner"`.
 
-Prompt template following the I/O contract in `plugins/jc/docs/agent-io-contract.md`:
+Prompt template following the I/O contract in `{plugin-docs}/agent-io-contract.md`:
 
 ```
 ## Task
@@ -104,6 +109,7 @@ Prompt template following the I/O contract in `plugins/jc/docs/agent-io-contract
 - Research directory: {absolute_project_root}/.planning/{task-id}/research/
 - Codebase map directory: {absolute_project_root}/.planning/codebase/
 - Plan file: {absolute_project_root}/.planning/{task-id}/plans/PLAN.md
+- Plan schema: {plugin-docs}/plan-schema.md
 - Critique file: {absolute_project_root}/.planning/{task-id}/plans/CRITIQUE.md
 
 ## Expected Output
@@ -171,6 +177,6 @@ Do NOT commit the plan — `/jc:implement` handles committing `.planning/` docs 
 
 ## References
 
-- Agent definition: `plugins/jc/agents/team-planner.md`
-- Plan schema: `plugins/jc/docs/plan-schema.md`
-- I/O contract: `plugins/jc/docs/agent-io-contract.md`
+- Agent definition: `../../agents/team-planner.md` (relative to skill directory)
+- Plan schema: `{plugin-docs}/plan-schema.md`
+- I/O contract: `{plugin-docs}/agent-io-contract.md`

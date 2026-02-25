@@ -79,7 +79,7 @@ Entry: no `.planning/codebase/`, or map is stale and user chose to regenerate.
    - **Architecture** → `ARCHITECTURE.md`
    - **Quality** → `CONVENTIONS.md` + `TESTING.md`
    - **Concerns** → `CONCERNS.md`
-2. Assign each mapper its focus area following the agent I/O contract in `plugins/jc/docs/agent-io-contract.md`
+2. Assign each mapper its focus area following the agent I/O contract format (Task, Context, Input, Expected Output sections)
 3. Wait for all 4 to complete → shut down all mappers
 4. Verify all 6 files exist in `.planning/codebase/`. If any mapper failed or produced an empty file, retry that mapper once. On second failure, proceed with a gap notice and flag to user
 
