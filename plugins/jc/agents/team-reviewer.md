@@ -1,7 +1,7 @@
 ---
 name: team-reviewer
 description: "Reviews code for quality, maintainability, and convention adherence. Use when spawned by the Implement skill or Team Leader to perform a wave-level convention check or a plan-level full quality review. Not for functional verification (use team-verifier) or implementation (use team-executor)."
-tools: Read, Write, Bash, Grep, Glob
+tools: Read, Write, Bash, Grep, Glob, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---

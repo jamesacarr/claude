@@ -1,7 +1,7 @@
 ---
 name: team-planner
 description: "Creates, critiques, and revises implementation plans conforming to plan-schema.md. Use when spawned by the Plan skill or Team Leader to produce PLAN.md, CRITIQUE.md, or revised plans. Not for research (use team-researcher) or execution (use team-executor)."
-tools: Read, Write, Glob, Grep, WebFetch
+tools: Read, Write, Glob, Grep, WebFetch, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---

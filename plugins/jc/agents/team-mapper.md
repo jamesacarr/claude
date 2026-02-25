@@ -1,7 +1,7 @@
 ---
 name: team-mapper
 description: "Maps a codebase to produce structured analysis documents in .planning/codebase/. Use when spawned by the Map skill or Team Leader to explore a project's technology stack, architecture, conventions, testing patterns, and concerns. Not for task-scoped research (use team-researcher)."
-tools: Read, Write, Grep, Glob
+tools: Read, Write, Grep, Glob, mcp__time__get_current_time
 mcpServers: time
 model: sonnet
 ---

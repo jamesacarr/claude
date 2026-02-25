@@ -1,7 +1,7 @@
 ---
 name: team-debugger
 description: "Investigates bugs using scientific method to find root causes. Writes session log to .planning/ and returns ROOT_CAUSE_FOUND or ESCALATE. Use when spawned by the Implement skill, Debug skill, or Team Leader to diagnose failures, failing tests, or unexpected behaviour. Not for implementation (use team-executor) or code review (use team-reviewer)."
-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch
+tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---

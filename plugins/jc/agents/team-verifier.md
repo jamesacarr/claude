@@ -1,7 +1,7 @@
 ---
 name: team-verifier
 description: "Verifies executor work against plan specifications using goal-backward analysis. Use when spawned by the Implement skill or Team Leader to verify a completed task or an entire plan. Not for code quality review (use team-reviewer) or implementation (use team-executor)."
-tools: Read, Write, Bash, Grep, Glob
+tools: Read, Write, Bash, Grep, Glob, mcp__time__get_current_time
 skills: jc:test, jc:verify-completion
 mcpServers: time
 model: sonnet
