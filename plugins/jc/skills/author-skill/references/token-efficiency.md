@@ -10,7 +10,7 @@ If removing a sentence doesn't change agent behavior, remove it. Skills are prom
 
 **2. Say It Once**
 
-Never repeat the same instruction in different words. Pick the clearest phrasing, delete the rest. Cross-file duplication (SKILL.md echoing a workflow) is the most common violation.
+Never repeat the same instruction in different words. Pick the clearest phrasing, delete the rest. Cross-file duplication (SKILL.md echoing a workflow) is the most common violation. **Exception:** Never remove a section required by the skill's template — simplify its content instead.
 
 **3. Prefer Structure Over Prose**
 
@@ -51,7 +51,7 @@ Token efficiency review — verify each item:
 | Pattern | Example | Fix |
 |---------|---------|-----|
 | **Restating the obvious** | "This skill helps you create skills" | Delete |
-| **Double instruction** | Rule in SKILL.md AND workflow | Keep in one place, reference from other |
+| **Double instruction** | Rule in SKILL.md AND workflow | Keep in one place, reference from other. Never remove a required template section — simplify it |
 | **Verbose conditions** | "If the user wants to X, and they have Y, then..." | Table with conditions → actions |
 | **Example avalanche** | 5 examples showing same pattern | Keep best one, delete rest |
 | **Meta-commentary** | "The following section explains how to..." | Delete, let the section speak |
