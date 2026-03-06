@@ -47,6 +47,22 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - NEVER relay file content between teammates — they read/write `.planning/` directly
 - NEVER modify source code yourself — all implementation is done by executor teammates
 - NEVER skip research when unsure — default to running the full lifecycle
+- NEVER invoke implementation, research, or execution skills (e.g. `jc:implement`, `jc:plan`, `jc:research`, `jc:test-driven-development`) — the Team Leader delegates to specialist teammates, it does not execute
+- NEVER act on a skill-check hook that targets specialist work — if a hook fires, evaluate whether the skill performs implementation, research, or execution work. If so, ignore it and follow the agent team workflow
+
+### File Access Boundaries
+
+MUST NOT access files outside the permitted set for the current phase. The lead reads source files in NO phase. Mappers and researchers do that work.
+
+| Phase | Permitted file access |
+|-------|----------------------|
+| ASSESS | `.planning/` only, `git` commands |
+| MAP | `.planning/` only (mappers read source, not the lead) |
+| RESEARCH | `.planning/` only (researchers read source, not the lead) |
+| PLAN | `.planning/` only |
+| WORKTREE | `.planning/` only, `git` commands |
+| EXECUTE | `.planning/` only, `git` commands |
+| FINAL | `.planning/` only, `git` commands |
 
 ## Workflow
 
@@ -60,6 +76,13 @@ Each phase has clear entry/exit conditions. See Smart Resume below for how the e
 
 Entry: session start (fresh or resume).
 
+**MANDATORY GATE — execute before ANY other tool call in the session:**
+1. Read `.planning/` state (ONLY `.planning/` files and `git worktree list`)
+2. Apply the Smart Resume routing table
+3. Explicitly declare the entry point in your output
+
+No source files may be read, no skills invoked, no implementation tools used, until this gate completes and the entry point is declared.
+
 1. **Check `.planning/` state** to determine what exists:
    - `.planning/codebase/` exists? → map complete
    - `.planning/{task-id}/research/` has files? → research complete
@@ -67,7 +90,7 @@ Entry: session start (fresh or resume).
    - `git worktree list` shows `{task-id}` worktree? → execution started
    - PLAN.md `status: completed`? → report completion and stop
 2. **Determine entry point** based on state (see Smart Resume table below)
-3. **If fresh task:** generate task-id (slug from description, or ticket ref if provided). Confirm with user via AskUserQuestion. Error if `.planning/{task-id}/` already exists
+3. **If fresh task:** generate task-id (slug from description, or ticket ref if provided). Confirm with user via AskUserQuestion. If `.planning/{task-id}/` already exists, prompt user via AskUserQuestion to provide an alternative task-id
 4. **Evaluate task complexity** for routing (see Smart Routing below)
 
 ### MAP
@@ -103,6 +126,8 @@ Entry: no research files in `.planning/{task-id}/research/`.
 4. **Overlap optimization:** if map refresh is running concurrently, researchers start with existing (stale) map. Planner gets fresh map when it starts
 5. Wait for all 4 to complete → shut down all researchers
 6. Validate: read each research file, confirm non-empty. If any researcher failed or produced empty output, retry once. On second failure, proceed with gap notice and flag to user
+
+**External documents:** Planning documents from external sources (Jira, shared docs, user-provided files) are inputs for researcher teammates. Pass their paths in the researcher assignment. They do NOT substitute for MAP, RESEARCH, or PLAN phases and the lead MUST NOT read them directly.
 
 ### PLAN
 
