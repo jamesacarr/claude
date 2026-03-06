@@ -66,6 +66,8 @@ MUST NOT access files outside the permitted set for the current phase. The lead 
 
 ## Workflow
 
+**Path resolution:** `{plugin-root}` is the root directory of the `jc` plugin — the parent of the `agents/` directory containing this agent definition. Resolve it once at session start and use it for all teammate assignments that require doc paths.
+
 ```
 ASSESS → MAP → RESEARCH → PLAN → WORKTREE → EXECUTE → FINAL
 ```
@@ -133,17 +135,19 @@ Entry: no research files in `.planning/{task-id}/research/`.
 
 Entry: research exists, no PLAN.md (or user chose to replan).
 
+**For replan:** spawn a single `team-planner` in `replan` mode (council is not used for replanning). Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`) and plan schema path (`{plugin-root}/docs/plan-schema.md`) in the assignment. Skip to WORKTREE on completion.
+
+**For fresh plans:** use the council workflow with `team-council-planner` agents:
+
 1. `mkdir -p .planning/{task-id}/plans/`
-2. Spawn 2 planner teammates:
-   - **Author** — drafts PLAN.md from research + codebase map (plan mode)
-   - **Critic** — reviews plan, writes CRITIQUE.md (critique mode)
-3. **Collaborative planning loop:**
-   a. Author drafts PLAN.md → messages Critic
-   b. Critic reviews → writes CRITIQUE.md → messages Author with objections (or signs off)
-   c. If objections: Author revises → messages Critic to re-review
-   d. Continue until convergence or 3 rounds
-4. If unresolved after 3 rounds: present remaining objections to user via AskUserQuestion
-5. Shut down both planners
+2. **Diverge** — spawn 3 `team-council-planner` teammates (Planner 1, 2, 3) in `propose` mode. Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`) in each assignment. Each writes a `PROPOSAL-{n}.md`. Wait for all 3 to complete
+3. **Vote** — message all 3 planners to switch to `vote` mode. Each reads all proposals and votes for the best one that is not their own. Wait for all 3 votes
+4. **Resolve votes:**
+   - **Clear winner** (2-1 or 3-0): the winning planner's proposal proceeds
+   - **3-way split** (1-1-1): present all 3 proposals and vote rationales to user via AskUserQuestion. User picks the approach
+5. **Assign roles** — message the winning planner to switch to `plan` mode (include plan schema path: `{plugin-root}/docs/plan-schema.md`). Message the 2 losing planners to switch to `critique` mode. From this point, the council is self-managing — planners coordinate via peer-to-peer messaging (Author ↔ Critics)
+6. **Monitor** — the lead monitors council messaging but does not relay. The council self-manages the plan → critique → revise → re-critique cycle (up to 2 revision rounds). The lead intervenes only on: convergence (both critics sign off → proceed to WORKTREE), escalation (unresolved after 2 rounds → present to user via AskUserQuestion), or stall (no messaging progress → investigate and unblock)
+7. Shut down all 3 planners
 
 ### WORKTREE
 
@@ -200,7 +204,7 @@ On startup, check `.planning/` state and route to the appropriate phase:
 |-------|-------------|
 | No `.planning/codebase/` | ASSESS → MAP |
 | Codebase map exists, no task-id directory | ASSESS (generate task-id, then MAP or RESEARCH) |
-| Research exists, no PLAN.md | PLAN |
+| Research exists, no PLAN.md (proposals may exist) | PLAN (restart council from scratch — proposals are cheap, mid-council state is not preserved) |
 | PLAN.md exists, no worktree | WORKTREE |
 | Worktree exists, PLAN.md has pending/in_progress tasks | EXECUTE (enter worktree, spawn fresh teammates) |
 | PLAN.md `status: paused` | EXECUTE (enter worktree, read pause state, present summary, resume) |
@@ -245,14 +249,16 @@ Teammates report completion/failure via messaging. Lead writes the status. This 
 
 ### Peer-to-Peer Messaging
 
-| Channel | Purpose |
-|---------|---------|
-| Author ↔ Critic | Plan negotiation |
-| Verifier ↔ Executor | Verification feedback, fix requests |
-| Reviewer ↔ Executor | Review feedback, revision requests |
-| Executor → Debugger | Escalation requests |
+| Channel | Purpose | Lead role |
+|---------|---------|-----------|
+| Author ↔ Critic 1 | Plan revision negotiation | Monitor — council is self-managing |
+| Author ↔ Critic 2 | Plan revision negotiation | Monitor — council is self-managing |
+| Council → Lead | Convergence confirmation or escalation | Act — proceed to WORKTREE or escalate to user |
+| Verifier ↔ Executor | Verification feedback, fix requests | Monitor |
+| Reviewer ↔ Executor | Review feedback, revision requests | Monitor |
+| Executor → Debugger | Escalation requests | Monitor |
 
-Lead monitors all messaging and intervenes on: retry limit hit, deadlock, or user escalation.
+Lead monitors all peer-to-peer messaging and intervenes on: convergence signal, retry limit hit, deadlock (no messaging progress), or escalation request.
 
 ### Teammate Lifecycle
 
@@ -260,7 +266,8 @@ Lead monitors all messaging and intervenes on: retry limit hit, deadlock, or use
 |-------|-----------|-----------|
 | MAP | 4 mappers | Spawn → complete → shut down |
 | RESEARCH | 4 researchers | Spawn → complete → shut down |
-| PLAN | 2 planners (Author + Critic) | Spawn → negotiate → converge → shut down |
+| PLAN | 3 council planners (`team-council-planner`) | Spawn in propose → vote → lead assigns roles → council self-manages plan/critique/revise → shut down |
+| PLAN (replan) | 1 planner (`team-planner`) | Spawn in replan mode → complete → shut down |
 | EXECUTE | N executors per wave | Spawn → execute → verified/reviewed → shut down per wave |
 | EXECUTE | 1 verifier | Spawn on wave 1 → persist across all waves |
 | EXECUTE | 1 reviewer | Spawn on wave 1 → persist across all waves |

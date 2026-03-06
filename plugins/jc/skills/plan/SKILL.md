@@ -10,7 +10,7 @@ description: "Creates implementation plans through a plan-critique-revise loop u
 1. **Codebase map = hard gate.** The planner reads the codebase map, not raw source files — without it, plans lack convention awareness, correct file paths, and architectural alignment. Stop and direct user to `/jc:map`. No exceptions.
 2. **Research = hard gate.** Plans without research are guesswork. Stop and direct user to `/jc:research`. No exceptions.
 3. **Critique loop is mandatory.** The orchestrator lacks the planner's codebase map cross-referencing and research gap detection — every plan gets adversarial critique by a second planner invocation. Never skip critique.
-4. **Max 1 revision round.** Plan → Critique → (if objections) Revise → Re-critique → done. Additional rounds show diminishing returns; unresolved objections after one revision typically signal a deeper research gap. 4 planner invocations worst case.
+4. **Max 2 revision rounds.** Plan → Critique → (if objections) Revise → Re-critique → (if still objections) Revise → Re-critique → done. Changes during revision can introduce new issues, so a second round catches cascading problems. 6 planner invocations worst case.
 5. **Agents write directly.** Planner agents write files themselves — relaying content through the skill risks truncation, loses formatting, and bloats context.
 
 ## Quick Start
@@ -114,6 +114,7 @@ Prompt template following the I/O contract in `{plugin-docs}/agent-io-contract.m
 - Codebase map directory: {absolute_project_root}/.planning/codebase/
 - Plan file: {absolute_project_root}/.planning/{task-id}/plans/PLAN.md
 - Plan schema: {plugin-docs}/plan-schema.md
+- Planner workflows: {plugin-docs}/planner-workflows.md
 - Critique file: {absolute_project_root}/.planning/{task-id}/plans/CRITIQUE.md
 
 ## Expected Output
@@ -141,8 +142,10 @@ For `plan` mode, `{task_description}` is the user's original planning request fr
 | 5b | `critique` | Adversarially review the plan | `CRITIQUE.md` + PASS/OBJECTIONS |
 | 5c (if objections) | `revise` | Address critique objections | Revised `PLAN.md` |
 | 5d (if revised) | `critique` | Re-review revised plan | Updated `CRITIQUE.md` + PASS/OBJECTIONS |
+| 5e (if objections) | `revise` | Address remaining critique objections | Revised `PLAN.md` |
+| 5f (if revised) | `critique` | Re-review revised plan | Updated `CRITIQUE.md` + PASS/OBJECTIONS |
 
-Steps 5a and 5b are **always** executed. Steps 5c and 5d execute only if 5b returns OBJECTIONS. After 5d, regardless of result, proceed to Step 6.
+Steps 5a and 5b are **always** executed. Steps 5c-5d execute only if 5b returns OBJECTIONS. Steps 5e-5f execute only if 5d returns OBJECTIONS. After 5f (or earlier if PASS), proceed to Step 6.
 
 Each planner invocation is a **separate** Task tool call (sequential, not parallel — each depends on the previous output).
 
@@ -174,12 +177,13 @@ Do NOT commit the plan — `/jc:implement` handles committing `.planning/` docs 
 - Research gate enforced: missing = hard stop
 - Existing plan with completed tasks triggers replace/replan choice
 - Critique loop always runs (steps 5a + 5b minimum)
-- Max 1 revision round (steps 5c + 5d if needed)
+- Max 2 revision rounds (steps 5c-5d and 5e-5f if needed)
 - Plan summary presented to user with critique status
 - User informed of next step (`/jc:implement`)
 
 ## References
 
-- Agent definition: `../../agents/team-planner.md` (relative to skill directory)
-- Plan schema: `../../docs/plan-schema.md`
-- I/O contract: `../../docs/agent-io-contract.md`
+- Agent: `team-planner` (sequential plan-critique-revise)
+- Planner workflows (shared): `{plugin-docs}/planner-workflows.md`
+- Plan schema: `{plugin-docs}/plan-schema.md`
+- I/O contract: `{plugin-docs}/agent-io-contract.md`

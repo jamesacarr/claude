@@ -129,13 +129,13 @@ Creates an implementation plan through a plan-critique-revise loop. The planner 
 - **Hard gates:** Requires both a codebase map (`/jc:map`) and research (`/jc:research`). Won't proceed without them.
 - Spawns a `team-planner` agent to create the plan
 - Spawns a second planner invocation for **adversarial critique**
-- If the critique raises objections, runs one revision round (max 4 planner invocations total)
+- If the critique raises objections, runs up to two revision rounds (max 6 planner invocations total)
 - Presents a plan summary with critique status
 
 **Plan-critique loop:**
 
 ```
-Plan → Critique → [if objections] Revise → Re-critique → done
+Plan → Critique → [if objections] Revise → Re-critique → [if objections] Revise → Re-critique → done
 ```
 
 **Usage:**

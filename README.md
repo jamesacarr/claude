@@ -29,7 +29,8 @@ plugins/
 | `team-leader` | Coordinates the full feature lifecycle across teammates |
 | `team-mapper` | Maps codebases across 4 dimensions (stack, architecture, conventions, testing) |
 | `team-researcher` | Researches tasks across approach, integration, quality, and risk dimensions |
-| `team-planner` | Creates implementation plans through a plan-critique-revise loop |
+| `team-planner` | Creates implementation plans through a sequential plan-critique-revise loop |
+| `team-council-planner` | Council planning specialist — diverge/vote/plan/critique in a 3-planner council |
 | `team-executor` | Implements tasks from PLAN.md using TDD (RED → GREEN → REFACTOR) |
 | `team-verifier` | Verifies task completion against done-when criteria |
 | `team-reviewer` | Reviews code for quality, security, performance, and architectural fit |
