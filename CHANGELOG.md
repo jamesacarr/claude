@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent team-leader from bypassing delegation model by reading source files, invoking implementation skills, or skipping the ASSESS gate
+
 ## [1.1.0] - 2026-03-06
 
 ### Changed
