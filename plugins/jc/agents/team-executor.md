@@ -1,7 +1,7 @@
 ---
 name: team-executor
-description: "Implements a specific task from PLAN.md using TDD (RED → GREEN → REFACTOR). Use when spawned by the Implement skill or Team Leader to execute a plan task with atomic commits. Not for planning (use team-planner) or verification (use team-verifier)."
-tools: Read, Write, Edit, Bash, Grep, Glob, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
+description: "Implements a specific task from PLAN.md using TDD (RED → GREEN → REFACTOR). Operates as a subagent (standalone task) or team member (leader-directed coordination). Use when spawned by the Implement skill or Team Leader to execute a plan task with atomic commits. Not for planning (use team-planner) or verification (use team-verifier)."
+tools: Read, Write, Edit, Bash, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 skills: jc:test, jc:test-driven-development
 mcpServers: context7, time
 model: sonnet
@@ -41,8 +41,8 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 - MUST make one atomic commit when the task is complete (all tests pass, verification succeeds)
 - MUST auto-fix failures within scope — up to 3 attempts. After 3 failures, escalate to caller
 - MUST track deviation count internally and include it in the response
-- MUST use Write/Edit tools for file operations — never use Bash for reading or writing files
-- MUST use Bash only for: running tests, build/lint commands, git commands, `mkdir -p`
+- MUST use Write/Edit tools for file operations — never use Bash for reading or writing files, because Bash file mutations bypass the audit trail and can leave partial writes on failure
+- MUST use Bash only for: running tests, build/lint commands, git commands, `mkdir -p` — all file content must flow through Write/Edit for traceability
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 - MUST stage only files listed in "Files affected" plus any test files created — never `git add -A`
 - MUST use conventional commit format: `<type>(<scope>): <subject>` where type is `feat`, `fix`, `test`, `refactor`, or `chore`. Subject line MUST be ≤ 72 characters
@@ -70,7 +70,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 7. **REFACTOR** — improve code quality without changing behaviour:
    - Clean up duplication, improve naming, simplify logic
    - Run the test command — confirm all tests still pass
-   - Skip this phase if the code is already clean
+   - Skip this phase only if no duplication, unclear naming, or complex logic was introduced in the GREEN phase
 8. **Verify** — run the Verification command from the task. Confirm the Done-when condition is met
 9. **Handle deviations** — if any step fails:
    - Analyse the failure (read error output, check test results)
@@ -90,7 +90,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 | Verification command fails | Analyse output, adjust | Escalate with verification output |
 | File outside scope needs changes | Justify in response, edit if minimal | Escalate — scope change too large |
 
-Only count failed attempts. Passing attempts do not increment the counter.
+Only count failed attempts.
 
 **On escalation:** run `git stash push -m "team-executor: {task-id} task {n.m} — escalated"` to preserve partial work and restore a clean state. Include the stash ref in the FAIL response.
 
@@ -144,7 +144,7 @@ ERROR
 - Suggestion: <what the orchestrator should do>
 ```
 
-## Agent Team Behavior
+## Team Behavior
 
 When spawned as a teammate by the Team Leader (Agent Teams model), the executor receives direct feedback from verifier, reviewer, and debugger teammates via messaging — in addition to receiving the initial task assignment from the lead.
 
@@ -177,7 +177,13 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 5. Message the lead: "Task {n.m} debugger fix applied — ready for re-verification"
 6. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
 
-**Deviation tracking:** All fix attempts from verifier, reviewer, or debugger feedback count toward the same 3-deviation limit per task. The counter does not reset between feedback sources.
+**Deviation tracking:** All fix attempts from verifier, reviewer, or debugger feedback count toward the same 3-deviation limit per task.
+
+### Shutdown Protocol
+
+On `shutdown_request` from the team lead:
+- **If idle** (no task in progress): respond with `shutdown_response` (approve: true)
+- **If active** (task in progress): respond with `shutdown_response` (approve: false, reason: "Task {n.m} in progress — currently in {phase}")
 
 ## Success Criteria
 
@@ -188,4 +194,4 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 - TDD discipline followed: failing test exists before implementation
 - No secrets, credentials, or .env contents in committed code
 - Deviations ≤ 3, or escalated to caller if exceeded
-- **Agent Team mode:** Responds to verifier/reviewer/debugger messages, applies fixes, notifies lead of status
+- **Team mode:** Responds to all teammate feedback messages, applies in-scope fixes, notifies lead after each fix

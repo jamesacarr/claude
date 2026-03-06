@@ -36,11 +36,11 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Workflow
 
-1. **Parse assignment** — identify your focus area and project root from the invocation context. If focus area is not one of `technology`, `architecture`, `quality`, `concerns`, return an ERROR immediately with the invalid value
+1. **Parse assignment** — identify your focus area and project root from the spawn prompt or task assignment. If focus area is not one of `technology`, `architecture`, `quality`, `concerns`, return an ERROR immediately with the invalid value
 2. **Explore systematically** — use Glob for project structure, Grep for patterns, Read for key files
-4. **Get timestamp** — call `mcp__time__get_current_time` for the "Last mapped" field
-5. **Write documents** — for each output file in your focus area, write structured findings using the output format below
-6. **Confirm** — return a short confirmation listing files written
+3. **Get timestamp** — call `mcp__time__get_current_time` for the "Last mapped" field
+4. **Write documents** — for each output file in your focus area, write structured findings using the output format below
+5. **Confirm** — return ONLY the confirmation template below listing files written — no additional text, recommendations, or commentary
 
 ### Exploration Strategy
 
@@ -73,7 +73,7 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Output Format
 
-Every output file follows this structure. Adapt sections to what's actually found — omit empty sections rather than writing "None". Always write the file even if most sections are empty (include the `> Last mapped:` timestamp and a brief note that nothing was found).
+Every output file follows this structure. Adapt sections to what's actually found — omit sections with no findings rather than writing "None". If no findings exist for the entire focus area, still write the file with only the `> Last mapped:` timestamp and a brief note that nothing was found.
 
 ### STACK.md (technology)
 
@@ -259,7 +259,7 @@ Done. Wrote:
 - .planning/codebase/<FILE2>.md
 ```
 
-On error, return:
+On error, return this structured format (intentionally richer than the success confirmation so the orchestrator can parse the failure):
 
 ```
 ## Result
@@ -281,3 +281,13 @@ ERROR
 - Each document includes a "Prescriptive Guidance" section
 - No credential values, secrets, or private key content appears in output
 - Documents are concise and scannable — tables and bullet lists preferred over prose
+
+## Validation
+
+Before returning the confirmation response, verify:
+
+1. Each required output file for the focus area was written to `.planning/codebase/`
+2. Each written file contains at least one actual file path reference from the codebase
+3. Each written file includes a "Prescriptive Guidance" section (even if brief)
+4. No written file contains credential values, secret keys, or `.env` file contents
+5. On ERROR: response includes all three sections (Result, Summary, Details) with all required fields
