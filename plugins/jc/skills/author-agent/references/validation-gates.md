@@ -42,6 +42,8 @@ Review the report. Fix any critical issues before proceeding.
 
 Invalid tool names (e.g., `RunLinter`, `FormatCode`) silently fail at runtime — the agent runs without those tools and no error is shown. Use `Bash` to run CLI tools like linters and formatters.
 
+**MCP server → tool check** — if `mcpServers` is specified, verify that `tools` includes at least one `mcp__{server}__*` tool per listed server. Without corresponding tools, the `mcpServers` declaration has no effect — the agent cannot call any server endpoints. Flag as High severity: the agent declares a dependency it cannot use.
+
 ## Execution Model Compliance
 
 Verify the agent's declared execution capabilities match its content. See [execution-models.md](execution-models.md) for the full capabilities model.
@@ -82,7 +84,7 @@ If the agent's workflow instructs spawning subagents via the Task tool, verify e
 | `## Input` | Files, data, or artifacts the subagent needs |
 | `## Expected Output` | Format, scope, detail level specified |
 
-Also verify subagent templates do NOT use the `name` parameter (it creates team members, not foreground subagents). For `general-purpose` agents, verify prompts pass absolute paths resolved from `{skill-base-dir}`.
+Also verify subagent templates follow the invocation rules in [execution-models.md](execution-models.md) (`subagent_type` only, no `name` parameter). For `general-purpose` agents, verify prompts pass absolute paths resolved from `{skill-base-dir}`.
 
 **Skip if:** Agent never instructs Task tool usage.
 

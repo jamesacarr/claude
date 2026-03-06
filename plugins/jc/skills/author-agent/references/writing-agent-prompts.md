@@ -73,7 +73,7 @@ For each issue found:
 |------|-------------|-------|-------|
 | **Security Reviewer** | Focus Areas, Severity Ratings, Output Format | Read, Grep, Glob, Bash | sonnet |
 | **Test Writer** | Testing Philosophy, Test Structure (AAA), Quality Criteria | Read, Write, Grep, Glob, Bash | sonnet |
-| **Debugger** | Debugging Methodology (7 steps), Common Bug Patterns | Read, Edit, Bash, Grep, Glob | sonnet |
+| **Debugger** | Debugging Methodology (7 steps), Common Bug Patterns | Read, Edit, Bash, Grep, Glob | opus |
 
 ## Team Agent Prompts
 
@@ -108,15 +108,28 @@ Team agents must handle these message types:
 - **Shutdown requests:** Team lead sends `shutdown_request` → agent responds with `shutdown_response`
 - **Peer messages:** Other teammates send coordination messages → agent processes and responds
 
-### TaskList-Driven Workflow
+### Task Coordination Models
 
-Team agents should follow this loop:
+Team agents use one of two coordination models. The agent's `## Team Behavior` section must make clear which model it follows.
+
+**Self-serve (TaskList-driven):** Agents autonomously discover and claim work. Best when tasks are independent and execution order doesn't matter.
+
 1. Check `TaskList` for tasks assigned to them (or unclaimed tasks)
 2. Claim a task via `TaskUpdate` (set `owner` and `status: in_progress`)
 3. Execute the task
 4. Mark complete via `TaskUpdate` (`status: completed`)
 5. Send summary to team lead via `SendMessage`
 6. Return to step 1
+
+**Leader-directed:** The team lead assigns tasks to specific agents via `SendMessage`. Agents only act on what they're given. Best when the lead needs control over distribution — e.g., to prevent a fast agent from monopolizing the task list.
+
+1. Receive task assignment from the lead via `SendMessage` or spawn context
+2. Execute the assigned task
+3. Mark complete via `TaskUpdate` (`status: completed`)
+4. Send summary to team lead via `SendMessage`
+5. Wait for next assignment (do not self-serve from TaskList)
+
+Both models require coordination tools (`SendMessage`, `TaskList`, `TaskUpdate`) in the `tools` field. The difference is whether the agent initiates task selection or the lead does. An audit should check that the agent's behavior matches its declared model — not assume self-serve is always required.
 
 ### Peer Discovery
 

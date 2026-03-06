@@ -48,6 +48,8 @@ For team members, always at least **Medium** — they need `## Team Behavior` an
 
 Launch a subagent to write the agent file:
 
+**WARNING:** Use `subagent_type` only — do NOT add a `name:` parameter to the Task tool call (that creates a persistent team member instead of a one-shot subagent).
+
 ```
 Task tool parameters:
   subagent_type: "general-purpose"
@@ -80,6 +82,12 @@ Task tool parameters:
     - Any decisions made during content generation
 ```
 
+**Pre-flight check:** Before writing, verify no agent with this name already exists:
+```bash
+ls {agents-dir}/{name}.md
+```
+If the file exists, warn the user and ask: "Overwrite, cancel, or choose a different name?"
+
 Create directory first if needed:
 ```bash
 mkdir -p {agents-dir}
@@ -95,7 +103,7 @@ Review the subagent's output. Present to user:
 
 ### Step 6: Behavioral Testing (Main orchestrates DEC)
 
-Follow `references/testing-agents.md` DEC pattern. Main context orchestrates all phases — subagents cannot spawn other subagents.
+Follow `references/testing-agents.md` DEC pattern. Main context orchestrates all phases (see `references/execution-models.md` for spawning constraints).
 
 **6a: Design scenarios (Phase A)**
 
@@ -165,4 +173,5 @@ All gates from `references/validation-gates.md` must pass:
 
 ## Rollback
 
-Delete the file: `rm {agents-dir}/{name}.md`
+If the file is tracked by git: `git checkout -- {agents-dir}/{name}.md`
+If newly created (untracked): `rm {agents-dir}/{name}.md`

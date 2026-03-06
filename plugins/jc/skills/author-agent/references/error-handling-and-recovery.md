@@ -10,7 +10,7 @@
 - [Structured Communication](#structured-communication)
 - [Team Agent Error Patterns](#team-agent-error-patterns)
 - [Observability](#observability)
-- [Anti Patterns](#anti-patterns)
+- [Anti-Patterns](#anti-patterns)
 
 ## Common Failure Modes
 
@@ -360,7 +360,7 @@ Always preserve successful work. Never retry a full wave for a single failure.
 
 For structured logging, session tracing, correlation IDs, metrics monitoring, and evaluator agents, see [debugging-agents.md](debugging-agents.md#debugging-approaches).
 
-## Anti Patterns
+## Anti-Patterns
 
 ### Silent Failures
 

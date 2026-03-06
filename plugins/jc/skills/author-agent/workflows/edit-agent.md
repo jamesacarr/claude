@@ -23,7 +23,13 @@ Read the agent's `.md` file. Understand:
 
 `{agents-dir}` was resolved during path resolution — see SKILL.md.
 
-### Step 2: Identify Changes (Main)
+### Step 2: Backup (if risky edit)
+
+For high-risk prompt changes, preserve the ability to rollback:
+1. Copy current file to `{name}-backup.md`
+2. Skip this for trivial edits (typos, adding a constraint, YAML-only changes)
+
+### Step 3: Identify Changes (Main)
 
 Clarify what needs to change:
 - **Bug fix**: Agent doesn't behave as intended?
@@ -31,9 +37,9 @@ Clarify what needs to change:
 - **Structural upgrade**: Convert XML tags to Markdown headings, add missing sections?
 - **Bulletproofing**: Agent breaks rules or produces poor output?
 - **Capability change**: Adding/removing team member or subagent capability?
-- **YAML-only change**: Just updating tools list, model, or description? → Skip to Step 4, edit YAML frontmatter directly, then skip to Step 6.
+- **YAML-only change**: Just updating tools list, model, or description? → Skip to Step 5, edit YAML frontmatter directly, then skip to Step 7.
 
-### Step 3: Delegate Before-Test (Subagent)
+### Step 4: Delegate Before-Test (Subagent)
 
 Follow `references/testing-agents.md` for invocation pattern and scenario design.
 
@@ -60,7 +66,7 @@ Task tool parameters:
     - PASS/WEAK/FAIL assessment
 ```
 
-### Step 4: Delegate Edit + After-Test (Subagent)
+### Step 5: Delegate Edit + After-Test (Subagent)
 
 ```
 Task tool parameters:
@@ -73,7 +79,7 @@ Task tool parameters:
     ## Context
     - Agent file: {agents-dir}/{name}.md
     - Change type: {bug fix|enhancement|structural|bulletproofing|capability change}
-    - Before-test results: {results from step 3}
+    - Before-test results: {results from step 4}
     - Reference files: {skill-base-dir}/references/
       (read writing-agent-prompts.md, execution-models.md)
 
@@ -99,7 +105,7 @@ If capability change (adding team support):
 - Add coordination tools to tools list
 - Add shutdown handling
 
-### Step 5: Present Results (Main)
+### Step 6: Present Results (Main)
 
 Review the subagent's output. Present to user:
 - What changed (diff summary)
@@ -108,7 +114,7 @@ Review the subagent's output. Present to user:
 
 If still failing: iterate on the prompt and re-test.
 
-### Step 6: Delegate Audit (Subagent)
+### Step 7: Delegate Audit (Subagent)
 
 Read `references/validation-gates.md`. Run applicable gates:
 
@@ -136,25 +142,14 @@ Also run **Description Freshness** gate if capabilities changed.
 
 Fix any critical issues introduced by the edit before considering it complete.
 
-### Step 7: Safe Rollback (if risky edit)
-
-For high-risk prompt changes, preserve the ability to rollback:
-
-1. **Before editing:** Copy current file to `{name}-backup.md`
-2. **Test new version** with representative scenarios (Step 4)
-3. **If new version is worse:** Restore from backup
-4. **If new version passes:** Delete backup
-
-Skip this step for trivial edits (typos, adding a constraint, YAML-only changes).
-
 ## Validation
 
 All applicable gates from `references/validation-gates.md` must pass:
 - Structural Audit — no new critical issues
 - Execution Model Compliance — if capabilities changed
-- Behavioral test from Step 3 now passes or improves
+- Behavioral test from Step 4 now passes or improves
 - No regressions in previously passing scenarios
 
 ## Rollback
 
-Restore from backup if created in Step 7, or `git checkout {agents-dir}/{name}.md`.
+Restore from backup if created in Step 2, or `git checkout -- {agents-dir}/{name}.md`.

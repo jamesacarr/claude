@@ -171,7 +171,7 @@ Choose A, B, or C. Explain your reasoning.
 
 ## Multi-Scenario Testing: Design-Execute-Compile (DEC)
 
-When testing requires multiple scenarios (create, audit workflows), use the DEC pattern. The **main context** orchestrates all phases — subagents cannot spawn other subagents.
+When testing requires multiple scenarios (create, audit workflows), use the DEC pattern. The **main context** orchestrates all phases (see [execution-models.md](execution-models.md)).
 
 1. **Phase A — Design** (1 subagent): designs scenario specifications
 2. **Phase B — Execute** (N subagents, parallel): main context spawns one per scenario

@@ -12,7 +12,7 @@ description: Creates, edits, audits, and deletes Claude Code agents. Use when wo
 3. **Least-Privilege Tool Access.** Grant only the tools needed. Read-only: `Read, Grep, Glob`. Code modification: `Read, Edit, Bash, Grep`. Omit `tools` field only when full access is genuinely needed.
 4. **Description Drives Routing.** Claude selects agents automatically based on the `description` field. Include: what it does + when to use it + differentiation from similar agents. Vague descriptions = never invoked.
 5. **Agents Are Cached During Sessions.** Mid-session edits are NOT picked up by dedicated `subagent_type`. Test with `general-purpose` + inlined prompt (see audit-agent.md Step 3 for testing pattern).
-6. **Delegate heavy work to subagents.** Main context handles intake, routing, and presenting results. Research, content generation, testing, and auditing run in subagents via Task tool with I/O contract prompts. Use `subagent_type` only — do NOT use the `name` parameter (it creates team members instead of foreground subagents). Resolve `{skill-base-dir}` from this skill's announced base directory and pass absolute paths to reference files in subagent prompts. Note: subagents cannot spawn other subagents — the main context must orchestrate all subagent calls directly.
+6. **Delegate heavy work to subagents.** Main context handles intake, routing, and presenting results. Research, content generation, testing, and auditing run in subagents via Task tool with I/O contract prompts. Resolve `{skill-base-dir}` from this skill's announced base directory and pass absolute paths to reference files in subagent prompts. Details: references/execution-models.md.
 
 ## Intake
 
@@ -38,8 +38,7 @@ Read the matched workflow file and follow it exactly.
 
 ## Success Criteria
 
-- Agent passes structural audit with no critical issues
-- Execution capability compliance verified for all claimed capabilities
-- Behavioral tests pass on representative scenarios
+- Agent routes correctly to intended workflow from trigger phrases
+- No structural audit findings at Critical or High severity
+- Behavioral test passes at least 2 representative scenarios
 - Gap analysis identifies no critical missing capabilities
-- Subagent I/O contract compliance verified on agents that spawn subagents

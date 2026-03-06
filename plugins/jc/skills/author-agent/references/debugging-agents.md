@@ -11,7 +11,7 @@
 - [Diagnostic Procedures](#diagnostic-procedures)
 - [Remediation Strategies](#remediation-strategies)
 - [Team Agent Debugging](#team-agent-debugging)
-- [Anti Patterns](#anti-patterns)
+- [Anti-Patterns](#anti-patterns)
 - [Monitoring](#monitoring)
 - [Continuous Improvement](#continuous-improvement)
 
@@ -590,7 +590,7 @@ When team communication breaks down:
 5. Does the recipient's prompt handle this message type? (check ## Team Behavior)
 ```
 
-## Anti Patterns
+## Anti-Patterns
 
 **Assuming Model Failure**
 

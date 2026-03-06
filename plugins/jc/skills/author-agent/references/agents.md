@@ -10,6 +10,7 @@ Agent file structure:
 name: your-agent-name
 description: Description of when this agent should be invoked
 tools: tool1, tool2, tool3 # Optional - inherits all tools if omitted
+mcpServers: server1, server2 # Optional - MCP servers the agent needs access to
 model: sonnet # Optional - specify model alias or 'inherit'
 ---
 
@@ -31,6 +32,8 @@ Step-by-step process for consistency.
 | `name` | Yes | Unique identifier using lowercase letters and hyphens |
 | `description` | Yes | Natural language description of purpose. Include when Claude should invoke this. |
 | `tools` | No | Comma-separated list. If omitted, inherits all tools from main thread |
+| `skills` | No | Comma-separated list of skill identifiers the agent needs preloaded (e.g., `jc:test, jc:test-driven-development`). Without this field, the agent cannot invoke the listed skills |
+| `mcpServers` | No | Comma-separated list of MCP server names the agent needs access to (e.g., `context7, time`). Each listed server requires at least one corresponding `mcp__{server}__*` tool in the `tools` field |
 | `model` | No | `sonnet`, `opus`, `haiku`, or `inherit`. If omitted, uses default agent model |
 
 ## Execution Models
@@ -182,6 +185,7 @@ For Sonnet + Haiku orchestration patterns (optimal cost/performance), see [orche
 | Quality validation | Sonnet | Critical checkpoint, needs intelligence |
 | Batch processing | Haiku | Cost efficiency for high volume |
 | Critical security | Sonnet | High stakes require best model |
+| Complex debugging | Opus | Root cause analysis needs highest reasoning capability |
 | Output synthesis | Sonnet | Ensuring coherence across inputs |
 
 ## Invocation

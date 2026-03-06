@@ -1,10 +1,10 @@
 # Audit Agent
 
-> Comprehensive structural and behavioral audit of a Claude Code agent with actionable findings, delegating audit phases to subagents.
+> Comprehensive structural, wording, and behavioral audit of a Claude Code agent with actionable findings, delegating audit phases to subagents.
 
 ## Goal
 
-Produce a unified audit report combining structural validation (via audit-agent-auditor) with behavioral testing, identifying gaps and providing fix recommendations. Main context handles selection, presentation, and fix decisions. Subagents handle the actual auditing and testing.
+Produce a unified audit report combining structural validation (via audit-agent-auditor), wording review (via wording-reviewer), and behavioral testing, identifying gaps and providing fix recommendations. Main context handles selection, presentation, and fix decisions. Subagents handle the actual auditing and testing.
 
 ## Prerequisites
 
@@ -23,7 +23,11 @@ ls {agents-dir} 2>/dev/null
 
 Ask: "Which agent would you like to audit?"
 
-### Step 2: Delegate Structural Audit (Subagent)
+### Step 2: Analysis (Parallel Subagents)
+
+Launch structural audit and wording review in parallel — both are independent read-only analyses.
+
+**2a: Structural Audit**
 
 See also `references/validation-gates.md` for the standard structural audit gate.
 
@@ -50,7 +54,28 @@ Task tool parameters:
     execution capability compliance, and coverage gaps.
 ```
 
-Review the structural report before proceeding to Step 3.
+**2b: Wording Review**
+
+```
+Task tool parameters:
+  subagent_type: "jc:wording-reviewer"
+  prompt: |
+    ## Task
+    Review instruction quality in the agent file.
+    Read-only analysis — do not modify any files.
+
+    ## Input
+    Target directory: {agents-dir}
+    Target file: {name}.md
+    Writing guide: {skill-base-dir}/references/writing-agent-prompts.md
+
+    ## Expected Output
+    Per your standard output format.
+```
+
+**Note:** The wording-reviewer evaluates the single agent file's directory. For agents that are single files (not directories), point the reviewer at `{agents-dir}` and specify the target file in the prompt so it scopes to just that file.
+
+Review both reports before proceeding to Step 3.
 
 **Batch mode:** To audit all agents, iterate over the resolved agents directory:
 ```bash
@@ -66,7 +91,7 @@ Follow `references/testing-agents.md` DEC pattern. Main context orchestrates all
 
 **3a: Design scenarios (Phase A)**
 
-Launch 1 subagent to design scenarios targeting structural gaps from Step 2. Pass: agent prompt content, structural audit findings, agent role. Returns numbered scenario specs.
+Launch 1 subagent to design scenarios targeting structural gaps and wording issues from Step 2. Pass: agent prompt content, structural audit findings, wording review findings, agent role. Returns numbered scenario specs.
 
 **3b: Execute GREEN scenarios (Phase B)**
 
@@ -109,20 +134,28 @@ If user chooses **report-only**: present the report, then add:
 - For critical issues: "These will cause failures in production. Recommend addressing soon."
 - Offer: "Would you like me to add TODO comments to the agent file marking the critical issues?"
 
+## Evidence Filtering
+
+Before presenting the unified report, apply the suppression rule:
+- **Drop:** findings tagged `inference` + `Low` severity — these are low-confidence, low-impact items that add noise
+- **Keep:** all other combinations (`inference` + Medium/High/Critical, `verified` + any severity, `pattern-match` + any severity)
+- At the bottom of the report, add: `"N low-confidence findings suppressed. Re-run with --verbose to include."` (where N is the count of dropped findings, omit line if N=0)
+- When the user passes `--verbose`, skip this filter and include all findings
+
 ## Output Format
 
-Final report merges structural audit (audit-agent-auditor) with behavioral verification. Present as one unified report:
+Final report merges structural audit (audit-agent-auditor), wording review (wording-reviewer), and behavioral verification. Present as one unified report:
 
 ```
 ## Audit Report: {agent-name}
 
 ### Assessment
-[1-2 sentence verdict covering both structural and behavioral results.]
+[1-2 sentence verdict covering structural, wording, and behavioral results.]
 
 ### Critical Issues
 Findings rated Critical or High:
 
-1. **[Title]** ({S|B|C}) — file:line — {Critical|High}
+1. **[Title]** ({S|W|B|C}) — file:line — {Critical|High} — evidence: {verified|pattern-match|inference}
    - Current: [what exists]
    - Should be: [what's correct]
    - Why: [impact on agent effectiveness]
@@ -130,9 +163,9 @@ Findings rated Critical or High:
 
 ### Recommendations
 
-| # | Title | Sev | Src | Location | Current | Recommendation | Benefit |
-|---|-------|-----|-----|----------|---------|----------------|---------|
-| 1 | [title] | Med/Low | S/B/C | file:line | [what exists] | [what to change] | [improvement] |
+| # | Title | Sev | Src | Evidence | Location | Current | Recommendation | Benefit |
+|---|-------|-----|-----|----------|----------|---------|----------------|---------|
+| 1 | [title] | Med/Low | S/W/B/C | verified/pattern-match/inference | file:line | [what exists] | [what to change] | [improvement] |
 
 ### Gaps
 
@@ -174,15 +207,20 @@ Result: PASS = complies citing prompt. WEAK = complies without citing. FAIL = vi
 - Effort to address issues: [low / medium / high]
 ```
 
-Source tags: **(S)** = Structural (from audit-agent-auditor). **(B)** = Behavioral (from test scenarios). **(C)** = Coordination (from team tests). Omit empty sections except Gaps and Behavioral Verification (always required).
+Source tags: **(S)** = Structural (from audit-agent-auditor). **(W)** = Wording (from wording-reviewer). **(B)** = Behavioral (from test scenarios). **(C)** = Coordination (from team tests). Omit empty sections except Gaps and Behavioral Verification (always required).
+
+Evidence tags: **verified** = checked against filesystem/frontmatter/tools. **pattern-match** = matches canonical anti-pattern. **inference** = reasoning without direct evidence.
+
+`N low-confidence findings suppressed. Re-run with --verbose to include.` (omit if N=0)
 
 ## Validation
 
 - Structural audit completed (audit-agent-auditor ran)
+- Wording review completed (wording-reviewer ran)
 - At least 2 behavioral scenarios executed
 - Coordination tests executed (if agent has team capability)
 - Unified report produced with all required sections
-- Each finding has source tag (S, B, or C)
+- Each finding has source tag (S, W, B, or C)
 
 ## Rollback
 

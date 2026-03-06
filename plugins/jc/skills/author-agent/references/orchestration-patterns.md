@@ -10,7 +10,7 @@
 - [Team Agent Orchestration](#team-agent-orchestration)
 - [Hybrid Approaches](#hybrid-approaches)
 - [Implementation Guidance](#implementation-guidance)
-- [Anti Patterns](#anti-patterns)
+- [Anti-Patterns](#anti-patterns)
 - [Best Practices](#best-practices)
 
 ## Core Concept
@@ -470,7 +470,7 @@ Coordinator:
 
 ### Subagents Within Teams
 
-**Constraint: Team members cannot spawn subagents.** Only the main context (team lead) can spawn subagents via the Task tool. Team members that need subagent-like work must request it from the team lead.
+**Constraint: Team members cannot spawn subagents** (see [execution-models.md](execution-models.md)). Team members that need subagent-like work must request it from the team lead.
 
 **Correct pattern — team lead spawns on behalf of members:**
 
@@ -497,7 +497,7 @@ Team Lead:
   - Executor's task unblocks, proceeds with research available in task context
 ```
 
-**Rationale**: The Task tool's `name` parameter creates team members, not foreground subagents. Subagents are one-shot processes that cannot themselves spawn further subagents. Design workflows so the team lead (main context) orchestrates all subagent work directly.
+**Rationale**: Design workflows so the team lead (main context) orchestrates all subagent work directly. See [execution-models.md](execution-models.md) for the `name` vs `subagent_type` distinction and spawning constraints.
 
 ## Implementation Guidance
 
@@ -610,7 +610,7 @@ Partial failure handling:
 
 Never force-kill teammates with active work. The shutdown handshake ensures no work is lost.
 
-## Anti Patterns
+## Anti-Patterns
 
 ### Over Orchestration
 

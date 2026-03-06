@@ -6,10 +6,6 @@
 
 Safely remove or deprecate an agent while preserving referential integrity across the agents directory.
 
-## Prerequisites
-
-None.
-
 ## Steps
 
 ### Step 1: Select the Agent (Main)
