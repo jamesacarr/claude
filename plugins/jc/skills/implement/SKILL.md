@@ -3,19 +3,21 @@ name: implement
 description: "Orchestrates plan execution through wave-based parallelization with verification, review, and failure handling. Handles both fresh execution and resuming interrupted/paused plans. Use when a PLAN.md exists and the user wants to execute or resume it. Do NOT use for planning (use jc:plan)."
 ---
 
+# Implement
+
 ## Essential Principles
 
-1. **Worktree-first.** Commit `.planning/` to current branch, THEN create worktree via `EnterWorktree`. All source changes happen in the worktree — never in the main tree. When resuming, route to the existing worktree — never create a new one over it
-2. **State machine discipline.** Follow the exact step sequence. Never skip verification, never skip wave review, never improvise transitions
-3. **PLAN.md is the source of truth.** Update frontmatter and task/wave status at every state transition. If the session dies, PLAN.md must reflect the last known state for recovery
+1. **Worktree-first.** Commit `.planning/` to current branch, THEN create worktree via `EnterWorktree` — so PLAN.md is visible from the worktree without a separate sync step. All source changes happen in the worktree — never in the main tree. When resuming, route to the existing worktree — never create a new one over it
+2. **State machine discipline.** Follow the exact step sequence. Never skip verification, never skip wave review, never improvise transitions — skipping verification breaks crash-recovery state, and skipping wave review allows convention drift that tests don't catch
+3. **PLAN.md is the source of truth.** Update PLAN.md at every state transition so crash recovery can resume from an accurate last-known state. If the session dies, PLAN.md must reflect the last known state for recovery
 4. **Verify before re-executing.** When resuming, an `in_progress` task without a verification report is an information gap, not evidence of failure. Run the verifier first — only re-execute if verification fails. Preserve the existing retry counter
 5. **Pre-flight before every wave.** Parse "Files affected" from each task. Build file→task map. Sequential fallback for overlapping tasks. Log the fallback
-6. **Hard retry limits.** 3 per task (execute→verify→fix loop). 3 per plan-review revision round. After limit: escalate to user via AskUserQuestion — never override
-7. **I/O contract compliance.** Every agent invocation includes: Task, Context (task-id, project root, planning directory), Input, Expected Output. Agents read/write files directly — do not relay file contents through the orchestrator
+6. **Hard retry limits.** 3 per task (execute→verify→fix loop). 3 per plan-review revision round. After limit: escalate to user via AskUserQuestion — never override, because autonomous retries beyond 3 signal a fundamental issue only the user can resolve
+7. **I/O contract compliance.** Every agent invocation includes: Task, Context (task-id, project root, planning directory), Input, Expected Output. Agents read/write files directly — do not relay file contents through the orchestrator, because relaying bloats the orchestrator's context window and introduces transcription errors
 
 ## Quick Start
 
-```
+```text
 /jc:implement {task-id}
 
 Fresh:  INIT → WORKTREE → [WAVE_START → EXECUTE → VERIFY → WAVE_REVIEW] × N → PLAN_VERIFY + PLAN_REVIEW → COMPLETE
@@ -27,7 +29,7 @@ Resume: INIT → ROUTE → RECOVER → [WAVE_START → ...] × remaining → PLA
 ### Step 1: INIT — Validate Plan
 
 1. Parse task-id from arguments. If missing, scan `.planning/` for task directories and ask via AskUserQuestion
-2. Validate task-id: alphanumeric, hyphens, underscores only
+2. If task-id contains characters other than alphanumeric, hyphens, or underscores, stop and ask the user for a valid task-id
 3. Read `.planning/{task-id}/plans/PLAN.md`
    - Missing → error, prompt user to run `/jc:plan`
    - `status: completed` → inform user plan already completed
@@ -44,11 +46,11 @@ Determine the current environment and route accordingly:
 | Condition | Action |
 |-----------|--------|
 | Already in the task's worktree | Go to Step 1b |
-| In main tree, worktree exists (`git worktree list` shows `{task-id}`) | Prompt user: `"Worktree exists at {path}. Start a new session there and re-run: claude --cwd {path}"`. Stop |
+| In main tree, worktree exists for `{task-id}` branch | Prompt user: `"Worktree exists at {worktree-path}. Start a new session there and re-run: claude --cwd {worktree-path}"`. Stop |
 | In main tree, no worktree found | Prompt user: `"No worktree found for {task-id}. The previous worktree may have been removed. Re-running will create a fresh worktree."` Go to Step 2 (WORKTREE) |
 | In a DIFFERENT worktree | Prompt user: `"You're in worktree {current} but plan is for {task-id}. Switch to the correct worktree."` Stop |
 
-**Detecting worktree:** Run `git worktree list` and check if any entry's path contains `{task-id}`. Check if the current directory is inside a worktree via `git rev-parse --show-toplevel` compared against worktree paths. If `git worktree list` fails with non-zero exit, stop and present the error.
+**Detecting worktree:** Run `git worktree list` and match by **branch name** — each line has the format `{path}  {commit} [{branch}]`. Find the line where `{branch}` matches `{task-id}` and extract `{path}` from that line. Check if the current directory is inside a worktree via `git rev-parse --show-toplevel` compared against worktree paths. If `git worktree list` fails with non-zero exit, stop and present the error.
 
 ### Step 1b: RECOVER — Build Status Summary (Resume Only)
 
@@ -89,12 +91,14 @@ Options: "Continue" / "Abort". If user chooses Abort → stop.
 
 ### Step 2: WORKTREE — Isolate Execution
 
-1. Stage and commit all `.planning/` files if there are changes: `git add .planning/ && git commit -m "chore: commit planning docs for {task-id}"`. If no `.planning/` changes exist, skip the commit. If commit fails (GPG error, dirty state, no repo): stop and present the error to the user. Do not proceed
+1. Stage and commit all `.planning/` files if there are changes: first `git add .planning/`, then `git commit -m 'chore: commit planning docs for {task-id}'`. If no `.planning/` changes exist, skip the commit. If commit fails (GPG error, dirty state, no repo): stop and present the error to the user. Do not proceed
 2. Call `EnterWorktree` with name `{task-id}`. If it fails (name conflict, git error): stop and present the error. User must resolve or choose a different task-id. If name conflict: suggest `git worktree list` to inspect, `git worktree remove --force {task-id}` to clean up
 3. Get timestamp: call `mcp__time__get_current_time`. Update PLAN.md frontmatter: `status: executing`, `current_wave: 1`, `updated: <timestamp>`
-4. **Install dependencies** — spawn a `general-purpose` subagent. If install fails, stop and present the error. Do not spawn executors without a working dependency tree
+4. **Install dependencies** — spawn a `general-purpose` subagent. If install fails, stop immediately and escalate to the user via AskUserQuestion. Do not retry, do not apply workarounds, do not attempt to fix the issue — even if the fix is known. The user controls dependency decisions. Present the exact error output and offer options: retry with user-provided flags, provide guidance, or abort. Do not spawn executors without a working dependency tree
 
 ```
+subagent_type: "general-purpose"
+
 ## Task
 Install project dependencies in the worktree.
 
@@ -163,7 +167,7 @@ d. **Verify** — Spawn `team-verifier` (`subagent_type: "team-verifier"`, mode:
 |--------|--------|
 | **PASS** | Update task status → `passed`. Advance to next task |
 | **FAIL** | If retries < 3: retry (Step 4). If retries ≥ 3: escalate (Step 5) |
-| **PARTIAL** | Treat as PASS with warning logged. Advance to next task |
+| **PARTIAL** | Treat as PASS with warning logged in PLAN.md task notes. Advance to next task |
 
 ### Step 4: TASK_RETRY
 
@@ -198,7 +202,7 @@ After all tasks in a wave complete:
 | Result | Action |
 |--------|--------|
 | **PASS** | If more waves: increment `current_wave`, go to Step 3. If last wave: go to Step 7 |
-| **REVISE** | Spawn executor to fix blocking issues (1 fix round max). Re-run wave review. If still REVISE after fix round: present remaining issues to user, then proceed |
+| **REVISE** | Spawn executor to fix blocking issues (1 fix round max). Re-run wave review. If PASS: advance to next wave (or Step 7 if last wave). If still REVISE after fix round: present remaining issues to user via AskUserQuestion, then advance to next wave (or Step 7 if last wave) |
 
 ### Step 7: PLAN_VERIFY + PLAN_REVIEW (parallel)
 
@@ -225,7 +229,7 @@ After all tasks in a wave complete:
    - Worktree branch name (for merging)
    - Summary: tasks passed / skipped / manual
    - Paths to verification and review reports
-4. Suggest: `"Merge the worktree branch back to main when ready. Clean up with: git worktree remove {task-id}"`
+4. Determine the worktree path by running `git worktree list` and matching the `{task-id}` branch name. Suggest: `"Merge the worktree branch back to main when ready. Clean up with: git worktree remove {worktree-path}"`
 
 ## Anti-Patterns
 
@@ -233,21 +237,16 @@ After all tasks in a wave complete:
 |-------------|-----------------|
 | Executing in main tree "to save time" | Always create worktree — isolation protects main branch |
 | Skipping wave review "because tests pass" | Wave review catches convention drift that tests don't cover |
-| Retrying past the limit "just one more try" | Hard limit at 3 — escalate to user, never override |
 | Parallelizing without pre-flight check | Always check file overlap before spawning executors |
 | Updating PLAN.md only at completion | Update at every state transition — crash recovery depends on it |
-| Relaying file contents through orchestrator | Agents read/write files directly — send I/O contract fields only |
 | Spawning debugger autonomously on failure | Escalate to user — they choose whether to debug, skip, or guide |
 | Re-executing `in_progress` tasks without verifying first | Verify first — the executor may have succeeded before the session died |
-| Resetting retry counters "for a fresh start" on resume | Preserve counters — they reflect real failure history |
 | Creating a new worktree when one already exists for the task | Prompt user to switch to existing worktree — new one loses committed progress |
+| Retrying or applying workarounds on dependency install failure | Stop immediately, escalate to user — they control dependency decisions |
 
 ## Success Criteria
 
-- All source changes exist in a worktree branch, not the main tree
-- Every task in PLAN.md has status `passed`, `skipped`, or `manual` — none left `pending` or `in_progress`
+- Every task in PLAN.md has terminal status (`passed`, `skipped`, or `manual`) — none left `pending` or `in_progress`
 - Verification reports exist for every `passed` task and for the plan overall
 - Wave review ran after each wave (PASS or issues surfaced to user)
 - Plan review report exists at `.planning/{task-id}/reviews/PLAN-REVIEW.md`
-- PLAN.md `status: completed` with `current_wave: null`, `current_task: null`
-- User received worktree branch name and merge instructions

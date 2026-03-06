@@ -7,16 +7,14 @@ description: Generates CHANGELOG.md entries from git history using Keep a Change
 
 ## Essential Principles
 
-1. **Keep a Changelog 1.1.0 format only.** Every entry follows the spec exactly -- categories, date format, link references. No deviations.
+1. **Keep a Changelog 1.1.0 format only** — widely recognized by tooling and humans, keeping entries parseable and consistent across projects. Every entry follows the spec exactly: categories, date format, link references. No deviations.
 2. **Unreleased section only.** Never modify existing version sections. New entries go under `## [Unreleased]`. Version bumping is handled by the companion `jc:release` skill.
 3. **Git history is the source of truth.** Derive entries from commits between the latest tag and HEAD. Do not invent entries or rely on memory.
 4. **No duplicates.** Compare generated entries against existing Unreleased content before inserting.
 
 ## Quick Start
 
-1. Validate git repo and check commit count (main context)
-2. Spawn subagent to do all changelog work (Steps 2-9)
-3. Present subagent's summary to user
+Validate environment, spawn subagent for all changelog work, present results.
 
 ## Process
 
@@ -24,7 +22,7 @@ description: Generates CHANGELOG.md entries from git history using Keep a Change
 
 Verify the working directory is a git repository. If not, halt and report the error.
 
-Check commit count since the latest tag. If >100, warn the user and ask whether to proceed or limit scope. Only spawn the subagent after the user confirms.
+Check commit count since the latest tag. If >100, warn the user and ask whether to proceed or limit to the most recent 100 commits. Only spawn the subagent after the user confirms.
 
 ### Step 2: Spawn changelog subagent
 
@@ -97,17 +95,18 @@ Task tool parameters:
     **Skipped prefixes (internal/maintenance):** `chore:`, `ci:`, `docs:`, `style:`,
     `test:`, `build:`. Excluded by default. {include_maintenance_note}
 
-    **Non-conventional commits:** Read the message content and assign best-fit category.
-    Default to Changed when ambiguous.
+    **Non-conventional commits:** Read the message content and assign the closest
+    matching category — if it describes new capability, use Added; if it describes a
+    fix, use Fixed; otherwise default to Changed.
 
     Strip the conventional commit prefix and scope from entry text. Write entries as
     clear, user-facing descriptions.
 
     ### Deduplicate against existing entries
 
-    Read the current `## [Unreleased]` section. Skip any generated entry where a
-    semantically equivalent entry already exists (same category, substantially similar
-    description).
+    Read the current `## [Unreleased]` section. Skip any generated entry where an
+    existing entry under the same category describes the same change — identical
+    subject after prefix stripping, or differing only in phrasing.
 
     ### Insert entries into Unreleased section
 
@@ -122,6 +121,8 @@ Task tool parameters:
     At the bottom of CHANGELOG.md, ensure an `[Unreleased]` comparison link exists.
     Derive the repo URL from `git remote get-url origin`. Use the latest tag as the
     comparison base. If no tags exist, omit the link.
+
+    If the remote URL is SSH, convert `git@{host}:{org}/{repo}.git` to `https://{host}/{org}/{repo}`.
 
     Format: `[Unreleased]: https://{host}/{org}/{repo}/compare/{latest-tag}...HEAD`
 
@@ -144,19 +145,11 @@ Before spawning, resolve placeholders:
 - `{maintenance_constraint}` — "Include maintenance commits under Changed (user requested)" if the user explicitly asked, otherwise "Exclude maintenance commits (default)"
 - `{include_maintenance_note}` — "Include maintenance commits under Changed — user explicitly requested." if the user asked, otherwise remove the placeholder
 
-### Step 3: Present results (main context)
-
-Display the subagent's summary to the user.
+After the subagent completes, display its summary to the user. If the subagent fails or returns an error, report the failure and any partial results (e.g. categorized entries) so the user can decide how to proceed.
 
 ## Success Criteria
 
-- CHANGELOG.md follows Keep a Changelog 1.1.0 format exactly
-- Entries appear under `## [Unreleased]` only
-- All non-maintenance commits since the latest tag are categorized
-- No duplicate entries in the Unreleased section
-- Entries are clean, user-facing descriptions (not raw commit messages)
-- Existing version sections and entries are untouched
-- `[Unreleased]` comparison link is present and correct
+CHANGELOG.md follows Keep a Changelog 1.1.0 format, entries appear under `## [Unreleased]` only, all non-maintenance commits are categorized as clean user-facing descriptions, no duplicates, existing version sections untouched, and `[Unreleased]` comparison link is correct.
 
 ## Related Skills
 

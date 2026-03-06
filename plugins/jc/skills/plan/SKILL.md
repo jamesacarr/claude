@@ -3,13 +3,15 @@ name: plan
 description: "Creates implementation plans through a plan-critique-revise loop using the planner agent. Use after /jc:research. Do NOT use for research (use /jc:research) or execution (use /jc:implement)."
 ---
 
+# Plan
+
 ## Essential Principles
 
-1. **Codebase map = hard gate.** The planner agent does NOT explore the codebase itself — it reads the codebase map. Without the map, plans lack convention awareness, correct file paths, and architectural alignment. Stop and direct user to `/jc:map`. No exceptions.
+1. **Codebase map = hard gate.** The planner reads the codebase map, not raw source files — without it, plans lack convention awareness, correct file paths, and architectural alignment. Stop and direct user to `/jc:map`. No exceptions.
 2. **Research = hard gate.** Plans without research are guesswork. Stop and direct user to `/jc:research`. No exceptions.
-3. **Critique loop is mandatory.** Every plan gets adversarial critique by a second planner invocation. The orchestrator reading the plan is NOT a substitute — it lacks the planner's codebase map cross-referencing and research gap detection. Never skip critique.
-4. **Max 1 revision round.** Plan → Critique → (if objections) Revise → Re-critique → done. 4 planner invocations worst case.
-5. **Agents write directly.** Planner agents write files themselves. Do NOT relay content through the skill.
+3. **Critique loop is mandatory.** The orchestrator lacks the planner's codebase map cross-referencing and research gap detection — every plan gets adversarial critique by a second planner invocation. Never skip critique.
+4. **Max 1 revision round.** Plan → Critique → (if objections) Revise → Re-critique → done. Additional rounds show diminishing returns; unresolved objections after one revision typically signal a deeper research gap. 4 planner invocations worst case.
+5. **Agents write directly.** Planner agents write files themselves — relaying content through the skill risks truncation, loses formatting, and bloats context.
 
 ## Quick Start
 
@@ -74,6 +76,8 @@ ls .planning/{task-id}/research/*.md 2>/dev/null
 
 If no research files exist: **hard gate.** Stop. Tell user to run `/jc:research {task-id}` first.
 
+**Research gate note:** The gate checks file presence only. Thin or partial research will surface as critique objections — the gate does not assess research quality.
+
 ### Step 4: Existing Plan Check
 
 Check if `.planning/{task-id}/plans/PLAN.md` exists:
@@ -127,6 +131,7 @@ Prompt template following the I/O contract in `{plugin-docs}/agent-io-contract.m
 | `replan` | Replan remaining work preserving completed tasks | `PLAN.md` |
 
 For `replan` mode, `{task_description}` is taken from the existing PLAN.md's `## Goal` section.
+For `plan` mode, `{task_description}` is the user's original planning request from the current conversation.
 
 **Loop execution:**
 
@@ -142,8 +147,6 @@ Steps 5a and 5b are **always** executed. Steps 5c and 5d execute only if 5b retu
 Each planner invocation is a **separate** Task tool call (sequential, not parallel — each depends on the previous output).
 
 **Result parsing:** Read the `## Result` line of the critique agent's stdout response. If it contains `PASS`, no objections. If `OBJECTIONS`, proceed to revision. If `ERROR` or unparseable, surface the agent's `## Summary` and `## Details` to the user, stop the loop, and suggest remediation.
-
-**Research gate note:** The gate checks file presence only. Thin or partial research will surface as critique objections — the gate does not assess research quality.
 
 ### Step 6: Report
 
@@ -178,5 +181,5 @@ Do NOT commit the plan — `/jc:implement` handles committing `.planning/` docs 
 ## References
 
 - Agent definition: `../../agents/team-planner.md` (relative to skill directory)
-- Plan schema: `{plugin-docs}/plan-schema.md`
-- I/O contract: `{plugin-docs}/agent-io-contract.md`
+- Plan schema: `../../docs/plan-schema.md`
+- I/O contract: `../../docs/agent-io-contract.md`

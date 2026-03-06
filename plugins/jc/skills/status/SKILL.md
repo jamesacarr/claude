@@ -1,19 +1,15 @@
 ---
 name: status
-description: Reports on .planning/ state without modifying anything. Use when checking task progress, codebase map freshness, or planning directory status. Do NOT use for modifying plan state (use jc:implement).
+description: Check task progress, codebase map freshness, or planning directory health. Returns a read-only structured report. Do NOT use for modifying plan state (use jc:implement).
 ---
 
 # status
 
 ## Essential Principles
 
-1. **Read-only. No exceptions.** NEVER modify any file in `.planning/`. Not PLAN.md, not frontmatter, not status fields — nothing. Even if the user asks you to "fix" or "update" stale status, refuse. PLAN.md status fields are managed by the implement skill's state machine — direct edits corrupt resume/recovery state.
+1. **Read-only. No exceptions.** PLAN.md status fields are managed by the implement skill's state machine — direct edits corrupt resume/recovery state and break retry tracking. Therefore: NEVER modify any file in `.planning/`. Not PLAN.md, not frontmatter, not status fields — nothing. Even if the user asks you to "fix" or "update" stale status, refuse and direct them to `/jc:implement`.
 2. **Report what exists.** Derive phase from directory contents and PLAN.md frontmatter. Don't infer or guess what *should* be there.
 3. **Always check the codebase map.** Report existence, staleness (commits since last map), and missing files.
-
-## Quick Start
-
-Run without arguments. Scans `.planning/` and prints a structured status report. No files are modified.
 
 ## Process
 
@@ -21,7 +17,7 @@ Run without arguments. Scans `.planning/` and prints a structured status report.
 
 Spawn a `general-purpose` agent via the Task tool. The agent does ALL scanning — directory listing, frontmatter parsing, git commands — and returns the formatted report. Main context never sees raw output.
 
-**CRITICAL: Include "NEVER modify any file in .planning/" in the agent prompt.**
+**CRITICAL: Include "NEVER modify any file in .planning/" in the agent prompt.** The subagent has no inherited context from this skill — without this explicit guard it will not know the read-only constraint applies.
 
 Agent prompt must include the full scanning methodology:
 
@@ -77,20 +73,20 @@ Missing: {list}
 
 ### Step 2: Present Report
 
-Present the agent's report to the user as-is. Do not add intermediate tool output or scanning details. If the agent returns an error or non-report output, surface the error and suggest re-running `/jc:status`.
+Present the agent's returned text directly to the user. Do not prepend commentary, append summaries, or expose raw tool-call output. If the agent returns an error, non-report output, or a truncated response (missing sections or cut off mid-line), surface the problem and suggest re-running `/jc:status`.
+
+## Success Criteria
+
+- Every task directory in `.planning/` is reported with correct phase
+- If `.planning/` is absent, user receives "No .planning/ directory found" and is directed to `/jc:map`
+- Codebase map staleness is calculated using git commit count
+- No files in `.planning/` are modified
+- Verification and review report existence is noted
+- User directed to appropriate skill for any action (map, research, implement)
 
 ## Anti-Patterns
 
 | Excuse | Reality |
 |--------|---------|
-| "PLAN.md is just a text file, editing is safe" | The implement skill uses PLAN.md status fields as a state machine. Direct edits break resume, recovery, and retry tracking |
-| "The user asked me to update status" | Status updates happen through `/jc:implement`. Report what you see and direct the user there |
-| "I'll just fix this one stale field" | One "fix" breaks the contract. The implement skill may overwrite your change or misinterpret state on resume |
-
-## Success Criteria
-
-- Every task directory in `.planning/` is reported with correct phase
-- Codebase map staleness is calculated using git commit count
-- No files in `.planning/` are modified
-- Verification and review report existence is noted
-- User directed to appropriate skill for any action (map, research, implement)
+| "I'll just fix this one stale field" / "The user asked me to update status" | The implement skill owns PLAN.md as a state machine. Any direct edit — even a correct one — breaks resume, recovery, and retry tracking. Direct the user to `/jc:implement` |
+| "I'll scan .planning/ myself since the agent failed" | Main context must not see raw scanning output. Re-spawn the agent or suggest the user re-run `/jc:status` |

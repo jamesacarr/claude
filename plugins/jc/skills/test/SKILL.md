@@ -1,13 +1,13 @@
 ---
 name: test
-description: Enforces test quality — behavioral assertions, minimal mocking, descriptive naming. Use when writing, reviewing, or evaluating any test.
+description: Enforces test quality — behavioral assertions, minimal mocking, descriptive naming. Use when writing, reviewing, or evaluating any test. Do NOT use for TDD process discipline (use jc:test-driven-development).
 ---
 
 ## Essential Principles
 
 Test what the code does, not what the mocks do.
 
-1. **Real code over mocks.** Use real implementations. Mock only external services, non-deterministic inputs, or expensive I/O. If the function under test accepts a callback or dependency — pass a real one.
+1. **Real code over mocks.** Mocks hide integration bugs and make tests brittle to refactoring — use real implementations. Mock only external services, non-deterministic inputs, or expensive I/O. If the function under test accepts a callback or dependency — pass a real one.
 2. **Assert on behavior, not internals.** Assert on return values, thrown errors, observable side effects. Never assert on call counts, internal state, or framework internals (e.g., `setTimeout` spy).
 3. **One behavior per test.** "and" in the test name → split it. Each test verifies one observable outcome.
 4. **Names describe behavior.** Test name = what the code does, stated as behavior. Good: `retries 3 times then throws the last error`. Bad: `respects maxAttempts`.
@@ -21,8 +21,6 @@ Before writing any test, ask:
 3. Does the test name describe what broke if it fails?
 
 If any answer is unclear, return to `## Essential Principles` before writing the test.
-
-Principles are language-agnostic. Examples use TypeScript/Vitest.
 
 ## Process
 
@@ -84,7 +82,7 @@ Cover what's relevant — not everything, but don't skip the obvious:
 
 ## Test Independence
 
-Tests must not depend on execution order or shared mutable state. Each test creates its own state and cleans up.
+Tests must not depend on execution order or shared mutable state — a test that passes only in sequence hides coupling bugs and breaks parallel runners. Each test creates its own state and cleans up.
 
 ## Success Criteria
 

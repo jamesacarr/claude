@@ -5,23 +5,23 @@ description: Enforces evidence-based completion verification before success clai
 
 ## Essential Principles
 
-Every completion claim requires evidence. No exceptions.
+Every completion claim requires evidence — without it, downstream agents and users inherit unverified assumptions.
 
 1. **Evidence over confidence.** "Tests pass" means you ran them and have the output. "Feature works" means you demonstrated it. Code review is not verification — it's a different confidence level.
 2. **Verify every criterion.** Each success criterion gets its own evidence entry. No silent skips.
 3. **Flag what you can't verify.** If a criterion cannot be verified with available tools, report it as UNVERIFIED with the reason. Do not claim verified based on code review alone.
 4. **Partial verification is honest.** Report exactly what was proven and by what means. PARTIALLY VERIFIED with an explanation is better than a false VERIFIED.
-5. **Run it yourself.** Never accept another agent's claim that "tests pass" without running them yourself.
+5. **Run it yourself.** Never accept another agent's claim that "tests pass" without running them yourself — agent claims can be stale or hallucinated.
 
 ## Quick Start
 
-Invoke with `/jc:verify-completion`. Provide or reference a plan/task with explicit success criteria. The skill extracts criteria, delegates evidence collection to a subagent, and presents a summary table.
+Invoke with `/jc:verify-completion`. Pass the plan path or paste criteria directly.
 
 ## Process
 
 ### Step 1: List Criteria
 
-Extract every success criterion from the plan task or user request. Include NFR criteria if present. If no explicit criteria exist, return UNVERIFIED with "no criteria defined" and escalate.
+Extract every success criterion from the plan task or user request. Include NFR criteria if present. If no explicit criteria exist, return UNVERIFIED with "no criteria defined" and ask the user to supply criteria before proceeding.
 
 ### Step 2: Delegate Evidence Collection
 
@@ -30,7 +30,7 @@ Spawn a `general-purpose` agent via the Task tool. The agent does ALL evidence g
 Agent prompt must include:
 
 1. **The criteria list** from Step 1
-2. **Full methodology inline** (do NOT reference this skill — the agent carries its own instructions):
+2. **Full methodology inline** (the subagent has no access to this skill's files):
    - Evidence over confidence: "tests pass" means run them, "feature works" means demonstrate it. Code review is not verification.
    - Verify every criterion. Each gets its own evidence entry. No silent skips.
    - Flag what you can't verify as UNVERIFIED with reason. Never claim VERIFIED from code review alone.
@@ -55,6 +55,8 @@ PASS | PARTIAL | FAIL
 
 Classification rules for the agent: VERIFIED = evidence proves criterion met. PARTIALLY VERIFIED = some aspects proven, others lack evidence. UNVERIFIED = cannot gather evidence with available tools. FAILED = evidence shows criterion NOT met.
 
+**Agent failure:** If the evidence agent returns an error or malformed output, report all criteria as UNVERIFIED with reason "evidence collection failed" and surface the error to the caller.
+
 ### Step 3: Present Results
 
 Present the agent's summary table to the user as-is. Do not add raw test output or command output — the table's Evidence column is sufficient.
@@ -67,11 +69,12 @@ Present the agent's summary table to the user as-is. Do not add raw test output 
 
 - **Silent skip:** Omitting a hard-to-verify criterion rather than flagging it as UNVERIFIED
 - **Test-as-proof mismatch:** A passing test that doesn't assert the claimed behavior is not evidence for that criterion
+- **Trusting executor claims:** Re-running evidence yourself is the point — accepting "tests pass" from another agent defeats the skill
+- **Partial-as-pass:** PARTIALLY VERIFIED is not VERIFIED — do not treat incomplete evidence as full confirmation
 
 ## Success Criteria
 
-- [ ] Every success criterion from the plan has an entry in the report
-- [ ] Every VERIFIED criterion has concrete evidence (command output, test results)
-- [ ] No criterion is claimed VERIFIED based solely on code review
-- [ ] Unverifiable criteria are flagged as UNVERIFIED with reason
-- [ ] Tests were run by the delegated agent, not trusted from Executor claims
+- Every success criterion from the plan has an entry in the report
+- Every VERIFIED criterion has concrete evidence (command output, test results)
+- No criterion is claimed VERIFIED based solely on code review
+- Unverifiable criteria are flagged as UNVERIFIED with reason

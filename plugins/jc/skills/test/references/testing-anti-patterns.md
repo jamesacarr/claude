@@ -2,8 +2,6 @@
 
 > Mock pitfalls, test-only methods, and over-mocking patterns. Reference for agents writing or evaluating tests.
 
-**Core principle:** Test what the code does, not what the mocks do.
-
 ## Testing Mock Behavior
 
 **Bad:**
@@ -96,9 +94,21 @@ await addServer(config);  // Should throw but doesn't — mock killed the side e
 
 ## Incomplete Mocks
 
-**Bad:** Mock response missing fields that downstream code accesses.
+**Bad:**
+```typescript
+const mockUser = { id: 1, name: 'Alice' };
+// Downstream code accesses user.email — undefined, silent bug
+renderProfile(mockUser);
+```
 
-**Fix:** Mirror the complete data structure from real API docs/examples.
+**Fix:**
+```typescript
+const mockUser = { id: 1, name: 'Alice', email: 'alice@example.com' };
+renderProfile(mockUser);
+```
+Include all fields downstream code reads, not necessarily every field the API returns.
+
+**Gate:** "Does my mock cover every field the code under test actually accesses?" If unsure → check the real API response shape.
 
 ## Spying on Framework Internals
 

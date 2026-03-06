@@ -1,6 +1,6 @@
 ---
 name: debug
-description: "Investigates bugs and failures by spawning the team-debugger agent. Use when encountering test failures, runtime errors, or executor escalations during implementation. Do NOT use for code review (use team-reviewer) or implementation (use /jc:implement)."
+description: "Investigates bugs and failures by spawning the team-debugger agent. Use when encountering test failures, runtime errors, or executor escalations. Do NOT use for code review (use team-reviewer) or implementation (use /jc:implement)."
 ---
 
 ## Path Resolution
@@ -10,10 +10,10 @@ Resolve from the skill's base directory (the directory containing this SKILL.md)
 
 ## Essential Principles
 
-1. **Always spawn the debugger.** Every investigation goes through `team-debugger` — no exceptions, regardless of how "simple" the bug appears. The agent writes a session log for audit trail and follows the scientific method for consistent root-cause analysis.
+1. **Always spawn the debugger.** Spawning `team-debugger` ensures a session log for audit trail and consistent scientific-method analysis — always route through it, even for bugs that look trivial.
 2. **Collect context first.** Gather the problem description, error output, and any executor escalation details before spawning. The debugger cannot ask for more information — it runs autonomously.
 3. **Follow the I/O contract.** Every debugger invocation uses the standard prompt format from `{plugin-docs}/agent-io-contract.md`: Task, Context, Input, Expected Output.
-4. **One bug, one session.** Each invocation investigates one problem. For multiple failures, spawn separate debugger invocations.
+4. **One bug, one session.** Each invocation investigates one problem. For multiple failures, investigate sequentially — one spawn per bug.
 
 ## Quick Start
 
@@ -51,7 +51,7 @@ Gather all available information before spawning. The debugger runs autonomously
 
 ### Step 3: Determine Fix Mode
 
-Ask the user via AskUserQuestion:
+Applying changes without consent can disrupt uncommitted work or conflict with an in-flight executor — ask the user via AskUserQuestion:
 - **Diagnose only** — debugger investigates and recommends a fix but does not modify source files
 - **Diagnose and fix** — debugger investigates, applies the fix if confidence is high or medium, and verifies it passes tests
 

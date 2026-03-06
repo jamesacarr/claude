@@ -3,12 +3,14 @@ name: research
 description: "Researches a task across 4 dimensions (approach, codebase integration, quality standards, risks) by spawning parallel researcher agents. Use before /jc:plan. Do NOT use for codebase mapping (use /jc:map)."
 ---
 
+# Research
+
 ## Essential Principles
 
 1. **4 fixed focus areas.** Every research run spawns 4 researchers: approach, codebase-integration, quality-standards, risks-edge-cases. User confirms or overrides before spawning.
-2. **Task-ID is user-facing.** Task-IDs appear in git history, `.planning/` paths, and are reused by all downstream skills (`/jc:plan`, `/jc:implement`). ALWAYS confirm with the user — never silently generate.
-3. **Collision = error.** If `.planning/{task-id}/` already exists, stop and alert the user. Do NOT overwrite.
-4. **Agents write directly.** Researcher agents write files themselves. Do NOT relay content through the skill.
+2. **Task-ID is user-facing.** Because task-IDs appear in git history, `.planning/` paths, and are reused by all downstream skills (`/jc:plan`, `/jc:implement`), always confirm with the user — never silently generate.
+3. **Collision = error.** Overwriting discards prior research that downstream skills may already reference. If `.planning/{task-id}/` already exists, stop and alert the user. Do NOT overwrite.
+4. **Agents write directly.** Researcher agents write files themselves — relaying content through the skill serialises parallel I/O and risks truncation of large research outputs.
 5. **Always commit.** Research output is committed to git after creation.
 
 ## Quick Start
@@ -107,10 +109,11 @@ If any file is missing, re-spawn that single `team-researcher` agent using the s
 Stage and commit the research output:
 
 ```bash
-git add .planning/{task-id}/research/ && git commit -m "$(cat <<'EOF'
-docs(jc): research {task-id}
-EOF
-)"
+git add '.planning/{task-id}/research/'
+```
+
+```bash
+git commit -m 'docs(jc): research {task-id}'
 ```
 
 NEVER use `--no-gpg-sign`. If GPG signing fails due to sandbox restrictions, disable sandbox for that command. If commit still fails, report files written and instruct user to commit manually.
@@ -134,4 +137,4 @@ Report to user:
 ## References
 
 - Agent definition: `../../agents/team-researcher.md` (relative to skill directory)
-- I/O contract: `{plugin-docs}/agent-io-contract.md`
+- I/O contract: `../../docs/agent-io-contract.md`

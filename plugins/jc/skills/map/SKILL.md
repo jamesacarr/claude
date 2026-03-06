@@ -1,32 +1,25 @@
 ---
 name: map
-description: "Maps a codebase to produce structured analysis documents in .planning/codebase/. Use when starting work on a new codebase or onboarding to a project. Do NOT use for task-scoped research (use /jc:research)."
+description: "Maps a codebase to produce structured analysis documents in .planning/codebase/. Use when starting work on a new codebase, onboarding to a project, or refreshing a stale codebase map. Do NOT use for task-scoped research (use /jc:research)."
 ---
 
 ## Essential Principles
 
 1. **Brownfield vs greenfield.** Detect automatically. Brownfield (source files exist) spawns 4 parallel mappers. Greenfield (empty/minimal codebase) prompts user for stack decisions and writes docs directly.
 2. **4 focus areas, 6 files.** Technology → `STACK.md` + `INTEGRATIONS.md`. Architecture → `ARCHITECTURE.md`. Quality → `CONVENTIONS.md` + `TESTING.md`. Concerns → `CONCERNS.md`. All in `.planning/codebase/`.
-3. **Agents write directly.** Mapper agents write files themselves. Do NOT relay content through the skill — minimises context load.
-4. **Always commit.** The codebase map is committed to git after creation. Required for worktree transfer and staleness tracking.
-
-## Quick Start
-
-1. Detect brownfield (project indicators exist) or greenfield (empty project)
-2. If `.planning/codebase/` exists — ask regenerate or cancel
-3. Brownfield — spawn 4 parallel `team-mapper` agents
-4. Greenfield — prompt for stack decisions, write docs directly
-5. Verify all 6 files exist
-6. Commit to git
-7. Suggest `/jc:research` as next step
+3. **Agents write directly.** Mapper agents write files themselves — relaying content through the orchestrator risks exhausting the context window on large codebases. Do NOT relay content through the skill.
+4. **Commit immediately.** Commit the codebase map right after creation so worktree transfers pick it up and staleness tracking has a baseline.
 
 ## Process
 
 ### Step 0: Resolve Paths
 
 Resolve from the skill's base directory (the directory containing this SKILL.md):
-- `{plugin-docs}` = `{skill-base-dir}/../../docs/`
-- `{agents-dir}` = `{skill-base-dir}/../../agents/`
+
+| Variable | Resolved Path |
+|----------|---------------|
+| `{plugin-docs}` | `{skill-base-dir}/../../docs/` |
+| `{agents-dir}` | `{skill-base-dir}/../../agents/` |
 
 ### Step 1: Detect Mode
 
@@ -34,6 +27,8 @@ Check for project indicators — any of: package manifests (`package.json`, `Car
 
 - **Any project indicator found** → brownfield mode
 - **No indicators** → greenfield mode
+
+If multiple project roots are plausible (e.g., monorepo sub-package with its own `package.json`), use the current working directory as the project root — the skill does not walk up the directory tree.
 
 ### Step 2: Check Existing Map
 
@@ -75,7 +70,7 @@ Map the {focus_area} focus area for this codebase.
 | Quality | `quality` | `CONVENTIONS.md`, `TESTING.md` |
 | Concerns | `concerns` | `CONCERNS.md` |
 
-All 4 agents MUST be spawned in a single message (parallel execution). Use `subagent_type: "team-mapper"` for each.
+Spawn all 4 agents in a single message so they run concurrently — sequential spawning would serialize the analysis and roughly quadruple wall-clock time. Use `subagent_type: "team-mapper"` for each.
 
 ### Step 3B: Greenfield — Prompt and Write
 
@@ -86,7 +81,7 @@ Use AskUserQuestion to gather key decisions:
 3. **Testing** — "What test framework and patterns will you use?"
 4. **Conventions** — "Any specific naming, style, or tooling conventions to follow?"
 
-Write all 6 files directly to `.planning/codebase/` as prescriptive guides based on user answers. Use the same output format as the team-mapper agent (see `{agents-dir}/team-mapper.md` for templates). Get the timestamp via `mcp__time__get_current_time`.
+Read `{agents-dir}/team-mapper.md` to obtain the output format templates. Write all 6 files directly to `.planning/codebase/` as prescriptive guides based on user answers, conforming to those templates. Get the timestamp via `mcp__time__get_current_time`.
 
 ### Step 4: Verify
 
@@ -107,7 +102,7 @@ git add .planning/codebase/
 git commit -m "docs(jc): map codebase"
 ```
 
-NEVER use `--no-gpg-sign`. If GPG signing fails due to sandbox restrictions, disable sandbox for that command. If commit still fails, report the files written and instruct the user to commit manually.
+NEVER use `--no-gpg-sign`. If GPG signing fails due to sandbox restrictions, exclude the git command from sandboxing. If commit fails for any other reason (lock file, dirty index, pre-commit hook, path errors), report the error, list the files written, and instruct the user to commit manually.
 
 ### Step 6: Report
 
@@ -124,7 +119,3 @@ Report to user:
 - Codebase map committed to git
 - User informed of next step (`/jc:research`)
 
-## References
-
-- Agent definition: `{agents-dir}/team-mapper.md`
-- I/O contract: `{plugin-docs}/agent-io-contract.md`
