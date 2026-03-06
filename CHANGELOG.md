@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-03-06
+
 ### Fixed
 
 - Prevent team-leader from bypassing delegation model by reading source files, invoking implementation skills, or skipping the ASSESS gate
@@ -24,5 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/jamesacarr/claude/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/jamesacarr/claude/compare/v1.0.0...v1.1.0
