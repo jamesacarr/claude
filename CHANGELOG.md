@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Audit and revalidate all skills for consistency and correctness
+- Audit and revalidate all agents for consistency and correctness
+- Improve author-agent skill with learnings from skill-creator usage
+- Improve author-skill skill with learnings from skill-creator usage
+
 ## [1.0.0] - 2026-02-25
 
 Initial release
+
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.0.0...HEAD
