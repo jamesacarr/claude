@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-06
+
 ### Changed
 
 - Audit and revalidate all skills for consistency and correctness
@@ -18,4 +20,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/jamesacarr/claude/compare/v1.0.0...v1.1.0
