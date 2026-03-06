@@ -18,6 +18,12 @@ Read references/tdd-for-skills.md and references/skill-structure.md before start
 → Analyze what's stated, what can be inferred, what's unclear
 → Skip to asking about genuine gaps only
 
+**If the conversation already contains a workflow** (e.g., user says "turn this into a skill"):
+→ Extract from conversation history: tools used, sequence of steps, corrections the user made, input/output formats observed
+→ Infer structure, scope, and skill type from extracted context
+→ Only ask about genuine gaps that can't be inferred
+→ Proceed directly to structure decision
+
 **If user just invoked skill without context:**
 → Ask what they want to build
 
@@ -65,8 +71,7 @@ Task tool parameters:
     - Templates directory: {skill-base-dir}/templates/
     - Requirements: {summary from step 1}
     - Skills directory: {skills-dir}
-    - Reference files: {skill-base-dir}/references/
-      (read path-resolution, skill-structure, anti-patterns, token-efficiency)
+    - Reference files: (read all .md files in {skill-base-dir}/references/)
 
     ## Input
     - Skill name: {skill-name}
@@ -79,6 +84,9 @@ Task tool parameters:
     - List of files created with line counts
     - Summary of skill capabilities
     - Any decisions made during content generation
+
+    Before returning, self-review: Does every instruction explain WHY? Could any
+    section be misinterpreted? Is anything repeated across files? Revise if needed.
 ```
 
 Create directory first if needed:
@@ -89,12 +97,10 @@ mkdir -p {skills-dir}/{skill-name}/workflows
 mkdir -p {skills-dir}/{skill-name}/references
 ```
 
-### Step 4: Present & Confirm (Main)
+### Step 4: Review & Proceed (Main)
 
-Review the subagent's output. Present to user:
-- Files created and their purposes
-- Key decisions the subagent made
-- Ask: "Does this look right, or should I adjust anything before testing?"
+Review the subagent's output for obvious issues (missing files, wrong structure, empty sections).
+If issues found: fix inline or re-run subagent. Do not stop for user confirmation — proceed directly to TDD.
 
 ### Step 5: TDD Testing (Main orchestrates DEC)
 
@@ -124,14 +130,27 @@ Compare GREEN against RED baseline. Each scenario should show improvement (PASS 
 
 If new rationalizations found: update skill, re-run Phase B (GREEN only). Continue until no new rationalizations emerge.
 
-### Step 6: Present Test Results (Main)
+### Step 6: Trigger Optimization
 
-Review TDD results. Present to user:
-- Scenarios run and their outcomes (PASS/WEAK/FAIL)
-- Rationalizations discovered and how they were addressed
-- Any remaining concerns
+After TDD passes, validate that the skill's description triggers correctly:
 
-If FAIL results persist after REFACTOR: discuss with user before proceeding.
+1. Generate 5-8 trigger/no-trigger queries targeting the new skill
+   - Should-trigger: realistic prompts a user would type that need this skill
+   - Should-NOT-trigger: near-miss prompts that share keywords but need a different skill (or no skill)
+   - Focus on edge cases and overlaps with existing skills
+   - If skill has a negative trigger ("Do NOT use for..."): include at least 2 should-NOT-trigger queries for the excluded case
+2. Test description against queries (see Trigger Testing in references/tdd-for-skills.md)
+3. If trigger accuracy is poor: iterate description and retest (max 3 rounds)
+4. Record results for the completion report
+
+### Step 7: Completion Report (Main)
+
+Present a single summary covering all phases:
+- Files created and their purposes
+- TDD results: scenarios run, outcomes (PASS/WEAK/FAIL), rationalizations found
+- Trigger validation results: queries tested, pass/fail
+- Structural audit results: issues found and auto-fixed
+- Any remaining issues requiring user attention
 
 ## Validation
 

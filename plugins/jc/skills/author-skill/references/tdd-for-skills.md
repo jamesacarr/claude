@@ -8,13 +8,11 @@
 NO SKILL WITHOUT A FAILING TEST FIRST
 ```
 
-Applies to NEW skills AND EDITS. Write skill before testing? Delete it. Start over.
+A skill written before its test encodes untested assumptions — the test must define correct behavior before the skill exists. Applies to NEW skills AND EDITS. Write skill before testing? Delete it and start over, because adapting existing text means testing-after with extra steps.
 
 **Editing an untested skill?** Minimum requirement: write a test for your specific change. Retroactive test coverage for untouched behavior is good practice but not required by the Iron Law.
 
 **No exceptions:** Don't keep it as "reference". Don't "adapt" while testing. Don't look at it. Delete means delete.
-
-**Violating the letter of the rules is violating the spirit of the rules.**
 
 ## TDD Mapping
 
@@ -121,6 +119,8 @@ Collect all Phase B results. For each scenario, evaluate:
 
 Compare RED vs GREEN results — GREEN should show improvement over RED baseline.
 
+**Eval self-critique:** After grading, flag scenarios that are non-discriminating — would pass even without the skill, can't distinguish correct from incorrect behavior, or a clearly wrong output could still satisfy the scenario. Non-discriminating scenarios create false confidence. Redesign or replace them before claiming coverage.
+
 ### Single-Scenario Shortcut
 
 When only 1 scenario is needed (targeted edits, single-aspect verification): skip Phase A. Main context writes the scenario directly and launches Phase B. This avoids a subagent round-trip for trivial design work.
@@ -135,7 +135,7 @@ When only 1 scenario is needed (targeted edits, single-aspect verification): ski
 4. Identify patterns — which excuses appear repeatedly?
 5. Note effective pressures — which scenarios trigger violations?
 
-**You MUST see what agents naturally do before writing the skill.**
+**Observe what agents naturally do before writing the skill** — baseline failures reveal which rationalizations to target, preventing instructions that address hypothetical problems instead of real ones.
 
 ## GREEN Phase
 
@@ -227,16 +227,19 @@ Build this table during RED-GREEN-REFACTOR. It grows with each iteration.
 
 ### Persuasion Principles
 
-Research (Meincke et al. 2025, N=28,000): Persuasion techniques more than doubled compliance (33% → 72%, p < .001).
+**Default: explain reasoning.** Models generalize better from understood principles than from mandates. Write instructions that explain WHY — the model adapts the principle to novel situations instead of following it literally. See references/writing-effective-skills.md.
 
-| Principle | Application |
-|-----------|-------------|
-| **Authority** | Imperative language: "YOU MUST", "No exceptions" |
-| **Commitment** | Require announcements, force explicit choices |
-| **Scarcity** | Time-bound: "IMMEDIATELY" |
-| **Social Proof** | Universal patterns: "Every time" |
+**Escalation: authority language.** When reasoning alone doesn't change behavior in TDD testing, escalate to imperative language (MUST/NEVER) — but pair it with the why. In practice, pairing authority with reasoning significantly increases compliance over either alone.
 
-By skill type: Discipline → Authority + Commitment + Social Proof. Guidance → Moderate Authority + Unity. Reference → Clarity only.
+| Principle | When to Use | Application |
+|-----------|-------------|-------------|
+| **Reasoning** (default) | First attempt for any instruction | Explain why the rule exists and what goes wrong without it |
+| **Authority** | Reasoning alone fails in TDD | Imperative language: "YOU MUST", "No exceptions" — paired with why |
+| **Commitment** | Agent waffles between options | Require announcements, force explicit choices |
+| **Scarcity** | Agent delays required actions | Time-bound: "IMMEDIATELY" |
+| **Social Proof** | Agent treats rule as optional | Universal patterns: "Every time" |
+
+By skill type: Discipline → start with reasoning, escalate to Authority + Commitment if needed. Guidance → Reasoning + moderate Authority. Reference → Clarity only.
 
 ### Pressure Types (combine 3+ for best tests)
 
@@ -358,6 +361,55 @@ For gap scenarios: agent handles gracefully → gap is mitigated. Agent fails or
 ### Inconclusive Results
 
 If the same scenario produces different results across runs: the skill's language is ambiguous at the decision boundary. Strengthen the specific rule the agent waffles on — add explicit negation, not more context.
+
+## End-to-End Testing
+
+A/B/C pressure scenarios test decision-making. End-to-end testing tests output quality.
+Use both when the skill produces complex outputs (documents, code, configurations).
+
+### When to Use
+- Skills that generate files, structured output, or multi-step artifacts
+- After A/B/C scenarios pass — this supplements, not replaces, pressure testing
+
+### When to Skip
+- Pure discipline skills (the A/B/C decision IS the output)
+- Reference skills (retrieval accuracy is tested by A/B/C)
+
+### Process
+
+1. **Write realistic test prompts** (2-3 per skill)
+   Prompts should be messy and specific like real user input:
+   - Include concrete details: file paths, column names, company context
+   - Vary formality: some casual with typos, some formal and detailed
+   - Add backstory: why the user needs this, what they tried before
+   - BAD: "Create a config file" — too clean, tests nothing
+   - GOOD: "i need to set up the deploy config for our staging env,
+     we're using k8s on GCP and the service name is user-api, port 8080,
+     3 replicas. oh and we need the health check on /ready not /health
+     because the app uses a custom endpoint"
+
+2. **Run with-skill AND baseline in parallel (blind)**
+   For each prompt, spawn two subagents in the same turn:
+   - With-skill: include skill content in prompt, save outputs
+   - Baseline: same prompt, no skill content, save outputs
+   Side-by-side comparison reveals what the skill actually changes.
+   **Blind comparison:** When evaluating results, randomize which output is labeled "A" vs "B" so the evaluator doesn't know which had the skill. This prevents confirmation bias — judging the with-skill output more favorably because you expect it to be better.
+
+3. **Write and evaluate assertions**
+   Write 2-4 verifiable assertions per test case before running.
+   Good assertions are concrete and discriminating:
+   - GOOD: "Config includes readinessProbe on path /ready" (verifiable, skill-specific)
+   - GOOD: "Output contains exactly 3 replica declarations" (countable)
+   - BAD: "Output is a valid config file" (too vague, passes trivially)
+   - BAD: "Output is well-formatted" (subjective, not verifiable)
+   Grade each assertion against both with-skill and baseline outputs.
+   The with-skill output should pass more assertions than baseline.
+   **Critique your assertions:** Flag any that would pass for a clearly wrong output (e.g., checking filename existence but not content), or important outcomes that no assertion covers. A passing grade on a weak assertion is worse than useless — it creates false confidence.
+
+4. **Auto-iterate if assertions fail**
+   If with-skill output fails assertions: diagnose from transcript, revise skill,
+   retest (max 3 rounds). See iteration guidance in edit-skill.md.
+   Record all results for the completion report.
 
 ## Failure Modes
 

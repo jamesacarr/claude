@@ -16,7 +16,7 @@ description: What it does and when to use it (third person, specific triggers)
 
 **Description:** Non-empty, max 1024 chars, third person. **CRITICAL:** Description = triggering conditions, NOT workflow summary — Claude may follow description instead of reading full skill content.
 
-**Description format:** `"<Capability statement>. Use when <trigger conditions>."` — always include both halves.
+**Description format:** `"<Capability statement>. Use when <trigger conditions>."` — always include both halves. Claude tends to under-trigger skills. Descriptions should be slightly pushy — include specific contexts and related terms a user might mention, even if not an exact match.
 - GOOD: `"Guides systematic root-cause investigation for bugs and failures. Use when encountering any bug, test failure, or unexpected behavior."`
 - BAD: `"Use when encountering any bug"` (missing capability)
 - BAD: `"Guides debugging"` (missing trigger)

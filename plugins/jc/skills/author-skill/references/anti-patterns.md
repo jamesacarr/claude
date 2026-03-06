@@ -31,7 +31,7 @@ See references/token-efficiency.md for principles, checklist, and common waste p
 ## Process Anti-Patterns
 
 - **Batch creation:** Creating multiple skills without testing each. STOP after writing ANY skill — test before moving on.
-- **Dynamic context execution:** When showing `!backtick` or `@ file` syntax in skills, add a space to prevent execution during skill load.
+- **Dynamic context execution:** When showing backtick-command or `@file` include syntax in skills, add a space after the trigger character to prevent execution during skill load.
 
 ## Flowchart Rules
 

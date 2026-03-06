@@ -10,7 +10,7 @@ If removing a sentence doesn't change agent behavior, remove it. Skills are prom
 
 **2. Say It Once**
 
-Never repeat the same instruction in different words. Pick the clearest phrasing, delete the rest. Cross-file duplication (SKILL.md echoing a workflow) is the most common violation. **Exception:** Never remove a section required by the skill's template — simplify its content instead.
+Never repeat the same instruction in different words. Pick the clearest phrasing, delete the rest. Cross-file duplication (SKILL.md echoing a workflow) is the most common violation. **Exception:** If a template requires the section, simplify its content rather than removing it.
 
 **3. Prefer Structure Over Prose**
 

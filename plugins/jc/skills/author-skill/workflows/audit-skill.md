@@ -1,10 +1,10 @@
 # Audit Skill
 
-> Audit a skill's structure and behavioral effectiveness, producing a unified report with severity ratings. Both audit phases delegate to subagents.
+> Audit a skill's structure, instruction wording, and behavioral effectiveness, producing a unified report with severity ratings. Structural audit, wording review, behavioral testing, report compilation, and fixes all delegate to subagents.
 
 ## Goal
 
-Produce a unified audit report covering both structural compliance and behavioral effectiveness.
+Produce a unified audit report covering structural compliance, instruction wording quality, and behavioral effectiveness.
 
 ## Prerequisites
 
@@ -20,9 +20,11 @@ ls {skills-dir}/
 
 Present as numbered list, ask: "Which skill would you like to audit? (enter number or name)"
 
-### Step 2: Structural Audit (Subagent)
+### Step 2: Analysis (Parallel Subagents)
 
-Launch the `audit-skill-auditor` agent via Task tool using the I/O contract format:
+Launch structural audit and wording review in parallel — both are independent read-only analyses.
+
+**2a: Structural Audit**
 
 ```
 Task tool parameters:
@@ -44,19 +46,35 @@ Task tool parameters:
     Per your standard output format.
 ```
 
-The subagent handles: reading all files, running the structural checklist, identifying coverage gaps, and generating the severity-based report.
-
 **If `audit-skill-auditor` is unavailable:** Stop and alert user. Do not proceed with the audit — no manual structural checks, no partial behavioral testing. The validation-gates.md manual fallback does NOT apply to standalone audits.
+
+**2b: Wording Review**
+
+```
+Task tool parameters:
+  subagent_type: "jc:wording-reviewer"
+  prompt: |
+    ## Task
+    Review instruction quality in the skill files.
+    Read-only analysis — do not modify any files.
+
+    ## Input
+    Target directory: {skills-dir}/{skill-name}/
+    Writing guide: {skill-base-dir}/references/writing-effective-skills.md
+
+    ## Expected Output
+    Per your standard output format.
+```
 
 ### Step 3: Behavioral Test (Main orchestrates DEC)
 
-Structural correctness does not guarantee behavioral effectiveness. After reviewing the structural report (including the Gaps section), identify the skill type (discipline, technique, pattern, or reference).
+Structural correctness and good wording do not guarantee behavioral effectiveness. After reviewing the structural report (including the Gaps section) and wording review, identify the skill type (discipline, technique, pattern, or reference).
 
 Follow references/tdd-for-skills.md DEC pattern. Main context orchestrates all phases.
 
 **3a: Design scenarios (Phase A)**
 
-Launch 1 subagent to design scenarios. Pass: skill content, structural audit gaps from Step 2, skill type. Returns numbered scenario specs.
+Launch 1 subagent to design scenarios. Pass: skill content, structural audit gaps from Step 2a, wording issues from Step 2b, skill type. Returns numbered scenario specs.
 
 **3b: Execute GREEN scenarios (Phase B)**
 
@@ -64,39 +82,121 @@ Launch N scenario subagents in parallel using the GREEN variant template from td
 
 **Audit-specific note:** Skip RED phase — auditing an existing skill that's already in use. GREEN-only testing verifies current behavioral effectiveness.
 
-**3c: Compile results (Phase C)**
+**3c: Trigger scenarios (Phase B)**
 
-Evaluate each result per tdd-for-skills.md evaluation criteria: PASS, WEAK, FAIL, EVASION. On FAIL, run meta-test per tdd-for-skills.md Meta-Testing section.
+In addition to behavioral scenarios, include trigger verification:
+- 2-3 should-trigger queries (realistic prompts matching the skill)
+- 2-3 should-NOT-trigger queries (near-misses, especially for skills with negative triggers)
 
-### Step 4: Present Unified Report (Main)
+Report trigger results in the Behavioral Verification table with Type = "trigger".
 
-Merge structural findings (from audit-skill-auditor) with behavioral results (from behavioral tester). Present using the Output Format below. Mark each finding's source.
+**3d: Compile, Merge & Report (Subagent)**
 
-### Step 5: Offer Fixes (Main)
+Launch a compilation subagent that evaluates all results and produces the unified report. This keeps scenario evaluation and report merging out of main context.
 
-If issues found, ask: "Would you like me to fix these issues?"
-1. **Fix all** 2. **Fix one by one** 3. **Just the report**
+```
+Task tool parameters:
+  subagent_type: "general-purpose"
+  prompt: |
+    ## Task
+    Evaluate behavioral test results, merge with structural audit and wording
+    review findings, and produce a unified audit report.
 
-If user chooses Fix all or Fix one by one, **each fix MUST go through the full edit-skill.md TDD cycle:**
+    ## Context
+    - Skill: {skill-name}
+    - Skill directory: {skills-dir}/{skill-name}/
+    - Report format: read {skill-base-dir}/references/audit-output-format.md
+    - Per-scenario grading: PASS (correct + cites skill), WEAK (correct, no cite),
+      FAIL (wrong choice), EVASION (invents fourth option)
+    - Eval self-critique: flag non-discriminating scenarios — would pass without
+      the skill, can't distinguish correct from incorrect, or a wrong output could
+      still satisfy. These create false confidence.
+    - Evidence filtering: each finding from auditors includes an evidence tag
+      (verified/pattern-match/inference). Suppress findings tagged `inference` + `Low`
+      severity — they are low-confidence noise. At the report bottom, add:
+      "N low-confidence findings suppressed. Re-run with --verbose to include."
+      (omit if N=0). When the user passes --verbose, include all findings.
 
-1. **RED** — Design a subagent pressure scenario that exposes the specific issue. Run it. Document the failure.
-2. **GREEN** — Make the minimal edit to fix the issue. Re-run the same scenario. Confirm it passes.
-3. **REFACTOR** — If new gaps appear, address them and re-test.
+    ## Input
+    **Structural audit results:**
+    {paste structural audit output from Step 2a}
 
-**Per-fix, not batched.** Each issue gets its own RED → GREEN → REFACTOR cycle. Do not batch fixes then run one test at the end — you lose failure isolation.
+    **Wording review results:**
+    {paste wording review output from Step 2b}
 
-**Structural-only fixes** (cosmetic formatting, missing headings with obvious content, line count reduction) are exempt from subagent scenarios — verify structurally. All other fixes (behavioral, description, workflow logic) require subagent testing.
+    **Behavioral scenario results:**
+    {for each scenario: name, type, correct answer, agent's response}
 
-> **Anti-pattern:** Labeling direct edits as "RED/GREEN" without running actual subagent pressure scenarios is not TDD. RED means a subagent test that fails. GREEN means the same test passes after your edit.
+    **Trigger test results:**
+    {for each trigger query: query, expected, actual}
+
+    ## Expected Output
+    Return as structured stdout:
+
+    ```
+    ## Result
+    <PASS | FINDINGS | FAIL>
+
+    ## Summary
+    1-2 sentence verdict covering structural, wording, and behavioral results.
+
+    ## Details
+    Unified report per audit-output-format.md including:
+    - Structural findings (tagged S), wording findings (tagged W), behavioral results (tagged B)
+    - Improvement Suggestions table with priority/category/expected-impact
+    - Eval quality flags for non-discriminating scenarios
+    ```
+```
+
+Review the report. For any FAIL outcomes: launch meta-test subagent per tdd-for-skills.md Meta-Testing section, then update the report.
+
+### Step 4: Auto-Fix (Main orchestrates)
+
+**Structural + wording fixes** (formatting, missing headings, authority-without-why, ambiguous instructions): launch a subagent to apply all at once.
+
+```
+Task tool parameters:
+  subagent_type: "general-purpose"
+  prompt: |
+    ## Task
+    Apply structural and wording fixes to a skill based on audit findings.
+
+    ## Context
+    - Wording guide: {skill-base-dir}/references/writing-effective-skills.md (read first)
+    - Structural fixes: apply as specified (formatting, headings, line count)
+    - Wording fixes: rewrite instructions to lead with reasoning.
+      Pair any remaining MUST/NEVER with an explanation of why.
+      Don't remove authority language — add the missing "because".
+
+    ## Input
+    - Skill directory: {skills-dir}/{skill-name}/
+    - Structural fixes: {list structural issues from report}
+    - Wording fixes: {list wording issues from report}
+
+    ## Expected Output
+    Return as structured stdout:
+
+    ```
+    ## Result
+    <PASS | ERROR>
+
+    ## Summary
+    Applied X structural and Y wording fixes.
+
+    ## Details
+    List of changes made with file:line references.
+    ```
+```
+
+**Behavioral fixes** (description, workflow logic): each gets its own RED → GREEN → REFACTOR cycle. Use the Single-Scenario Shortcut from tdd-for-skills.md — one targeted scenario per fix, run GREEN only (the audit already established the baseline).
+
+Present unified report with all fixes applied and their verification results.
+Ask user only if a fix attempt fails after 3 iterations: "This issue couldn't be auto-resolved. Want me to try a different approach, or leave it for manual review?"
 
 ## Validation
 
-Verify the report includes all required sections from the Output Format below. Confirm behavioral scenarios were run (not skipped).
+Verify the report includes all required sections from `references/audit-output-format.md`. Confirm behavioral scenarios were run (not skipped).
 
 ## Rollback
 
 Audits are read-only — no rollback needed. If fixes were applied and introduced regressions, revert via git.
-
-## Output Format
-
-Use the format in references/audit-output-format.md.
