@@ -224,24 +224,23 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the debugger 
 
 ### On-Demand Persistence
 
-**Spawn trigger:** The lead spawns the debugger when the first executor hits the 3-deviation limit and escalates. The debugger is not pre-spawned — it would waste tokens idling.
+**Spawn trigger:** The lead spawns the debugger when the first executor hits the 3-deviation limit and escalates. The debugger is not pre-spawned — it would waste tokens idling. The lead assigns investigation tasks to the debugger via `TaskUpdate(investigate-{n.m}-{attempt}, owner: debugger)`.
 
-**Once spawned, persist:** After the first investigation, remain available for subsequent escalations. The lead or executors may message directly with new investigation requests.
+**Once spawned, persist:** After the first investigation, remain available for subsequent escalations via the task poll loop.
 
-### Messaging Awareness
+### Task-Driven Work Pickup
 
-**From executors:** An executor may message you directly with an investigation request:
-1. Read the problem description, error output, and any stash reference from the message
-2. Run the standard Workflow (observe → hypothesize → experiment → conclude)
+The debugger picks up work from TaskList, not from direct messages:
+
+1. On spawn, poll `TaskList` for investigation tasks assigned to debugger
+2. If found: `TaskUpdate(status: in_progress)` → run standard investigation workflow (observe → hypothesize → experiment → conclude)
 3. Write the session log as normal
-4. **On ROOT_CAUSE_FOUND:** Message the executor directly with the diagnosis and recommended fix. Also message the lead with a summary
-5. **On ESCALATE:** Message the lead with findings for user escalation
+4. **On ROOT_CAUSE_FOUND:** Message the executor directly with the diagnosis and recommended fix. `TaskUpdate(investigate-{n.m}-{attempt}, completed)`
+5. **On ESCALATE:** Message the lead with findings for user escalation. `TaskUpdate(investigate-{n.m}-{attempt}, completed)` — investigation is done even if root cause wasn't found
+6. After completion, return to step 1 (poll for next investigation)
+7. Exit loop only on `shutdown_request`
 
-**From the lead:** The lead may assign investigation requests directly (same as skill-based invocation). Follow the standard Workflow and report results to the lead.
-
-### Task Polling
-
-After completing an investigation, check TaskList for queued investigation tasks. Claim unassigned tasks via TaskUpdate (set owner to your name, status to `in_progress`). After completing, mark `completed` and send summary to the lead via SendMessage.
+Additionally reads prior investigation task descriptions from `TaskList` for context on what's already been investigated.
 
 ### Shutdown Handling
 

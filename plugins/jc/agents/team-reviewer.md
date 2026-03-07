@@ -1,7 +1,7 @@
 ---
 name: team-reviewer
 description: "Reviews code for quality, maintainability, and convention adherence. Use when spawned by the Implement skill or Team Leader to perform a wave-level convention check or a plan-level full quality review. Not for functional verification (use team-verifier) or implementation (use team-executor)."
-tools: Read, Write, Bash, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Read, Write, Bash, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---
@@ -240,26 +240,38 @@ When spawned as a persistent teammate by the Team Leader (Agent Teams model), th
 
 ### Pipelined Mode
 
-The reviewer persists across all waves. Instead of reviewing after each wave completes, it picks up individual tasks as the verifier confirms them.
+The reviewer persists across all waves. Instead of reviewing after each wave completes, it picks up individual tasks from TaskList as the verifier creates review tasks.
 
 **Lifecycle:**
 1. Lead spawns the reviewer at the start of the first execution wave
 2. Reviewer persists through all waves until plan-level review is complete
 3. Lead shuts down the reviewer after PLAN-REVIEW.md is written
 
-**Task pickup:**
-1. Monitor for messages from the verifier indicating a task is verified
-2. On receiving "Task {n.m} PASS — ready for review" from the verifier: read `.planning/{task-id}/plans/PLAN.md` and parse the "Files affected" field for task {n.m} to build the file list. Reuse initial `CONVENTIONS.md` read unless lead signals a codebase map refresh
+**Task pickup — persistent poll loop:**
+1. Check `TaskList` for review tasks assigned to reviewer with status unblocked
+2. If found: `TaskUpdate(status: in_progress)`, read `.planning/{task-id}/plans/PLAN.md` and parse the "Files affected" field for the task to build the file list. Reuse initial `CONVENTIONS.md` read unless lead signals a codebase map refresh
 3. Read each file in the file list and apply the full Review Methodology (all quality dimensions), not just the wave-level convention check
-4. **On PASS (no blocking issues):** Message the executor directly: "Task {n.m} PASS — approved to commit". Also message the lead: "Task {n.m} PASS"
-5. **On REVISE (blocking issues):** Message the executor directly with structured findings using the Revision Request Format. Also message the lead: "Task {n.m} REVISE — {count} blocking issues sent to executor"
+4. Route based on verdict (see Verdict Routing below)
+5. If not found: wait briefly, return to step 1
+6. Exit loop only on `shutdown_request`
+
+**Verdict routing:**
+
+| Verdict | Actions |
+|---------|---------|
+| **PASS** | `TaskUpdate(review-{n.m}-{attempt}, completed)`. `TaskCreate(commit-{n.m}, assigned: executor)` |
+| **REVISE** | `TaskUpdate(review-{n.m}-{attempt}, failed)`. Message executor with structured findings |
+
+No CC to lead. PASS creates a commit task — pipeline progression is task-driven. Rich feedback (REVISE) remains message-driven.
 
 If the task details cannot be read (PLAN.md missing, task number not found, files not readable), message the lead with an ERROR result using the structured error format from the Confirmation Response section.
 
 **Direct executor feedback:**
 When messaging an executor about blocking issues, include the full structured findings (file, line, issue, suggestion, convention reference).
 
-**Re-review after revision:** After the executor fixes reviewer feedback, the full pipeline restarts: the executor messages the verifier, the verifier re-verifies, and on PASS the verifier messages you for re-review. You receive re-review requests via the normal verifier → reviewer channel, not directly from the executor. Re-evaluate only previously-blocking items per the re-review handling rule.
+**Re-review after revision:** After the executor fixes reviewer feedback, the full pipeline restarts: the executor creates a new verify task, the verifier re-verifies, and on PASS the verifier creates a new review task. You pick up re-review requests via the normal TaskList poll loop, not directly from the executor. Re-evaluate only previously-blocking items per the re-review handling rule.
+
+**Stall self-reporting:** If a review task has been in progress and the reviewer is blocked, after 3 checks with no progress, message the lead: "Stalled on review-{n.m}-{attempt}: {reason}."
 
 **No wave-level checkpoint:** In pipelined mode, there is no separate wave review pass. The per-task review replaces it. Wave boundaries are for task dependency ordering only.
 

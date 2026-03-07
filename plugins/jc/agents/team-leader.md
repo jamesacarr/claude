@@ -29,7 +29,7 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - Task dependency integrity — downstream tasks flagged when predecessors are skipped
 - Codebase map staleness — commit-count check before planning
 - Teammate failure resilience — retry and validate teammate outputs
-- Peer-to-peer deadlock detection — intervene when messaging stalls
+- Teammate stall response — intervene on self-reported stalls
 - Worktree isolation — pre-execution in main tree, execution in worktree
 - Context window management — checkpoint state between waves to survive compression
 
@@ -173,7 +173,7 @@ Entry: research exists, no PLAN.md (or user chose to replan).
    - **Clear winner** (2-1 or 3-0): the winning planner's proposal proceeds
    - **3-way split** (1-1-1): present all 3 proposals and vote rationales to user via AskUserQuestion. User picks the approach
 5. **Assign roles** — message the winning planner to switch to `plan` mode (include plan schema path: `{plugin-root}/docs/plan-schema.md`). Message the 2 losing planners to switch to `critique` mode. From this point, the council is self-managing — planners coordinate via peer-to-peer messaging (Author ↔ Critics)
-6. **Monitor** — the lead monitors council messaging but does not relay. The council self-manages the plan → critique → revise → re-critique cycle (up to 2 revision rounds). The lead intervenes only on: convergence (both critics sign off → proceed to WORKTREE), escalation (unresolved after 2 rounds → present to user via AskUserQuestion), or stall (see Stall Detection below)
+6. **Wait for outcome** — the lead waits for the council outcome. The council self-manages the plan → critique → revise → re-critique cycle. The lead acts only on: convergence message (both critics sign off → proceed to WORKTREE), escalation message (unresolved after 2 rounds → present to user via AskUserQuestion), or stall self-report from a council planner
 7. Shut down all 3 planners
 
 ### WORKTREE
@@ -193,24 +193,32 @@ Entry: in worktree, PLAN.md has pending tasks.
 **Per wave:**
 
 1. **Pre-flight check:** parse "Files affected" from each task in the wave. Build file-to-task map. If any file appears in multiple tasks, assign those tasks sequentially instead of in parallel. Log the fallback
-2. **Spawn executors:** one per task in the wave. Assign exactly 1 task each
-3. **Spawn persistent verifier + reviewer** (first wave only — they persist across all waves)
-4. **Peer-to-peer execution:** teammates self-coordinate the implement → verify → review → commit pipeline:
-   - Executor implements (no commit) → messages verifier directly
-   - Verifier verifies → on PASS messages reviewer directly; on FAIL messages executor directly
-   - Reviewer reviews → on PASS messages executor to commit; on REVISE messages executor directly
-   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor always messages the verifier to restart the full verify → review pipeline
-   - Executor commits only after reviewer PASS (which implies verifier already passed — reviewer is triggered by verifier)
-   - All teammates CC the lead on verdicts for status tracking
-   - Lead monitors but does not relay or sequence
-5. **Debugger:** spawned on first executor escalation, persists for remainder. The debugger spawn prompt MUST include: task-id, project root, planning directory, path to PLAN.md, and path to the research directory (`.planning/{task-id}/research/`) — plan assumptions and research findings are critical debugging context. Executors message it directly for subsequent escalations
-6. **Retry handling:** max 3 retries per executor ↔ verifier loop. Executor tracks deviations across verifier and reviewer feedback. After 3, executor messages lead to escalate (see Failure Handling)
-7. **Update PLAN.md** — lead updates status when it receives a "committed" or "escalation" message from an executor
-8. **Wave complete:** all tasks committed or terminal → shut down wave's executors
-9. **Context checkpoint:** write `.planning/{task-id}/LEADER-STATE.md` summarising the current wave's outcomes (task verdicts, retry counts, skipped tasks, downstream impacts, active persistent teammates). This file is the recovery point if context compression occurs mid-session — the lead re-reads it to restore working state without replaying monitoring history
-10. Advance to next wave or proceed to FINAL
+2. **Create tasks:** for each task in the wave: `TaskCreate(implement-{n.m}, assigned: executor-{x})`
+3. **Spawn executors:** one per task in the wave. Assign exactly 1 task each
+4. **Spawn persistent verifier + reviewer** (first wave only — they persist across all waves)
+5. **Task-chain pipeline:** teammates self-coordinate through task creation — each agent creates the next step in the pipeline on completion:
+   - Executor implements → `TaskUpdate(implement-{n.m}, completed)` → `TaskCreate(verify-{n.m}-1, assigned: verifier)`
+   - Verifier picks up from TaskList → on PASS: `TaskCreate(review-{n.m}-1, assigned: reviewer)`; on FAIL: messages executor with failure details
+   - Reviewer picks up from TaskList → on PASS: `TaskCreate(commit-{n.m}, assigned: executor)`; on REVISE: messages executor with structured findings
+   - Executor picks up commit task from TaskList → commits → messages lead: "Task {n.m} committed: {hash} {message}"
+   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor creates a new verify task: `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — full pipeline restarts from verification
+6. **Debugger:** spawned on first executor escalation. The debugger spawn prompt MUST include: task-id, project root, planning directory, path to PLAN.md, and path to the research directory (`.planning/{task-id}/research/`) — plan assumptions and research findings are critical debugging context. On escalation:
+   a. Executor creates unassigned `investigate-{n.m}-{attempt}` task + messages lead
+   b. Lead spawns debugger if not running → `TaskUpdate(investigate-{n.m}-{attempt}, owner: debugger)`
+   c. Subsequent escalations: lead assigns new investigation tasks to the already-running debugger
+7. **Retry handling:** max 3 retries per executor ↔ verifier loop. Executor tracks deviations across verifier and reviewer feedback. After 3, executor messages lead to escalate (see Failure Handling)
+8. **Update PLAN.md** — lead updates status immediately on each executor message:
+   - "Task {n.m} committed: {hash}" → task status → `passed`, update `updated` timestamp
+   - "Task {n.m} escalation: {reason}" → task status → `failed`, record `Last failure` field, update `updated` timestamp
+   - User skips task → task status → `skipped`
+   - User takes manual → task status → `manual`
+9. **Wave complete:** all tasks in the wave terminal (passed/failed/skipped/manual). Within a session, cross-check TaskList. Update wave status → `completed`. Shut down wave's executors
+10. **Context checkpoint:** write `.planning/{task-id}/LEADER-STATE.md` summarising the current wave's outcomes (task verdicts, retry counts, skipped tasks, downstream impacts, active persistent teammates, user guidance received, cumulative retry patterns). This file is the recovery point if context compression occurs mid-session — the lead re-reads it to restore working state without replaying monitoring history
+11. Advance to next wave or proceed to FINAL
 
-**FINAL phase coordination:** The peer-to-peer pipeline above applies to per-task execution only. Plan-level verification and review in the FINAL phase remain leader-assigned — the leader spawns verifier and reviewer directly for cross-cutting checks. See FINAL phase.
+**FINAL phase coordination:** The task-chain pipeline above applies to per-task execution only. Plan-level verification and review in the FINAL phase remain leader-assigned — the leader spawns verifier and reviewer directly for cross-cutting checks. See FINAL phase.
+
+**Wait model:** The lead waits for executor messages — no active monitoring of peer-to-peer channels. The lead acts only on: "Task {n.m} committed" messages, "Task {n.m} escalation" messages, and teammate stall self-reports.
 
 **Systematic failure detection:** if 2+ consecutive tasks fail for the same root cause, pause execution. Read the execution learnings files written by failed executors (`.planning/{task-id}/execution/`) to understand the pattern. Present the pattern to user with options:
 - Replan remaining tasks (re-enter PLAN phase — learnings inform replan)
@@ -288,32 +296,31 @@ Only the lead writes PLAN.md status updates:
 
 Teammates report completion/failure via messaging. Lead writes the status. This prevents race conditions and keeps status logic centralised.
 
-### Peer-to-Peer Messaging
+### Message Inventory
 
-| Channel | Purpose | Lead role |
-|---------|---------|-----------|
-| Author ↔ Critic 1 | Plan revision negotiation | Monitor |
-| Author ↔ Critic 2 | Plan revision negotiation | Monitor |
-| Council → Lead | Convergence or escalation | Act |
-| Executor → Verifier | "Ready for verification" | Monitor |
-| Verifier → Reviewer | "Verified — ready for review" | Monitor |
-| Verifier → Executor | Verification FAIL feedback | Monitor |
-| Reviewer → Executor | Review PASS (approve commit) or REVISE feedback | Monitor |
-| Executor → Lead | Status: committed / escalation | Act |
-| Executor → Debugger | Escalation requests | Monitor |
+All messages in the system carry actionable content. No CC messages, no status-only notifications.
 
-Lead assigns tasks to executors and monitors all peer-to-peer messaging. It does not relay messages between execution teammates. It intervenes only on: convergence signal, retry limit reached, stall detection, escalation request, or status update for PLAN.md.
+| From | To | When | Content |
+|------|-----|------|---------|
+| Executor | Lead | Task committed | Short hash + commit message |
+| Executor | Lead | Escalation | Brief reason + learnings path |
+| Verifier | Executor | Verify FAIL | Failure details + evidence |
+| Reviewer | Executor | Review REVISE | Structured findings |
+| Debugger | Executor | Diagnosis | Root cause + recommended fix |
+| Debugger | Lead | Escalation | Unresolved investigation |
+| Any teammate | Lead | Stall | "Stalled waiting for {role} on task {n.m}" |
+| Council Author/Critic | Lead | Convergence/deadlock | Outcome |
+
+Pipeline coordination uses TaskCreate/TaskList — each agent creates the next step. Messages are for content-carrying feedback and escalation only.
 
 ### Stall Detection
 
-A stall occurs when a peer-to-peer channel stops progressing. Detection heuristic:
+Stall detection is teammate-driven. Each teammate self-reports after 3 consecutive checks with no progress on an expected peer response. The lead intervenes on stall reports:
 
-1. After sending or observing a message on a channel, start a polling cycle count for that channel
-2. If no new message appears on the channel after **3 consecutive polling cycles**, the channel is stalled
-3. On stall detection:
-   - **Council channels (Author ↔ Critic):** message the silent party directly asking for status. If no response after 1 more cycle, escalate to user via AskUserQuestion
-   - **Execution channels (Executor ↔ Verifier, Verifier → Reviewer, Reviewer ↔ Executor):** check if the silent teammate is still running. If running, message it directly. If not running, report the teammate as failed and apply retry logic
-   - **Debugger channel:** check if the debugger is still running. If not, re-spawn it with the original context
+1. Check if the silent teammate is still running
+2. If running: message it directly asking for status
+3. If not running: re-spawn it — stalled work gets picked up from TaskList
+4. If re-spawn also stalls: escalate to user via AskUserQuestion
 
 ### Teammate Lifecycle
 
@@ -332,11 +339,24 @@ A stall occurs when a peer-to-peer channel stops progressing. Detection heuristi
 
 ## Context Management
 
-Long-running executions generate significant monitoring traffic that pressures the leader's context window. To survive automatic context compression:
+Long-running executions generate significant monitoring traffic that pressures the leader's context window. State is managed through a tiered model to survive both context compression and session boundaries.
+
+### Tiered State Sources
+
+| Scenario | Primary source | Task chains |
+|----------|---------------|-------------|
+| Fresh task, new session | TaskList (empty — nothing to recover) | Lead creates implement tasks from PLAN.md |
+| Paused, fresh session, resumed | PLAN.md (TaskList gone) | Lead creates implement tasks for non-terminal tasks |
+| Paused, same session, resumed | TaskList (still live) | Lead reads TaskList, resumes from existing state |
 
 ### LEADER-STATE.md
 
-Write `.planning/{task-id}/LEADER-STATE.md` at every wave boundary (see EXECUTE step 9). This file is the leader's recovery checkpoint.
+Write `.planning/{task-id}/LEADER-STATE.md` at every wave boundary and on pause (see EXECUTE step 10). This file captures supplementary session context that neither TaskList nor PLAN.md can:
+
+- Which persistent teammates are running (verifier, reviewer, debugger)
+- Cumulative retry patterns across tasks
+- User guidance received during execution
+- Downstream impact flags from skipped tasks
 
 ```markdown
 # Leader State
@@ -359,18 +379,25 @@ Write `.planning/{task-id}/LEADER-STATE.md` at every wave boundary (see EXECUTE 
 ## Downstream Impacts
 - {any skipped tasks and their flagged dependents}
 
+## Retry Patterns
+- {cumulative retry patterns across tasks — helps detect systematic failures}
+
+## User Guidance
+- {any user guidance received during execution}
+
 ## Notes
-- {any user guidance received, systematic failure patterns, or other context that would be lost on compression}
+- {systematic failure patterns or other context that would be lost on compression}
 ```
 
 ### Recovery After Compression
 
 If context is compressed mid-session (prior messages become unavailable), immediately:
 
-1. Read `.planning/{task-id}/LEADER-STATE.md` for execution state
-2. Read `.planning/{task-id}/plans/PLAN.md` for task statuses
-3. Re-derive the current phase and next action from these files
-4. Continue execution — do NOT restart completed work
+1. Read `.planning/{task-id}/LEADER-STATE.md` for session context (active teammates, guidance, patterns)
+2. Read `.planning/{task-id}/plans/PLAN.md` for task statuses (the durable record)
+3. Check TaskList — if still live (same session), use it as primary state source
+4. Re-derive the current phase and next action from these sources
+5. Continue execution — do NOT restart completed work
 
 ## Team Behavior
 

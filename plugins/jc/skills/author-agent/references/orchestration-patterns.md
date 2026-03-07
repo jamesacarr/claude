@@ -380,33 +380,54 @@ This is how `/jc:implement` orchestrates plan execution — tasks within a wave 
 
 ### Peer Communication
 
-Team members can message each other directly, not just through the team lead. This enables:
+Team members communicate through two mechanisms:
 
+1. **Task creation** — pipeline coordination. Each agent creates the next step on completion:
 ```markdown
-Executor-to-Executor: "I changed the API signature in auth.ts — update your import"
-Executor-to-Reviewer: "Ready for review — see task #5"
-Reviewer-to-Executor: "Found issue in error handling — see review comments"
+Executor completes → TaskCreate(verify-1.1-1, assigned: verifier)
+Verifier PASS → TaskCreate(review-1.1-1, assigned: reviewer)
+Reviewer PASS → TaskCreate(commit-1.1, assigned: executor)
+```
+
+2. **Messages** — content-carrying feedback only. Messages are for rich, actionable content that doesn't fit in a task description:
+```markdown
+Verifier → Executor: FAIL details with evidence references
+Reviewer → Executor: Structured findings (file, line, issue, suggestion)
+Debugger → Executor: Root cause diagnosis + recommended fix
 ```
 
 **Design considerations:**
-- The team lead receives a brief summary of peer DMs via idle notifications
-- Keep peer messages focused and actionable
-- Use TaskUpdate to formally track task state, messages for context
+- Pipeline progression is task-driven, not message-driven
+- Messages carry only actionable content — no CC messages, no status-only notifications
+- The team lead receives only committed/escalation messages and stall self-reports
+- Teammates self-report stalls after 3 checks with no progress on expected peer responses
 
 ### Task-Driven Coordination
 
-The shared task list is the primary coordination mechanism. It tracks what needs doing, what's in progress, who's doing what, and what's blocked.
+The shared task list is the primary coordination mechanism. Each agent creates the next step in the pipeline on completion — no pre-created chains, no orphaned tasks.
 
+**Task-chain pipeline pattern:**
 ```markdown
-Task list as coordination protocol:
-- New work: TaskCreate with clear description
-- Claim work: TaskUpdate (owner = me, status = in_progress)
-- Dependencies: TaskUpdate (addBlockedBy = [blocking-task-id])
-- Complete: TaskUpdate (status = completed)
-- Discover work: TaskList (find pending, unowned, unblocked tasks)
+Lead: TaskCreate(implement-1.1, assigned: executor)
+  Executor completes → TaskCreate(verify-1.1-1, assigned: verifier)
+    Verifier PASS → TaskCreate(review-1.1-1, assigned: reviewer)
+      Reviewer PASS → TaskCreate(commit-1.1, assigned: executor)
+        Executor commits → messages lead
 ```
 
-**Rule**: Prefer task list state over messages for tracking progress. Messages supplement — they don't replace — task state.
+**Task naming convention:**
+- `implement-{n.m}` — implementation task
+- `verify-{n.m}-{attempt}` — verification (attempt starts at 1)
+- `review-{n.m}-{attempt}` — review (attempt starts at 1)
+- `commit-{n.m}` — commit (no attempt number — only created on reviewer PASS)
+- `investigate-{n.m}-{attempt}` — investigation (attempt starts at 1)
+
+**Tiered state model:**
+- **Same session:** TaskList is primary source of truth
+- **Fresh session (after pause):** PLAN.md is primary (TaskList is gone). Lead creates fresh task chains for non-terminal tasks
+- **LEADER-STATE.md:** Supplementary — captures session context (active teammates, guidance, patterns) that neither TaskList nor PLAN.md can
+
+**Rule**: Prefer task list state over messages for tracking progress. Messages supplement — they don't replace — task state. Pipeline coordination uses TaskCreate; messages carry only content-rich feedback.
 
 ## Hybrid Approaches
 
@@ -719,9 +740,9 @@ Heavy coordinator = bottleneck. Coordinator should route and synthesize, not do 
 
 ### Task List As Source Of Truth
 
-**For Agent Teams, the task list is the canonical state**.
+**For Agent Teams, the task list is the canonical state within a session**.
 
-Messages are ephemeral context. Task state (pending/in_progress/completed, owner, blockedBy) is the durable record. Design workflows around task state transitions, not message exchanges.
+Messages are ephemeral context. Task state (pending/in_progress/completed, owner, blockedBy) is the durable record within a session. For cross-session durability, PLAN.md serves as the backup — updated per-task, not at wave boundaries. LEADER-STATE.md captures session context (active teammates, guidance, retry patterns) that neither TaskList nor PLAN.md can. Design workflows around task state transitions, not message exchanges.
 
 ### Prefer Subagents Over Teams
 

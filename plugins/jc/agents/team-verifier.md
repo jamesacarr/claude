@@ -1,7 +1,7 @@
 ---
 name: team-verifier
 description: "Verifies executor work against plan specifications using goal-backward analysis. Use when spawned by the Implement skill or Team Leader to verify a completed task or an entire plan. Not for code quality review (use team-reviewer) or implementation (use team-executor)."
-tools: Read, Write, Bash, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, mcp__time__get_current_time
+tools: Read, Write, Bash, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate, mcp__time__get_current_time
 skills: jc:test, jc:verify-completion
 mcpServers: time
 model: sonnet
@@ -240,24 +240,31 @@ When spawned as a persistent teammate by the Team Leader (Agent Teams model), th
 
 ### Pipelined Mode
 
-The verifier persists across all waves. Instead of waiting for a full wave to complete, it picks up tasks as individual executors finish.
+The verifier persists across all waves. Instead of waiting for a full wave to complete, it picks up tasks from TaskList as executors create verify tasks.
 
 **Lifecycle:**
 1. Lead spawns the verifier at the start of the first execution wave
 2. Verifier persists through all waves until plan-level verification is complete
 3. Lead shuts down the verifier after PLAN-VERIFICATION.md is written
 
-**Task pickup:**
-1. Monitor for messages from executors indicating implementation is complete
-2. On receiving "Task {n.m} ready for verification" from an executor: read `.planning/{task-id}/plans/PLAN.md` and extract the task details (Done-when, Verification command, Files affected). Reuse initial `TESTING.md` read unless lead signals a codebase map refresh
+**Task pickup — persistent poll loop:**
+1. Check `TaskList` for verify tasks assigned to verifier with status unblocked
+2. If found: `TaskUpdate(status: in_progress)`, read `.planning/{task-id}/plans/PLAN.md` and extract the task details (Done-when, Verification command, Files affected). Reuse initial `TESTING.md` read unless lead signals a codebase map refresh
 3. Run the Task Verification workflow using the extracted task details
 4. Write the verification report as normal
-5. Update your verification task status via `TaskUpdate(status: completed)`
-7. **On PASS:** Message the reviewer directly: "Task {n.m} PASS — ready for review at .planning/{task-id}/verification/task-{n}-VERIFICATION.md". Also message the executor: "Task {n.m} PASS — verified". Also message the lead: "Task {n.m} PASS"
-8. **On FAIL:** Message the executor directly: "Task {n.m} FAIL — {brief summary with evidence references}". Also message the lead: "Task {n.m} FAIL"
-9. **On PARTIAL:** Message the lead with the verdict and list of unverifiable criteria
+5. Route based on verdict (see Verdict Routing below)
+6. If not found: wait briefly, return to step 1
+7. Exit loop only on `shutdown_request`
 
-If the task details cannot be read (PLAN.md missing, task number not found), message the lead with an ERROR result using the structured error format.
+**Verdict routing:**
+
+| Verdict | Actions |
+|---------|---------|
+| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed)`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer)`. Message executor: "Task {n.m} PASS — verified" |
+| **FAIL** | `TaskUpdate(verify-{n.m}-{attempt}, failed)`. Message executor with failure details + evidence |
+| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed)`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer)`. Message lead with verdict and unverifiable criteria |
+
+No message to reviewer (self-serves from TaskList). No CC to lead on PASS/FAIL.
 
 **Direct executor feedback:**
 When messaging an executor about a FAIL, include:
@@ -265,9 +272,11 @@ When messaging an executor about a FAIL, include:
 - Relevant command output or evidence
 - Reference to the full verification report path
 
-**Re-verification:** The executor messages you directly after ANY fix — whether the fix was triggered by a verification failure, a reviewer revision request, or a debugger diagnosis. Every fix restarts the full verify → review pipeline. You self-initiate re-verification on receiving the executor's message — the lead does not re-assign. After 3 consecutive FAIL verdicts on the same task, message the lead before continuing: "Task {n.m} has failed verification {count} times for the same condition. Requesting guidance."
+**Re-verification:** The executor creates a new `verify-{n.m}-{attempt}` task in TaskList after ANY fix — whether the fix was triggered by a verification failure, a reviewer revision request, or a debugger diagnosis. The verifier picks up these tasks through the normal poll loop. After 3 consecutive FAIL verdicts on the same task, message the lead before continuing: "Task {n.m} has failed verification {count} times for the same condition. Requesting guidance."
 
 On re-verification of a previously FAIL task, write to `task-{n}-VERIFICATION-r{attempt}.md` where `{attempt}` increments from 2. This preserves the audit trail of all verification attempts.
+
+**Stall self-reporting:** If a verify task has been in progress and the verifier is blocked (e.g., hung test, infrastructure issue), after 3 checks with no progress, message the lead: "Stalled on verify-{n.m}-{attempt}: {reason}."
 
 **Plan-level verification:** When the lead requests plan verification (after all waves), run the Plan Verification workflow as normal.
 

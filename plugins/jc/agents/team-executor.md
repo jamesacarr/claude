@@ -188,35 +188,65 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 1. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct verifier, reviewer, and debugger messaging
 2. Wait for task assignment from lead via spawn context — do not self-serve from TaskList
 
-### Messaging Awareness
+### Pipeline Coordination
 
 **Task assignment:** The lead assigns exactly one task via the initial spawn context. Execute it using the standard Workflow.
 
-**Unified fix rule:** After any fix — regardless of whether it was triggered by the verifier, reviewer, or debugger — the executor always messages the **verifier** to restart the full verify → review pipeline. This ensures every commit has both a fresh verification and a fresh review. No stale reports.
+**After completing implementation** (team mode override at step 10 in core Workflow):
+1. `TaskUpdate(implement-{n.m}, status: completed)`
+2. `TaskCreate(verify-{n.m}-1, assigned: verifier)` — verifier picks up from TaskList
+3. Wait for feedback — either a `commit-{n.m}` task appears in TaskList (PASS path) or a FAIL/REVISE message arrives (fix path)
+
+**Unified fix rule:** After applying ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis):
+1. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — full pipeline restarts from verification
+2. Wait for feedback (same as above)
+
+**Commit via task pickup:** Poll TaskList for a `commit-{n.m}` task assigned to you. On pickup:
+1. `TaskUpdate(commit-{n.m}, in_progress)`
+2. Stage the specific files in "Files affected" plus test files created
+3. Commit with conventional commit format
+4. `TaskUpdate(commit-{n.m}, completed)`
+5. Message the lead: "Task {n.m} committed: {hash} {message}"
+
+**Escalation:** On escalation (deviation limit reached):
+1. Write execution learnings (unchanged)
+2. Git stash (unchanged)
+3. `TaskCreate(investigate-{n.m}-{attempt}, unassigned)` — description includes task number, failure summary, learnings path, stash ref
+4. Message the lead: "Task {n.m} escalation: {reason}"
+
+**Messages to lead — only two events:**
+- "Task {n.m} committed: {hash} {message}" — after reviewer PASS + commit
+- "Task {n.m} escalation: {reason}" — after hitting deviation limit
+
+No other messages to the lead.
+
+### Feedback Handling
 
 **Verifier feedback:** The verifier may message you directly with a FAIL verdict:
 1. Read the failure details and evidence references
 2. Analyse the failure — same as Deviation Handling
 3. Fix the issue and re-run verification locally (tests + verification command)
-4. Message the verifier directly: "Task {n.m} fix applied — ready for re-verification"
-5. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+4. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — pipeline restarts from verification
+5. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
 
 **Reviewer feedback:** The reviewer may message you directly with blocking findings:
 1. Read each finding (file, line, issue, suggestion)
 2. Check scope: if any finding requires changes to files not listed in "Files affected", message the lead to escalate rather than applying it — do not make out-of-scope changes from reviewer feedback
 3. Apply the in-scope suggested fixes
 4. Re-run tests to confirm no regressions
-5. Message the **verifier** directly: "Task {n.m} review fixes applied — ready for re-verification" (NOT the reviewer — the full pipeline restarts from verification)
-6. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+5. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — pipeline restarts from verification (NOT the reviewer)
+6. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
 
 **Debugger collaboration:** The debugger may message you with a root cause diagnosis and recommended fix:
 1. Read the diagnosis and recommended changes
 2. Apply the fix as specified
 3. Re-run tests to verify
-4. Message the **verifier** directly: "Task {n.m} debugger fix applied — ready for re-verification"
-5. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+4. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — pipeline restarts from verification
+5. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
 
-**Key principle:** Every fix restarts the full verify → review pipeline. The executor always messages the verifier after a fix, never the reviewer directly. Lead is only contacted for: escalation and final commit notification.
+**Key principle:** Every fix restarts the full verify → review pipeline via TaskCreate. The executor never messages the verifier or reviewer directly for pipeline progression — task creation drives the pipeline. Messages carry only content-rich feedback (FAIL details, REVISE findings, diagnosis).
+
+**Stall self-reporting:** If waiting for a peer response (commit task or feedback) and 3 consecutive TaskList checks show no progress, message the lead: "Stalled waiting for {role} on task {n.m}."
 
 **Status requests:** If the lead messages asking for progress, respond with current TDD phase and task number (e.g., "Task 2.3 in progress — currently in GREEN phase, 2/4 tests passing").
 

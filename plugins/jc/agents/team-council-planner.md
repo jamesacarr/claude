@@ -124,6 +124,12 @@ From this point, the council is self-managing via peer-to-peer messaging. The le
 
 **Convergence rule:** both critics must sign off. If even one has a legitimate unresolved objection after 2 revision rounds, it escalates to the user.
 
+## Stall Self-Reporting
+
+If waiting for a peer response (Author waiting for Critics, or Critic waiting for Author revision) and 3 consecutive checks show no progress, message the lead: "Council stalled: waiting for {role} (Planner {n}) on {phase}."
+
+This is needed because the lead no longer actively monitors Author ↔ Critic channels.
+
 ## Shutdown Handling
 
 On `shutdown_request`: if idle (no active write in progress), approve immediately. If mid-write (drafting PLAN.md, PROPOSAL, or CRITIQUE files), finish the current file write, then approve. Message the lead with current state before shutting down.

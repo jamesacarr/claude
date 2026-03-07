@@ -36,6 +36,11 @@ When spawned as a team member (team_name present):
 - **Peer messages**: Process context, adjust work if needed
 - **Shutdown requests**: Approve if idle, reject with reason if active work in progress
 
+### Stall Self-Reporting
+If waiting for an expected peer response (task pickup, feedback message, or investigation result) and 3 consecutive TaskList checks show no progress, message the lead: "Stalled waiting for {role} on task {n.m}."
+
+This replaces lead-driven polling. The lead intervenes on stall reports — it does not actively monitor peer-to-peer channels.
+
 ### Shutdown Protocol
 On receiving `shutdown_request`:
 - If no active work: respond with `shutdown_response` (approve: true)
