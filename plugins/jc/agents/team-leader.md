@@ -129,18 +129,26 @@ Entry: no research files in `.planning/{task-id}/research/`.
 5. Wait for all 4 to complete → shut down all researchers
 6. Validate: read each research file, confirm non-empty. If any researcher failed or produced empty output, retry once. On second failure, proceed with gap notice and flag to user
 
-**External documents:** Planning documents from external sources (Jira, shared docs, user-provided files) are inputs for researcher teammates. Pass their paths in the researcher assignment. They do NOT substitute for MAP, RESEARCH, or PLAN phases and the lead MUST NOT read them directly.
+**External documents:** Planning documents from external sources (Jira, shared docs, user-provided files) are inputs for researcher teammates. Pass their paths in the researcher assignment. They do NOT substitute for MAP, RESEARCH, or PLAN phases and the lead MUST NOT read them directly. External document paths are also passed to the criteria generator in the PLAN phase for extraction of source acceptance criteria.
 
 ### PLAN
 
 Entry: research exists, no PLAN.md (or user chose to replan).
 
-**For replan:** spawn a single `team-planner` in `replan` mode (council is not used for replanning). Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`) and plan schema path (`{plugin-root}/docs/plan-schema.md`) in the assignment. Skip to WORKTREE on completion.
+**For all plans (fresh and replan):** before spawning planners, generate acceptance criteria:
+
+1. Check if `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` exists
+2. If not: spawn a single `team-criteria-generator` teammate. Assign using the I/O contract format with: task description, research directory path, codebase map directory path, and external document paths (if any were provided by the user)
+3. Wait for completion → shut down the criteria generator
+4. Verify the file exists. If missing, retry once. On second failure, escalate to user via AskUserQuestion — do NOT proceed with planning until acceptance criteria exist (hard gate)
+5. All subsequent planner assignments (council proposals, plan mode, critique mode, replan mode) include the acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in their input
+
+**For replan:** spawn a single `team-planner` in `replan` mode (council is not used for replanning). Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`), plan schema path (`{plugin-root}/docs/plan-schema.md`), and acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in the assignment. Skip to WORKTREE on completion.
 
 **For fresh plans:** use the council workflow with `team-council-planner` agents:
 
 1. `mkdir -p .planning/{task-id}/plans/`
-2. **Diverge** — spawn 3 `team-council-planner` teammates (Planner 1, 2, 3) in `propose` mode. Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`) in each assignment. Each writes a `PROPOSAL-{n}.md`. Wait for all 3 to complete
+2. **Diverge** — spawn 3 `team-council-planner` teammates (Planner 1, 2, 3) in `propose` mode. Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`) and acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in each assignment. Each writes a `PROPOSAL-{n}.md`. Wait for all 3 to complete
 3. **Vote** — message all 3 planners to switch to `vote` mode. Each reads all proposals and votes for the best one that is not their own. Wait for all 3 votes
 4. **Resolve votes:**
    - **Clear winner** (2-1 or 3-0): the winning planner's proposal proceeds
@@ -266,6 +274,7 @@ Lead monitors all peer-to-peer messaging and intervenes on: convergence signal, 
 |-------|-----------|-----------|
 | MAP | 4 mappers | Spawn → complete → shut down |
 | RESEARCH | 4 researchers | Spawn → complete → shut down |
+| PLAN | 1 criteria generator (`team-criteria-generator`) | Spawn → complete → shut down |
 | PLAN | 3 council planners (`team-council-planner`) | Spawn in propose → vote → lead assigns roles → council self-manages plan/critique/revise → shut down |
 | PLAN (replan) | 1 planner (`team-planner`) | Spawn in replan mode → complete → shut down |
 | EXECUTE | N executors per wave | Spawn → execute → verified/reviewed → shut down per wave |

@@ -16,10 +16,10 @@ You operate in sequential mode — spawned by the Plan skill for individual plan
 
 | Mode | Input | Output | Purpose |
 |------|-------|--------|---------|
-| **plan** | Research docs + codebase map + task description | `PLAN.md` | Create a new plan from scratch |
-| **critique** | Existing PLAN.md + research docs + codebase map | `CRITIQUE.md` | Adversarially review a plan for gaps |
-| **revise** | PLAN.md + CRITIQUE.md | Revised `PLAN.md` (overwrite) | Address critique objections |
-| **replan** | Existing PLAN.md with completed tasks + research docs + codebase map | Revised `PLAN.md` (overwrite) | Replan remaining work, preserve completed tasks |
+| **plan** | Research docs + codebase map + acceptance criteria + task description | `PLAN.md` | Create a new plan from scratch |
+| **critique** | Existing PLAN.md + research docs + codebase map + acceptance criteria | `CRITIQUE.md` | Adversarially review a plan for gaps |
+| **revise** | PLAN.md + CRITIQUE.md + acceptance criteria | Revised `PLAN.md` (overwrite) | Address critique objections |
+| **replan** | Existing PLAN.md with completed tasks + research docs + codebase map + acceptance criteria | Revised `PLAN.md` (overwrite) | Replan remaining work, preserve completed tasks |
 
 ## Reference
 
@@ -39,7 +39,7 @@ Read critique from `.planning/{task-id}/plans/CRITIQUE.md`.
 
 ## Success Criteria
 
-- **Plan mode:** PLAN.md conforms to plan schema, all tasks have specific Action fields with codebase conventions, no file overlap within waves, NFR section present, all success criteria are testable
+- **Plan mode:** PLAN.md conforms to plan schema, all tasks have specific Action fields with codebase conventions, no file overlap within waves, NFR section present, all success criteria are testable and trace to acceptance criteria (when provided)
 - **Critique mode:** Every objection is backed by evidence (research doc, codebase map file, or plan section reference). Stylistic preferences are not raised as objections
 - **Revise mode:** Every critique objection is either accepted (plan revised) or rebutted (reasoning provided). Wave file isolation maintained after revisions
 - **Replan mode:** Completed (`passed`) tasks preserved unchanged. New tasks follow same quality standards as Plan mode

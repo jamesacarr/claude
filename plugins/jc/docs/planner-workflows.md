@@ -41,14 +41,15 @@ Shared reference for plan/critique/revise/replan workflows. Used by both `team-p
 1. **Parse assignment** — identify mode (`plan`), task-id, task description, and project root. Read the plan schema path from the assignment. If task-id is absent or plan schema path is missing, return ERROR
 2. **Read research** — read all files in `.planning/{task-id}/research/`. If the directory is missing or empty (no files), return ERROR directing orchestrator to run research first
 3. **Read codebase map** — read all 6 files from `.planning/codebase/`. If missing, return ERROR directing orchestrator to run `/jc:map` first
-4. **Define goal** — what must be true when this plan is complete? Write as 1-3 sentences
-5. **Derive success criteria** — work backward from the goal to observable, testable outcomes. Number them
-6. **Identify NFRs** — extract security, performance, and accessibility implications from research. Translate to testable criteria. If none apply, write "None identified" with rationale
-7. **Decompose into tasks** — break the work into atomic tasks. Each task must specify: files affected, action (with codebase map conventions embedded), verification command, done-when condition. Action field quality standards apply — see below
-8. **Organise into waves** — group independent tasks into waves for parallel execution. Enforce file isolation: no two tasks in the same wave touch the same file. Tasks with dependencies go in later waves
-9. **Get timestamp** — call `mcp__time__get_current_time`
-10. **Write PLAN.md** — write to `.planning/{task-id}/plans/PLAN.md` conforming to plan schema. Set `status: planning`, all tasks `pending`, all waves `pending`
-11. **Confirm** — return short confirmation
+4. **Read acceptance criteria** — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` from the path provided in the assignment. If the path is not provided or the file doesn't exist, return ERROR directing the caller to generate acceptance criteria first
+5. **Define goal** — what must be true when this plan is complete? Write as 1-3 sentences
+6. **Derive success criteria** — work backward from the goal to observable, testable outcomes. Number them. If acceptance criteria exist, each success criterion must trace to at least one acceptance criterion (reference by ID, e.g., `[AC-1]`). All acceptance criteria must be covered by at least one success criterion. If an acceptance criterion cannot be addressed by the plan, note it explicitly in the Success Criteria section with rationale
+7. **Identify NFRs** — extract security, performance, and accessibility implications from research. Translate to testable criteria. If none apply, write "None identified" with rationale
+8. **Decompose into tasks** — break the work into atomic tasks. Each task must specify: files affected, action (with codebase map conventions embedded), verification command, done-when condition. Action field quality standards apply — see below
+9. **Organise into waves** — group independent tasks into waves for parallel execution. Enforce file isolation: no two tasks in the same wave touch the same file. Tasks with dependencies go in later waves
+10. **Get timestamp** — call `mcp__time__get_current_time`
+11. **Write PLAN.md** — write to `.planning/{task-id}/plans/PLAN.md` conforming to plan schema. Set `status: planning`, all tasks `pending`, all waves `pending`
+12. **Confirm** — return short confirmation
 
 ### Action Field Quality
 
@@ -82,6 +83,7 @@ Wave 1: Task 1.1 (auth.ts), Task 1.2 (auth.ts, routes.ts)       ← VIOLATION, m
    - Wave ordering problems or missing dependencies
    - NFR gaps (research identified risks not reflected in NFRs)
    - Missing edge cases from research
+   - Acceptance criteria coverage: do success criteria cover every AC? Are any ACs dropped without rationale?
 6. **Review: codebase alignment** — cross-reference plan against codebase map:
    - `CONVENTIONS.md`: Do tasks follow naming, file location, import, error handling patterns?
    - `TESTING.md`: Do verification commands use the correct test runner and match test patterns?
@@ -99,13 +101,14 @@ Wave 1: Task 1.1 (auth.ts), Task 1.2 (auth.ts, routes.ts)       ← VIOLATION, m
 3. **Read critique file(s)** — read the critique file(s) specified by the calling agent. If missing, return ERROR directing orchestrator to run critique mode first
 4. **Read research** — read all files in `.planning/{task-id}/research/` (needed to evaluate rebuttals against original evidence)
 5. **Read codebase map** — read all 6 files from `.planning/codebase/`
-6. **Address each objection** — for each:
+6. **Read acceptance criteria** — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` from the path provided in the assignment. If the path is not provided or the file doesn't exist, return ERROR. Needed to ensure revisions maintain AC coverage
+7. **Address each objection** — for each:
    - **Accept:** revise the plan to address the objection. Action field quality standards still apply (see Plan Mode)
    - **Rebut:** explain with evidence why the objection is wrong or does not apply
-7. **Re-verify wave file isolation** after any task moves
-8. **Get timestamp** — call `mcp__time__get_current_time`
-9. **Overwrite PLAN.md** — write revised plan to `.planning/{task-id}/plans/PLAN.md`. Update the `updated` timestamp
-10. **Confirm** — return short confirmation listing which objections were accepted vs rebutted
+8. **Re-verify wave file isolation** after any task moves
+9. **Get timestamp** — call `mcp__time__get_current_time`
+10. **Overwrite PLAN.md** — write revised plan to `.planning/{task-id}/plans/PLAN.md`. Update the `updated` timestamp
+11. **Confirm** — return short confirmation listing which objections were accepted vs rebutted
 
 ### Replan Mode
 
@@ -113,11 +116,12 @@ Wave 1: Task 1.1 (auth.ts), Task 1.2 (auth.ts, routes.ts)       ← VIOLATION, m
 2. **Read plan** — read `.planning/{task-id}/plans/PLAN.md`
 3. **Identify completed tasks** — only tasks with status `passed` are preserved as-is. Tasks with `in_progress` are reset to `pending` with a note in `Last failure`: "Interrupted during previous execution — reset by replan". Tasks with `failed`, `skipped`, or `manual` are candidates for replanning
 4. **Read research and codebase map** — same as Plan mode
-5. **Replan remaining work** — create new tasks/waves for incomplete work while preserving completed task entries unchanged. Action field quality standards still apply (see Plan Mode)
-6. **Re-verify wave file isolation** for new/changed waves
-7. **Get timestamp** — call `mcp__time__get_current_time`
-8. **Overwrite PLAN.md** — write replanned document. Completed tasks retain their original content and status
-9. **Confirm** — return short confirmation listing what was preserved vs replanned
+5. **Read acceptance criteria** — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` from the path provided in the assignment. If the path is not provided or the file doesn't exist, return ERROR. Acceptance criteria represent task goals and persist across replans
+6. **Replan remaining work** — create new tasks/waves for incomplete work while preserving completed task entries unchanged. Action field quality standards still apply (see Plan Mode). Ensure new tasks still cover all acceptance criteria
+7. **Re-verify wave file isolation** for new/changed waves
+8. **Get timestamp** — call `mcp__time__get_current_time`
+9. **Overwrite PLAN.md** — write replanned document. Completed tasks retain their original content and status
+10. **Confirm** — return short confirmation listing what was preserved vs replanned
 
 ## Output Formats
 

@@ -90,19 +90,24 @@ Do NOT read the other 5 codebase map files — verification context comes from P
    a. Determine what evidence would prove this criterion is met
    b. Gather evidence: run commands, read files, grep for patterns
    c. Record: criterion text, evidence found (or `UNVERIFIABLE`), verdict
-6. **Verify Non-Functional Requirements** — for each NFR in the plan:
+6. **Verify Acceptance Criteria Coverage** — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md`. If the file doesn't exist, return ERROR — every plan must have acceptance criteria
+   a. For each acceptance criterion (AC-1, AC-2, etc.), check that at least one success criterion in the plan references it
+   b. For any uncovered AC, check whether the plan explicitly notes why it was excluded
+   c. Record coverage status: `COVERED` (traced to a success criterion), `EXCLUDED` (explicitly noted with rationale), `DROPPED` (not covered, not explained)
+   d. Any `DROPPED` criterion contributes to a FAIL or PARTIAL verdict
+7. **Verify Non-Functional Requirements** — for each NFR in the plan:
    a. Determine what evidence would prove this NFR is met
    b. Gather evidence: run security checks, performance tests, a11y checks as applicable
    c. Record: NFR text, evidence found (or `UNVERIFIABLE`), verdict
    d. If the plan states "None identified" for NFRs, verify this is reasonable given the task scope
-7. **Run full test suite** — capture results, note any failures
-8. **Assess** — determine overall verdict:
-   - **PASS** — all success criteria and NFRs verified with evidence
-   - **FAIL** — one or more criteria have evidence of not being met
+8. **Run full test suite** — capture results, note any failures
+9. **Assess** — determine overall verdict:
+   - **PASS** — all success criteria, NFRs, and acceptance criteria coverage verified with evidence
+   - **FAIL** — one or more criteria have evidence of not being met, or acceptance criteria are DROPPED
    - **PARTIAL** — all verifiable criteria pass, but one or more are `UNVERIFIABLE`
-9. **Get timestamp** — call `mcp__time__get_current_time`
-10. **Write report** — write to `.planning/{task-id}/verification/PLAN-VERIFICATION.md`
-11. **Report** — return structured result to caller
+10. **Get timestamp** — call `mcp__time__get_current_time`
+11. **Write report** — write to `.planning/{task-id}/verification/PLAN-VERIFICATION.md`
+12. **Report** — return structured result to caller
 
 ## Output Format
 
@@ -159,6 +164,14 @@ Do NOT read the other 5 codebase map files — verification context comes from P
 |---|-----------|----------|---------|
 | 1 | {criterion text} | {evidence summary} | PASS / FAIL / UNVERIFIABLE |
 | 2 | {criterion text} | {evidence summary} | PASS / FAIL / UNVERIFIABLE |
+
+## Acceptance Criteria Coverage
+
+| AC ID | Criterion | Covered By | Status |
+|-------|-----------|-----------|--------|
+| AC-1 | {criterion text} | Success Criterion 1 | COVERED / EXCLUDED / DROPPED |
+
+*Required — every plan must have acceptance criteria.*
 
 ## Non-Functional Requirements
 

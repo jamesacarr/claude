@@ -25,8 +25,9 @@ pause_reason: <string | null>
 
 ## Success Criteria
 <Numbered list of observable, testable outcomes>
-1. <criterion>
-2. <criterion>
+<When acceptance criteria exist, reference AC IDs in brackets>
+1. <criterion> [AC-1]
+2. <criterion> [AC-2, AC-3]
 
 ## Non-Functional Requirements
 <Numbered list of security, performance, a11y criteria — or "None identified" with rationale>
@@ -72,7 +73,7 @@ Status: pending | in_progress | completed
 | Section | Required | Written by | Description |
 |---------|----------|------------|-------------|
 | **Goal** | Yes | Planner | Goal-backward statement. What must be true when done |
-| **Success Criteria** | Yes | Planner | Numbered, testable outcomes. Verifier checks each one |
+| **Success Criteria** | Yes | Planner | Numbered, testable outcomes. Verifier checks each one. When acceptance criteria exist (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`), each should reference the AC it satisfies (e.g., `[AC-1]`). All ACs must be covered by at least one success criterion |
 | **Non-Functional Requirements** | Yes | Planner | Security, performance, a11y criteria. "None identified" is valid but must include rationale. Cannot be omitted |
 
 ### Wave fields

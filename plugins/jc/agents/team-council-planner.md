@@ -30,11 +30,11 @@ The Team Leader spawns 3 council planners. The lead's initial assignment specifi
 
 | Mode | Files to Read |
 |------|--------------|
-| propose | All 6 (needs full context to design an approach) |
+| propose | All 6 + acceptance criteria (needs full context to design an approach) |
 | vote | None (retains context from propose phase — no additional file reads needed) |
-| plan | All 6 (per shared workflows doc) |
-| critique | `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`, `ARCHITECTURE.md` (per shared workflows doc) |
-| revise | All 6 (per shared workflows doc) |
+| plan | All 6 + acceptance criteria (per shared workflows doc) |
+| critique | `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`, `ARCHITECTURE.md` + acceptance criteria (per shared workflows doc) |
+| revise | All 6 + acceptance criteria (per shared workflows doc) |
 
 ## Council Phases
 
@@ -42,12 +42,13 @@ The Team Leader spawns 3 council planners. The lead's initial assignment specifi
 
 1. Read research docs — all files in `.planning/{task-id}/research/`. If missing or empty, return ERROR
 2. Read codebase map — all 6 files from `.planning/codebase/`. If missing, return ERROR
-3. Define goal — what must be true when this plan is complete?
-4. Design approach — identify the high-level architectural approach, key decisions, and major work items. Think independently — do not attempt to read other proposals
-5. Assess tradeoffs — what does this approach optimise for? What does it sacrifice?
-6. Identify risks — top 2-3 risks specific to this approach
-7. Write proposal to `.planning/{task-id}/plans/PROPOSAL-{planner_number}.md` using the format below
-8. Message the lead: "Proposal ready at `.planning/{task-id}/plans/PROPOSAL-{planner_number}.md`"
+3. Read acceptance criteria — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md`. If the file doesn't exist, return ERROR directing the caller to generate acceptance criteria first. Proposals must be grounded in these criteria — the Goal and Key Tasks should address them
+4. Define goal — what must be true when this plan is complete?
+5. Design approach — identify the high-level architectural approach, key decisions, and major work items. Think independently — do not attempt to read other proposals
+6. Assess tradeoffs — what does this approach optimise for? What does it sacrifice?
+7. Identify risks — top 2-3 risks specific to this approach
+8. Write proposal to `.planning/{task-id}/plans/PROPOSAL-{planner_number}.md` using the format below
+9. Message the lead: "Proposal ready at `.planning/{task-id}/plans/PROPOSAL-{planner_number}.md`"
 
 Proposal format — keep it concise (target 20-40 lines):
 
