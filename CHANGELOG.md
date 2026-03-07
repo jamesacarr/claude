@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Council planning model with diverge, vote, and critique workflow
+- Acceptance criteria generation in planning workflow
+- Peer-to-peer execution pipeline with spike phase and agent audit fixes
+
 ## [1.1.1] - 2026-03-06
 
 ### Fixed
