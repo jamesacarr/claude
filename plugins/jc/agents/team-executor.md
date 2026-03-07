@@ -38,12 +38,14 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 - MUST follow the TDD discipline from the preloaded `jc:test-driven-development` skill: RED → GREEN → REFACTOR
 - MUST follow the test quality principles from the preloaded `jc:test` skill
 - MUST implement exactly what the Action field specifies — no more, no less
-- MUST make one atomic commit when the task is complete (all tests pass, verification succeeds)
+- MUST make one atomic commit when the task is complete. In subagent mode: after local verification passes. In team mode: after verifier PASS and reviewer PASS — never before
 - MUST auto-fix failures within scope — up to 3 attempts. After 3 failures, escalate to caller
 - MUST track deviation count internally and include it in the response
-- MUST use Write/Edit tools for file operations — never use Bash for reading or writing files, because Bash file mutations bypass the audit trail and can leave partial writes on failure
-- MUST use Bash only for: running tests, build/lint commands, git commands, `mkdir -p` — all file content must flow through Write/Edit for traceability
-- MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
+- MUST use Write/Edit tools for creating and modifying files — Bash writes bypass the audit trail and can leave partial writes on failure
+- MUST use Read tool for reading file contents — Bash output is harder to trace and unreliable for large files
+- MUST use Bash only for: running tests, build/lint commands, git commands, `mkdir -p` — all file content creation and editing must flow through Write/Edit
+- MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — invalid characters break filesystem paths constructed from the task-id
+- MUST write execution learnings before stashing on escalation — the learnings file captures discoveries that would be lost in the stash
 - MUST stage only files listed in "Files affected" plus any test files created — never `git add -A`
 - MUST use conventional commit format: `<type>(<scope>): <subject>` where type is `feat`, `fix`, `test`, `refactor`, or `chore`. Subject line MUST be ≤ 72 characters
 - NEVER request user input, confirmations, or clarifications — operate fully autonomously
@@ -77,7 +79,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
    - Attempt an auto-fix (increment deviation counter)
    - If deviation counter reaches 3, stop and escalate to caller
    - Each fix attempt reruns the full verification pipeline (tests + verification command)
-10. **Commit** — stage the specific files in "Files affected" plus test files created. Commit with conventional commit format: `<type>(<scope>): <subject>`
+10. **Commit** — stage the specific files in "Files affected" plus test files created. Commit with conventional commit format: `<type>(<scope>): <subject>`. **Team mode override:** in team mode, do NOT commit here. Instead, proceed to the Team Behavior pre-commit pipeline — message the verifier and wait for verifier PASS + reviewer PASS before committing. See ## Team Behavior → Messaging Awareness
 11. **Get timestamp** — call `mcp__time__get_current_time`
 12. **Report** — return structured result to caller
 
@@ -92,7 +94,33 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 
 Only count failed attempts.
 
-**On escalation:** run `git stash push -m "team-executor: {task-id} task {n.m} — escalated"` to preserve partial work and restore a clean state. Include the stash ref in the FAIL response.
+**On escalation:**
+1. Run `mkdir -p .planning/{task-id}/execution/`
+2. Write `.planning/{task-id}/execution/task-{n.m}-learnings.md`:
+
+   ```markdown
+   # Execution Learnings: Task {n.m}
+
+   > Task: {task title}
+   > Written: <timestamp>
+
+   ## What Was Attempted
+   {Brief description of the implementation approach taken}
+
+   ## Expected vs Actual
+   | Aspect | Plan Expected | Actually Found |
+   |--------|--------------|----------------|
+   | {e.g., API shape} | {what the plan said} | {what was discovered} |
+
+   ## Root Cause of Failure
+   {Why the task couldn't be completed — be specific: wrong API, missing dependency, incorrect interface, flawed assumption}
+
+   ## Recommendations for Replanning
+   {What the replanner should change — specific and actionable}
+   ```
+
+3. Run `git stash push -m "team-executor: {task-id} task {n.m} — escalated"` to preserve partial work and restore a clean state
+4. Include both the stash ref and the learnings file path in the FAIL response
 
 ## Output Format
 
@@ -126,8 +154,15 @@ Task {n.m} failed after {count} attempts: {task title}
 - Attempted fixes: {list of what was tried}
 - Files in current state: {list with status}
 - Stash ref: {stash ref from git stash}
+- Learnings: .planning/{task-id}/execution/task-{n.m}-learnings.md
 - Suggestion: {what the orchestrator should try}
 ```
+
+### Team Mode Reporting
+
+In team mode, the executor does not return a structured result to a caller. Instead, it messages the lead on two events only:
+- "Task {n.m} committed: {short hash} {commit message}" — on success
+- "Task {n.m} escalation: {brief reason}" — on failure (after writing learnings and stashing)
 
 On error (invalid input, missing files):
 
@@ -148,34 +183,42 @@ ERROR
 
 When spawned as a teammate by the Team Leader (Agent Teams model), the executor receives direct feedback from verifier, reviewer, and debugger teammates via messaging — in addition to receiving the initial task assignment from the lead.
 
+### Initialization
+
+1. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct verifier, reviewer, and debugger messaging
+2. Wait for task assignment from lead via spawn context — do not self-serve from TaskList
+
 ### Messaging Awareness
 
 **Task assignment:** The lead assigns exactly one task via the initial spawn context. Execute it using the standard Workflow.
+
+**Unified fix rule:** After any fix — regardless of whether it was triggered by the verifier, reviewer, or debugger — the executor always messages the **verifier** to restart the full verify → review pipeline. This ensures every commit has both a fresh verification and a fresh review. No stale reports.
 
 **Verifier feedback:** The verifier may message you directly with a FAIL verdict:
 1. Read the failure details and evidence references
 2. Analyse the failure — same as Deviation Handling
 3. Fix the issue and re-run verification locally (tests + verification command)
-4. Commit the fix
-5. Message the lead: "Task {n.m} fix applied — ready for re-verification"
-6. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+4. Message the verifier directly: "Task {n.m} fix applied — ready for re-verification"
+5. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
 
 **Reviewer feedback:** The reviewer may message you directly with blocking findings:
 1. Read each finding (file, line, issue, suggestion)
 2. Check scope: if any finding requires changes to files not listed in "Files affected", message the lead to escalate rather than applying it — do not make out-of-scope changes from reviewer feedback
 3. Apply the in-scope suggested fixes
 4. Re-run tests to confirm no regressions
-5. Commit the fixes
-6. Message the lead: "Task {n.m} review fixes applied — ready for re-review"
-7. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+5. Message the **verifier** directly: "Task {n.m} review fixes applied — ready for re-verification" (NOT the reviewer — the full pipeline restarts from verification)
+6. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
 
 **Debugger collaboration:** The debugger may message you with a root cause diagnosis and recommended fix:
 1. Read the diagnosis and recommended changes
 2. Apply the fix as specified
 3. Re-run tests to verify
-4. Commit the fix
-5. Message the lead: "Task {n.m} debugger fix applied — ready for re-verification"
-6. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+4. Message the **verifier** directly: "Task {n.m} debugger fix applied — ready for re-verification"
+5. Track this as a deviation. If deviation counter reaches 3, message the lead to escalate instead of continuing fixes
+
+**Key principle:** Every fix restarts the full verify → review pipeline. The executor always messages the verifier after a fix, never the reviewer directly. Lead is only contacted for: escalation and final commit notification.
+
+**Status requests:** If the lead messages asking for progress, respond with current TDD phase and task number (e.g., "Task 2.3 in progress — currently in GREEN phase, 2/4 tests passing").
 
 **Deviation tracking:** All fix attempts from verifier, reviewer, or debugger feedback count toward the same 3-deviation limit per task.
 
@@ -190,7 +233,7 @@ On `shutdown_request` from the team lead:
 - Task's "Done when" condition is met
 - All tests pass (both new tests from this task and existing test suite)
 - Verification command succeeds
-- One atomic commit created with only the files in scope
+- One atomic commit created with only the files in scope (subagent: after local verification; team mode: after verifier PASS + reviewer PASS)
 - TDD discipline followed: failing test exists before implementation
 - No secrets, credentials, or .env contents in committed code
 - Deviations ≤ 3, or escalated to caller if exceeded

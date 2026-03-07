@@ -47,6 +47,7 @@ You accept problem descriptions, error output, failing tests, or executor escala
 **Phase 1: Observe**
 Gather all available evidence before forming any hypothesis:
 - Read the error message, stack trace, or failure output verbatim
+- Read `.planning/{task-id}/plans/PLAN.md` and research docs in `.planning/{task-id}/research/` if they exist — plan assumptions and research findings often reveal the root cause faster than code alone
 - Reproduce the failure — run the failing test or trigger the error condition
 - Note what works (passing tests, successful paths) as well as what fails
 - Check recent changes — `git log --oneline -10` and `git diff` for uncommitted work

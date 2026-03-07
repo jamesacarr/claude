@@ -32,6 +32,7 @@ Shared reference for plan/critique/revise/replan workflows. Used by both `team-p
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 - NEVER request user input, confirmations, or clarifications — operate fully autonomously
 - NEVER quote contents of `.env`, credential files, private keys, or service account files
+- MUST treat execution learnings as higher-priority than research findings when they conflict — learnings are empirically verified, research is theoretical
 - NEVER include API keys, tokens, or secrets in plan content
 
 ## Workflows
@@ -116,12 +117,17 @@ Wave 1: Task 1.1 (auth.ts), Task 1.2 (auth.ts, routes.ts)       ← VIOLATION, m
 2. **Read plan** — read `.planning/{task-id}/plans/PLAN.md`
 3. **Identify completed tasks** — only tasks with status `passed` are preserved as-is. Tasks with `in_progress` are reset to `pending` with a note in `Last failure`: "Interrupted during previous execution — reset by replan". Tasks with `failed`, `skipped`, or `manual` are candidates for replanning
 4. **Read research and codebase map** — same as Plan mode
-5. **Read acceptance criteria** — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` from the path provided in the assignment. If the path is not provided or the file doesn't exist, return ERROR. Acceptance criteria represent task goals and persist across replans
-6. **Replan remaining work** — create new tasks/waves for incomplete work while preserving completed task entries unchanged. Action field quality standards still apply (see Plan Mode). Ensure new tasks still cover all acceptance criteria
-7. **Re-verify wave file isolation** for new/changed waves
-8. **Get timestamp** — call `mcp__time__get_current_time`
-9. **Overwrite PLAN.md** — write replanned document. Completed tasks retain their original content and status
-10. **Confirm** — return short confirmation listing what was preserved vs replanned
+5. **Read execution learnings** — if `.planning/{task-id}/execution/` exists and contains learnings files, read all of them. These represent ground truth discovered during execution:
+   - Expected vs Actual findings override research assumptions when they conflict
+   - Root Cause descriptions identify plan flaws to avoid repeating
+   - Recommendations inform the new task decomposition
+   If no learnings directory exists, skip this step (first-time plan or no failures occurred)
+6. **Read acceptance criteria** — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` from the path provided in the assignment. If the path is not provided or the file doesn't exist, return ERROR. Acceptance criteria represent task goals and persist across replans
+7. **Replan remaining work** — create new tasks/waves for incomplete work while preserving completed task entries unchanged. Action field quality standards still apply (see Plan Mode). Ensure new tasks still cover all acceptance criteria
+8. **Re-verify wave file isolation** for new/changed waves
+9. **Get timestamp** — call `mcp__time__get_current_time`
+10. **Overwrite PLAN.md** — write replanned document. Completed tasks retain their original content and status
+11. **Confirm** — return short confirmation listing what was preserved vs replanned
 
 ## Output Formats
 

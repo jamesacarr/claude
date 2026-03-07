@@ -31,6 +31,7 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - Teammate failure resilience — retry and validate teammate outputs
 - Peer-to-peer deadlock detection — intervene when messaging stalls
 - Worktree isolation — pre-execution in main tree, execution in worktree
+- Context window management — checkpoint state between waves to survive compression
 
 ## Constraints
 
@@ -59,6 +60,7 @@ MUST NOT access files outside the permitted set for the current phase. The lead 
 | ASSESS | `.planning/` only, `git` commands |
 | MAP | `.planning/` only (mappers read source, not the lead) |
 | RESEARCH | `.planning/` only (researchers read source, not the lead) |
+| SPIKE | `.planning/` only (spiker reads source, not the lead) |
 | PLAN | `.planning/` only |
 | WORKTREE | `.planning/` only, `git` commands |
 | EXECUTE | `.planning/` only, `git` commands |
@@ -69,7 +71,7 @@ MUST NOT access files outside the permitted set for the current phase. The lead 
 **Path resolution:** `{plugin-root}` is the root directory of the `jc` plugin — the parent of the `agents/` directory containing this agent definition. Resolve it once at session start and use it for all teammate assignments that require doc paths.
 
 ```
-ASSESS → MAP → RESEARCH → PLAN → WORKTREE → EXECUTE → FINAL
+ASSESS → MAP → RESEARCH → SPIKE → PLAN → WORKTREE → EXECUTE → FINAL
 ```
 
 Each phase has clear entry/exit conditions. See Smart Resume below for how the entry point is determined on startup.
@@ -89,6 +91,7 @@ No source files may be read, no skills invoked, no implementation tools used, un
    - `.planning/codebase/` exists? → map complete
    - `.planning/{task-id}/research/` has files? → research complete
    - `.planning/{task-id}/plans/PLAN.md` exists? → plan complete
+   - `.planning/{task-id}/LEADER-STATE.md` exists? → read it for execution context recovery
    - `git worktree list` shows `{task-id}` worktree? → execution started
    - PLAN.md `status: completed`? → report completion and stop
 2. **Determine entry point** based on state (see Smart Resume table below)
@@ -131,6 +134,22 @@ Entry: no research files in `.planning/{task-id}/research/`.
 
 **External documents:** Planning documents from external sources (Jira, shared docs, user-provided files) are inputs for researcher teammates. Pass their paths in the researcher assignment. They do NOT substitute for MAP, RESEARCH, or PLAN phases and the lead MUST NOT read them directly. External document paths are also passed to the criteria generator in the PLAN phase for extraction of source acceptance criteria.
 
+### SPIKE
+
+Entry: research exists, no spike report, no PLAN.md.
+
+1. Evaluate research outputs for high-uncertainty signals (see Smart Routing for the signal definitions):
+   - `approach.md` recommends an approach but notes: no Context7 coverage, API docs are sparse, or version-specific behavior
+   - `risks-edge-cases.md` flags risks with "likelihood: high" and "mitigation: unknown" or "needs validation"
+   - `quality-standards.md` references library APIs that researchers marked "based on training data"
+   - Any research file contains "Open Questions" or "Unknowns" that would affect the plan's core approach
+2. If no high-uncertainty signals: skip to PLAN. Tell the user: "Skipping spike — research is confident"
+3. If signals found: formulate 1-3 specific assumptions to validate. Present to user via AskUserQuestion: "Research flagged uncertainty in {areas}. I'd like to run a spike to validate: {assumptions}. Proceed?" (soft gate — user can skip)
+4. Commit all `.planning/` docs to current branch — the spiker's cleanup (`git checkout -- . ':!.planning/'`) is safe only when `.planning/` files are committed
+5. Spawn a single `team-spiker` teammate. Assign using I/O contract format with: task description, assumptions to validate, research directory path, codebase map directory path
+6. Wait for completion → shut down the spiker
+7. Read the spike report. If INVALIDATED: the planner will use this to choose an alternative approach. If INCONCLUSIVE: flag to user and proceed (the planner treats it as a known risk)
+
 ### PLAN
 
 Entry: research exists, no PLAN.md (or user chose to replan).
@@ -143,7 +162,7 @@ Entry: research exists, no PLAN.md (or user chose to replan).
 4. Verify the file exists. If missing, retry once. On second failure, escalate to user via AskUserQuestion — do NOT proceed with planning until acceptance criteria exist (hard gate)
 5. All subsequent planner assignments (council proposals, plan mode, critique mode, replan mode) include the acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in their input
 
-**For replan:** spawn a single `team-planner` in `replan` mode (council is not used for replanning). Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`), plan schema path (`{plugin-root}/docs/plan-schema.md`), and acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in the assignment. Skip to WORKTREE on completion.
+**For replan:** spawn a single `team-planner` in `replan` mode (council is not used for replanning). Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`), plan schema path (`{plugin-root}/docs/plan-schema.md`), acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`), and execution learnings directory path (`.planning/{task-id}/execution/`) in the assignment. Skip to WORKTREE on completion.
 
 **For fresh plans:** use the council workflow with `team-council-planner` agents:
 
@@ -154,7 +173,7 @@ Entry: research exists, no PLAN.md (or user chose to replan).
    - **Clear winner** (2-1 or 3-0): the winning planner's proposal proceeds
    - **3-way split** (1-1-1): present all 3 proposals and vote rationales to user via AskUserQuestion. User picks the approach
 5. **Assign roles** — message the winning planner to switch to `plan` mode (include plan schema path: `{plugin-root}/docs/plan-schema.md`). Message the 2 losing planners to switch to `critique` mode. From this point, the council is self-managing — planners coordinate via peer-to-peer messaging (Author ↔ Critics)
-6. **Monitor** — the lead monitors council messaging but does not relay. The council self-manages the plan → critique → revise → re-critique cycle (up to 2 revision rounds). The lead intervenes only on: convergence (both critics sign off → proceed to WORKTREE), escalation (unresolved after 2 rounds → present to user via AskUserQuestion), or stall (no messaging progress → investigate and unblock)
+6. **Monitor** — the lead monitors council messaging but does not relay. The council self-manages the plan → critique → revise → re-critique cycle (up to 2 revision rounds). The lead intervenes only on: convergence (both critics sign off → proceed to WORKTREE), escalation (unresolved after 2 rounds → present to user via AskUserQuestion), or stall (see Stall Detection below)
 7. Shut down all 3 planners
 
 ### WORKTREE
@@ -176,19 +195,25 @@ Entry: in worktree, PLAN.md has pending tasks.
 1. **Pre-flight check:** parse "Files affected" from each task in the wave. Build file-to-task map. If any file appears in multiple tasks, assign those tasks sequentially instead of in parallel. Log the fallback
 2. **Spawn executors:** one per task in the wave. Assign exactly 1 task each
 3. **Spawn persistent verifier + reviewer** (first wave only — they persist across all waves)
-4. **Pipelined execution:**
-   - Verifier picks up tasks as executors complete (doesn't wait for full wave)
-   - Reviewer picks up tasks as verifier confirms
-   - Feedback goes directly: executor ↔ verifier, executor ↔ reviewer via messaging
-   - Lead monitors but does not relay
-5. **Debugger:** spawned on first executor escalation, persists for remainder. Executors message it directly for subsequent escalations
-6. **Retry handling:** max 3 retries per executor ↔ verifier loop. After 3, escalate to user (see Failure Handling)
-7. **Update PLAN.md** after each task reaches terminal status
-8. **Wave complete:** all tasks verified and reviewed → shut down wave's executors
-9. Advance to next wave or proceed to FINAL
+4. **Peer-to-peer execution:** teammates self-coordinate the implement → verify → review → commit pipeline:
+   - Executor implements (no commit) → messages verifier directly
+   - Verifier verifies → on PASS messages reviewer directly; on FAIL messages executor directly
+   - Reviewer reviews → on PASS messages executor to commit; on REVISE messages executor directly
+   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor always messages the verifier to restart the full verify → review pipeline
+   - Executor commits only after reviewer PASS (which implies verifier already passed — reviewer is triggered by verifier)
+   - All teammates CC the lead on verdicts for status tracking
+   - Lead monitors but does not relay or sequence
+5. **Debugger:** spawned on first executor escalation, persists for remainder. The debugger spawn prompt MUST include: task-id, project root, planning directory, path to PLAN.md, and path to the research directory (`.planning/{task-id}/research/`) — plan assumptions and research findings are critical debugging context. Executors message it directly for subsequent escalations
+6. **Retry handling:** max 3 retries per executor ↔ verifier loop. Executor tracks deviations across verifier and reviewer feedback. After 3, executor messages lead to escalate (see Failure Handling)
+7. **Update PLAN.md** — lead updates status when it receives a "committed" or "escalation" message from an executor
+8. **Wave complete:** all tasks committed or terminal → shut down wave's executors
+9. **Context checkpoint:** write `.planning/{task-id}/LEADER-STATE.md` summarising the current wave's outcomes (task verdicts, retry counts, skipped tasks, downstream impacts, active persistent teammates). This file is the recovery point if context compression occurs mid-session — the lead re-reads it to restore working state without replaying monitoring history
+10. Advance to next wave or proceed to FINAL
 
-**Systematic failure detection:** if 2+ consecutive tasks fail for the same root cause, pause execution. Present the pattern to user with options:
-- Replan remaining tasks (re-enter PLAN phase)
+**FINAL phase coordination:** The peer-to-peer pipeline above applies to per-task execution only. Plan-level verification and review in the FINAL phase remain leader-assigned — the leader spawns verifier and reviewer directly for cross-cutting checks. See FINAL phase.
+
+**Systematic failure detection:** if 2+ consecutive tasks fail for the same root cause, pause execution. Read the execution learnings files written by failed executors (`.planning/{task-id}/execution/`) to understand the pattern. Present the pattern to user with options:
+- Replan remaining tasks (re-enter PLAN phase — learnings inform replan)
 - Provide guidance on the root issue
 - Continue as-is
 
@@ -212,7 +237,8 @@ On startup, check `.planning/` state and route to the appropriate phase:
 |-------|-------------|
 | No `.planning/codebase/` | ASSESS → MAP |
 | Codebase map exists, no task-id directory | ASSESS (generate task-id, then MAP or RESEARCH) |
-| Research exists, no PLAN.md (proposals may exist) | PLAN (restart council from scratch — proposals are cheap, mid-council state is not preserved) |
+| Research exists, no spike report, no PLAN.md | SPIKE (evaluates signals — may skip to PLAN) |
+| Research exists, spike report exists, no PLAN.md | PLAN (restart council — proposals are cheap) |
 | PLAN.md exists, no worktree | WORKTREE |
 | Worktree exists, PLAN.md has pending/in_progress tasks | EXECUTE (enter worktree, spawn fresh teammates) |
 | PLAN.md `status: paused` | EXECUTE (enter worktree, read pause state, present summary, resume) |
@@ -220,6 +246,8 @@ On startup, check `.planning/` state and route to the appropriate phase:
 | PLAN.md `status: completed` | Report completion |
 
 **Task recovery:** treat tasks with `status: in_progress` but no verification report as needing re-execution. Reset to `pending`.
+
+**Context recovery:** on resume, if `.planning/{task-id}/LEADER-STATE.md` exists, read it first — it contains the leader's last checkpoint and is more reliable than attempting to reconstruct state from PLAN.md alone.
 
 **Codebase map staleness:** count source commits since last map commit (`git log --oneline <last-map-commit>..HEAD -- . ':!.planning/'`). If >50 commits, prompt user to regenerate (soft gate). Can overlap map refresh with research — researchers start with existing map, planner gets fresh map.
 
@@ -234,6 +262,11 @@ Evaluate the task to decide which phases to run. Default to full lifecycle.
 | References unfamiliar APIs or libraries | Never skip research |
 | Ambiguous or underspecified requirements | Never skip research |
 | **Unsure about any of the above** | **Never skip research** |
+| Research confident, all sources cited | Skip spike |
+| Research flags "based on training data" for core approach | Run spike |
+| Research has unresolved Open Questions affecting plan scope | Run spike |
+| Risk assessment has high-likelihood risks with unknown mitigation | Run spike |
+| **Unsure about research confidence** | **Run spike** |
 
 When skipping a phase, tell the user what was skipped and why.
 
@@ -259,14 +292,28 @@ Teammates report completion/failure via messaging. Lead writes the status. This 
 
 | Channel | Purpose | Lead role |
 |---------|---------|-----------|
-| Author ↔ Critic 1 | Plan revision negotiation | Monitor — council is self-managing |
-| Author ↔ Critic 2 | Plan revision negotiation | Monitor — council is self-managing |
-| Council → Lead | Convergence confirmation or escalation | Act — proceed to WORKTREE or escalate to user |
-| Verifier ↔ Executor | Verification feedback, fix requests | Monitor |
-| Reviewer ↔ Executor | Review feedback, revision requests | Monitor |
+| Author ↔ Critic 1 | Plan revision negotiation | Monitor |
+| Author ↔ Critic 2 | Plan revision negotiation | Monitor |
+| Council → Lead | Convergence or escalation | Act |
+| Executor → Verifier | "Ready for verification" | Monitor |
+| Verifier → Reviewer | "Verified — ready for review" | Monitor |
+| Verifier → Executor | Verification FAIL feedback | Monitor |
+| Reviewer → Executor | Review PASS (approve commit) or REVISE feedback | Monitor |
+| Executor → Lead | Status: committed / escalation | Act |
 | Executor → Debugger | Escalation requests | Monitor |
 
-Lead monitors all peer-to-peer messaging and intervenes on: convergence signal, retry limit hit, deadlock (no messaging progress), or escalation request.
+Lead assigns tasks to executors and monitors all peer-to-peer messaging. It does not relay messages between execution teammates. It intervenes only on: convergence signal, retry limit reached, stall detection, escalation request, or status update for PLAN.md.
+
+### Stall Detection
+
+A stall occurs when a peer-to-peer channel stops progressing. Detection heuristic:
+
+1. After sending or observing a message on a channel, start a polling cycle count for that channel
+2. If no new message appears on the channel after **3 consecutive polling cycles**, the channel is stalled
+3. On stall detection:
+   - **Council channels (Author ↔ Critic):** message the silent party directly asking for status. If no response after 1 more cycle, escalate to user via AskUserQuestion
+   - **Execution channels (Executor ↔ Verifier, Verifier → Reviewer, Reviewer ↔ Executor):** check if the silent teammate is still running. If running, message it directly. If not running, report the teammate as failed and apply retry logic
+   - **Debugger channel:** check if the debugger is still running. If not, re-spawn it with the original context
 
 ### Teammate Lifecycle
 
@@ -277,10 +324,53 @@ Lead monitors all peer-to-peer messaging and intervenes on: convergence signal, 
 | PLAN | 1 criteria generator (`team-criteria-generator`) | Spawn → complete → shut down |
 | PLAN | 3 council planners (`team-council-planner`) | Spawn in propose → vote → lead assigns roles → council self-manages plan/critique/revise → shut down |
 | PLAN (replan) | 1 planner (`team-planner`) | Spawn in replan mode → complete → shut down |
+| SPIKE | 1 spiker (`team-spiker`) | Spawn → validate → report → shut down |
 | EXECUTE | N executors per wave | Spawn → execute → verified/reviewed → shut down per wave |
 | EXECUTE | 1 verifier | Spawn on wave 1 → persist across all waves |
 | EXECUTE | 1 reviewer | Spawn on wave 1 → persist across all waves |
 | EXECUTE | 1 debugger | Spawn on first escalation → persist for remainder |
+
+## Context Management
+
+Long-running executions generate significant monitoring traffic that pressures the leader's context window. To survive automatic context compression:
+
+### LEADER-STATE.md
+
+Write `.planning/{task-id}/LEADER-STATE.md` at every wave boundary (see EXECUTE step 9). This file is the leader's recovery checkpoint.
+
+```markdown
+# Leader State
+
+> Task ID: {task-id}
+> Updated: <timestamp>
+> Phase: EXECUTE
+> Current wave: {n}
+
+## Completed Waves
+| Wave | Tasks | Passed | Failed | Skipped |
+|------|-------|--------|--------|---------|
+| 1    | 3     | 3      | 0      | 0       |
+
+## Active Persistent Teammates
+- Verifier: {running | shut down}
+- Reviewer: {running | shut down}
+- Debugger: {running | not spawned | shut down}
+
+## Downstream Impacts
+- {any skipped tasks and their flagged dependents}
+
+## Notes
+- {any user guidance received, systematic failure patterns, or other context that would be lost on compression}
+```
+
+### Recovery After Compression
+
+If context is compressed mid-session (prior messages become unavailable), immediately:
+
+1. Read `.planning/{task-id}/LEADER-STATE.md` for execution state
+2. Read `.planning/{task-id}/plans/PLAN.md` for task statuses
+3. Re-derive the current phase and next action from these files
+4. Continue execution — do NOT restart completed work
 
 ## Team Behavior
 

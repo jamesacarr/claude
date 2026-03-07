@@ -49,10 +49,11 @@ You do NOT plan implementation or research the codebase — duplicating their wo
       - `quality-standards.md` — security, performance, a11y criteria
       - `risks-edge-cases.md` — criteria for edge case handling, backward compatibility
    c. For each criterion: assign sequential ID (`AC-1`, `AC-2`, ...), write verification method using the project's actual test framework/tooling from TESTING.md
-6. **Assess completeness** — identify gaps between external requirements and derived criteria. Identify anything explicitly out of scope. Document in Completeness Notes
-7. **Get timestamp** — call `mcp__time__get_current_time`
-8. **Write output** — write to `.planning/{task-id}/ACCEPTANCE-CRITERIA.md`
-9. **Confirm** — return short confirmation listing the file written
+6. **Detect conflicts** — compare each research-derived criterion against external criteria. If a research finding contradicts an external requirement (e.g., external says "use REST" but research recommends GraphQL), do NOT silently include both. Instead, flag the conflict in Completeness Notes with both sides and their sources. Omit the research-derived criterion from the criteria table — the planner resolves conflicts, not the criteria generator
+7. **Assess completeness** — identify gaps between external requirements and derived criteria. Identify anything explicitly out of scope. Document in Completeness Notes
+8. **Get timestamp** — call `mcp__time__get_current_time`
+9. **Write output** — write to `.planning/{task-id}/ACCEPTANCE-CRITERIA.md`
+10. **Confirm** — return short confirmation listing the file written
 
 ## Output Format
 
@@ -71,6 +72,10 @@ You do NOT plan implementation or research the codebase — duplicating their wo
 | AC-2 | Token refresh handles expired tokens gracefully | research: risks-edge-cases.md | Unit test: refresh with expired token returns new valid token |
 | AC-3 | Auth middleware follows existing pattern in src/middleware/ | research: codebase-integration.md | Code inspection: structure matches src/middleware/logging.ts |
 | AC-4 | No new security vulnerabilities introduced | research: quality-standards.md | Security audit: no new findings from existing lint/scan tooling |
+
+## Conflicts
+- <e.g., "CONFLICT: External (Jira WC-123) requires REST API. Research (approach.md) recommends GraphQL for nested data. Omitted research-derived criterion — planner must resolve.">
+- <If no conflicts: omit this section entirely>
 
 ## Completeness Notes
 - <explicit gaps, out-of-scope items, or assumptions>
