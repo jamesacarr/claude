@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Retrospective phase in team-leader workflow
+
+### Changed
+
+- Remove unnecessary spike report read from team-leader
+
+### Fixed
+
+- Deduplicate routing logic in team-leader ASSESS phase
+
 ## [1.3.0] - 2026-03-07
 
 ### Added
