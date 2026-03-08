@@ -65,13 +65,14 @@ MUST NOT access files outside the permitted set for the current phase. The lead 
 | WORKTREE | `.planning/` only, `git` commands |
 | EXECUTE | `.planning/` only, `git` commands |
 | FINAL | `.planning/` only, `git` commands |
+| RETROSPECTIVE | `.planning/` only |
 
 ## Workflow
 
 **Path resolution:** `{plugin-root}` is the root directory of the `jc` plugin — the parent of the `agents/` directory containing this agent definition. Resolve it once at session start and use it for all teammate assignments that require doc paths.
 
 ```
-ASSESS → MAP → RESEARCH → SPIKE → PLAN → WORKTREE → EXECUTE → FINAL
+ASSESS → MAP → RESEARCH → SPIKE → PLAN → WORKTREE → EXECUTE → FINAL → RETROSPECTIVE
 ```
 
 Each phase has clear entry/exit conditions. See Smart Resume below for how the entry point is determined on startup.
@@ -235,7 +236,100 @@ Entry: all waves complete.
 4. If reviewer flags issues: assign executor to fix, re-review (max 3 rounds). If still unresolved, escalate to user
 5. Update PLAN.md status to `completed`
 6. Shut down all remaining teammates
-7. Report to user: worktree branch name, merge instructions
+7. Proceed to RETROSPECTIVE
+
+### RETROSPECTIVE
+
+Entry: PLAN.md `status: completed`, all teammates shut down.
+
+The leader writes this itself — no teammate is spawned. The retrospective evaluates how the team and process performed, not the codebase or task outcome. It is an input for the user and future sessions to improve the agent workflow definitions.
+
+1. **Read artifacts** — gather process evidence from `.planning/{task-id}/`:
+   - `plans/PLAN.md` — task statuses, retry counts, skip/manual decisions
+   - `LEADER-STATE.md` — retry patterns, downstream impacts, user guidance received
+   - `execution/` — executor learnings files (if any)
+   - `debug/` — debug session logs (if any)
+   - `verification/PLAN-VERIFICATION.md` — what failed verification and why
+   - `reviews/PLAN-REVIEW.md` — what the reviewer flagged
+   - `research/` — to compare research predictions against execution reality
+   - `ACCEPTANCE-CRITERIA.md` — to assess criteria quality
+   - `plans/PROPOSAL-*.md` — to assess council divergence (if council was used)
+   - `plans/CRITIQUE-*.md` — to assess critique quality (if council was used)
+2. **Evaluate each dimension** (see Retrospective Template below) — focus on process observations, not codebase specifics. Every observation should point to a specific agent, phase, constraint, or workflow step that could be improved
+3. **Get timestamp** — call `mcp__time__get_current_time`
+4. **Write retrospective** — write to `.planning/{task-id}/RETROSPECTIVE.md`
+5. **Report to user** — worktree branch name, merge instructions, and note that the retrospective is available
+
+#### Retrospective Template
+
+```markdown
+# Retrospective
+
+> Task ID: {task-id}
+> Completed: <timestamp>
+> Duration: {phases run, e.g., "ASSESS → MAP → RESEARCH → PLAN → WORKTREE → EXECUTE → FINAL"}
+> Phases skipped: {list with rationale, or "none"}
+
+## Phase Decisions
+
+How well did the leader's routing decisions work?
+
+- **Phases skipped:** {which and why — was the skip justified in hindsight?}
+- **Phases that should have been skipped:** {any phase that ran but added no value}
+- **Phases that should have run:** {any skipped phase whose absence caused problems downstream}
+- **Smart routing accuracy:** {did the signal evaluation correctly predict task complexity?}
+
+## Planning Quality
+
+How well did the plan survive contact with execution?
+
+- **Council dynamics:** {convergence rounds, vote distribution, deadlocks, escalations — or "N/A" if sequential planner was used}
+- **Acceptance criteria quality:** {were criteria clear and testable? Did the verifier struggle with any?}
+- **Task decomposition:** {granularity — too coarse, too fine, or right-sized? Evidence: did executors scope-creep or finish trivially?}
+- **Action field quality:** {did executors have enough detail, or did they discover missing context? Which tasks needed the most deviation cycles?}
+- **Plan accuracy:** {what did the plan assume that turned out to be wrong? Reference executor learnings if applicable}
+
+## Execution Pipeline
+
+How well did the verify → review → commit pipeline work?
+
+- **Pipeline throughput:** {tasks completed} / {tasks attempted}, {total deviation cycles across all tasks}
+- **Bounce-back patterns:** {tasks that cycled between executor ↔ verifier or executor ↔ reviewer multiple times — what caused the cycling?}
+- **Escalation causes:** {what triggered executor escalations — plan quality, genuine difficulty, or environmental issues?}
+- **Debugger effectiveness:** {was the debugger needed? Did it find root causes efficiently? "N/A" if not spawned}
+- **Stall incidents:** {any stall self-reports from teammates — what caused them and how were they resolved?}
+
+## Research & Map Effectiveness
+
+Did upstream phases actually help downstream agents?
+
+- **Research accuracy:** {did research findings hold up during execution? Any findings that proved wrong or incomplete?}
+- **Codebase map gaps:** {anything executors or the planner needed that the map didn't cover?}
+- **Spike value:** {if spike ran — did it prevent a bad plan? If skipped — should it have run?}
+
+## Coordination Overhead
+
+How efficiently did the team coordinate?
+
+- **Message volume:** {was communication lean, or did agents generate excessive back-and-forth?}
+- **Leader interventions:** {how many times did the leader need to intervene beyond routine status updates?}
+- **User escalations:** {how many, and were they necessary or could the team have resolved them autonomously?}
+
+## Process Improvement Suggestions
+
+Concrete changes to agent definitions, workflow structure, or supporting docs. Each suggestion should reference the specific file and section it would change.
+
+1. {suggestion — e.g., "team-council-planner.md Phase 1 (Propose): require planners to state their interpretation of the task description before designing an approach, to reduce vote splits caused by ambiguous tasks"}
+2. {suggestion}
+3. {suggestion}
+```
+
+**Writing guidelines:**
+- Omit any section that has nothing noteworthy — "everything worked fine" sections add noise
+- Every observation must reference a specific phase, agent, or workflow step
+- "Process Improvement Suggestions" is the most important section — be specific enough that a human could open the referenced file and make the change
+- Do NOT include codebase-specific findings (wrong API, missing dependency) — those belong in executor learnings and debug logs
+- Keep it concise — target 40-80 lines total
 
 ## Smart Resume
 
@@ -251,7 +345,8 @@ On startup, check `.planning/` state and route to the appropriate phase:
 | Worktree exists, PLAN.md has pending/in_progress tasks | EXECUTE (enter worktree, spawn fresh teammates) |
 | PLAN.md `status: paused` | EXECUTE (enter worktree, read pause state, present summary, resume) |
 | PLAN.md `status: verifying` | FINAL (re-run plan-level verification) |
-| PLAN.md `status: completed` | Report completion |
+| PLAN.md `status: completed`, no `RETROSPECTIVE.md` | RETROSPECTIVE |
+| PLAN.md `status: completed`, `RETROSPECTIVE.md` exists | Report completion |
 
 **Task recovery:** treat tasks with `status: in_progress` but no verification report as needing re-execution. Reset to `pending`.
 
@@ -475,6 +570,7 @@ On completion, report to user:
   - Plan: .planning/{task-id}/plans/PLAN.md
   - Verification: .planning/{task-id}/verification/PLAN-VERIFICATION.md
   - Review: .planning/{task-id}/reviews/PLAN-REVIEW.md
+  - Retrospective: .planning/{task-id}/RETROSPECTIVE.md
 - **Merge:** `git merge {branch-name}` from main branch
 ```
 
@@ -494,6 +590,7 @@ On pause or abort, report current state:
 - All PLAN.md tasks reach terminal status (`passed`, `skipped`, or `manual`)
 - Plan-level verification written (`PLAN-VERIFICATION.md`)
 - Plan-level review written (`PLAN-REVIEW.md`)
+- Retrospective written (`.planning/{task-id}/RETROSPECTIVE.md`)
 - All artifacts in `.planning/{task-id}/` match expected directory structure
 - Worktree branch contains all implementation commits
 - PLAN.md `status: completed`
