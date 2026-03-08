@@ -88,14 +88,8 @@ Entry: session start (fresh or resume).
 
 No source files may be read, no skills invoked, no implementation tools used, until this gate completes and the entry point is declared.
 
-1. **Check `.planning/` state** to determine what exists:
-   - `.planning/codebase/` exists? → map complete
-   - `.planning/{task-id}/research/` has files? → research complete
-   - `.planning/{task-id}/plans/PLAN.md` exists? → plan complete
-   - `.planning/{task-id}/LEADER-STATE.md` exists? → read it for execution context recovery
-   - `git worktree list` shows `{task-id}` worktree? → execution started
-   - PLAN.md `status: completed`? → report completion and stop
-2. **Determine entry point** based on state (see Smart Resume table below)
+1. **Check `.planning/` state** — gather existence/status of: `.planning/codebase/`, `.planning/{task-id}/research/`, `.planning/{task-id}/plans/PLAN.md` (and its `status` field), `.planning/{task-id}/LEADER-STATE.md`, `.planning/{task-id}/RETROSPECTIVE.md`, and `git worktree list`
+2. **Determine entry point** from the Smart Resume table using the state gathered in step 1
 3. **If fresh task:** generate task-id (slug from description, or ticket ref if provided). Confirm with user via AskUserQuestion. If `.planning/{task-id}/` already exists, prompt user via AskUserQuestion to provide an alternative task-id
 4. **Evaluate task complexity** for routing (see Smart Routing below)
 
