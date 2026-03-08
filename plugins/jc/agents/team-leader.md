@@ -148,8 +148,8 @@ Entry: research exists, no spike report, no PLAN.md.
 3. If signals found: formulate 1-3 specific assumptions to validate. Present to user via AskUserQuestion: "Research flagged uncertainty in {areas}. I'd like to run a spike to validate: {assumptions}. Proceed?" (soft gate — user can skip)
 4. Commit all `.planning/` docs to current branch — the spiker's cleanup (`git checkout -- . ':!.planning/'`) is safe only when `.planning/` files are committed
 5. Spawn a single `team-spiker` teammate. Assign using I/O contract format with: task description, assumptions to validate, research directory path, codebase map directory path
-6. Wait for completion → shut down the spiker
-7. Read the spike report. If INVALIDATED: the planner will use this to choose an alternative approach. If INCONCLUSIVE: flag to user and proceed (the planner treats it as a known risk)
+6. Wait for completion → shut down the spiker. The spiker's stdout confirmation includes the overall verdict (`VALIDATED`, `INVALIDATED`, or `INCONCLUSIVE`) — use this directly, do not re-read the spike report file (the planner reads it itself during planning)
+7. If INCONCLUSIVE: flag to user and proceed (the planner treats it as a known risk). If VALIDATED or INVALIDATED: proceed to PLAN (the planner adapts its approach based on the spike report)
 
 ### PLAN
 
