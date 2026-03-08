@@ -42,13 +42,23 @@ Skills coordinate through a shared `.planning/` directory at the project root:
 │   ├── TESTING.md
 │   └── CONCERNS.md
 └── {task-id}/                   # one directory per task
+    ├── ACCEPTANCE-CRITERIA.md   # /jc:plan output (generated before planning)
     ├── research/                # /jc:research output
     │   ├── approach.md
     │   ├── codebase-integration.md
     │   ├── quality-standards.md
-    │   └── risks-edge-cases.md
-    ├── PLAN.md                  # /jc:plan output
-    ├── PLAN-REVIEW.md           # /jc:implement output
+    │   ├── risks-edge-cases.md
+    │   └── spike-report.md      # optional, from team-spiker
+    ├── plans/                   # /jc:plan output
+    │   ├── PLAN.md
+    │   ├── CRITIQUE.md
+    │   ├── PROPOSAL-{n}.md      # council planning only
+    │   └── PROPOSAL-VOTES.md    # council planning only
+    ├── verification/            # /jc:implement output
+    │   ├── task-{n}-VERIFICATION.md
+    │   └── PLAN-VERIFICATION.md
+    ├── reviews/                 # /jc:implement output
+    │   └── PLAN-REVIEW.md
     └── debug/                   # /jc:debug output
         └── session-*.md
 ```
@@ -126,10 +136,12 @@ You can override any focus area before agents are spawned.
 Creates an implementation plan through a plan-critique-revise loop. The planner reads the codebase map and research output — it does not explore the codebase directly.
 
 **What it does:**
-- **Hard gates:** Requires both a codebase map (`/jc:map`) and research (`/jc:research`). Won't proceed without them.
+- **Hard gates:** Requires a codebase map (`/jc:map`), research (`/jc:research`), and acceptance criteria. Won't proceed without all three.
+- Generates **acceptance criteria** by spawning a `team-criteria-generator` agent (skipped if criteria already exist)
 - Spawns a `team-planner` agent to create the plan
 - Spawns a second planner invocation for **adversarial critique**
 - If the critique raises objections, runs up to two revision rounds (max 6 planner invocations total)
+- If a plan already exists with completed tasks, offers **replace** (fresh plan) or **replan** (preserve completed work)
 - Presents a plan summary with critique status
 
 **Plan-critique loop:**

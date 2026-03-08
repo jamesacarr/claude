@@ -17,7 +17,7 @@ plugins/
   jc/                     # James' Claude Toolkit
     .claude-plugin/
       plugin.json         # Plugin manifest
-    agents/               # 10 agent definitions
+    agents/               # 14 agent definitions
     docs/                 # Shared references (plan schema, agent I/O contract)
     skills/               # 14 skill modules
 ```
@@ -31,12 +31,15 @@ plugins/
 | `team-researcher` | Researches tasks across approach, integration, quality, and risk dimensions |
 | `team-planner` | Creates implementation plans through a sequential plan-critique-revise loop |
 | `team-council-planner` | Council planning specialist — diverge/vote/plan/critique in a 3-planner council |
+| `team-criteria-generator` | Generates testable acceptance criteria from research and task description |
+| `team-spiker` | Validates high-uncertainty assumptions with minimal throwaway PoC code |
 | `team-executor` | Implements tasks from PLAN.md using TDD (RED → GREEN → REFACTOR) |
 | `team-verifier` | Verifies task completion against done-when criteria |
 | `team-reviewer` | Reviews code for quality, security, performance, and architectural fit |
 | `team-debugger` | Investigates bugs and failures using scientific method |
 | `audit-agent-auditor` | Audits agent definitions for correctness and best practices |
 | `audit-skill-auditor` | Audits skill definitions for compliance |
+| `wording-reviewer` | Reviews instructional writing quality in .md files against a clarity rubric |
 
 ### Skills
 
@@ -57,9 +60,10 @@ plugins/
 | `author-skill` | Create, edit, audit, and delete skills |
 | `author-agent` | Create, edit, audit, and delete agents |
 
-## Skill Guide
+## Documentation
 
-See **[GUIDE.md](GUIDE.md)** for detailed descriptions, usage examples, and typical workflows for every skill.
+- **[SKILLS.md](SKILLS.md)** — Detailed descriptions, usage examples, and typical workflows for every skill
+- **[TEAM.md](TEAM.md)** — How the agent team works together: lifecycle, coordination, execution pipeline, and failure handling
 
 ## Usage
 
