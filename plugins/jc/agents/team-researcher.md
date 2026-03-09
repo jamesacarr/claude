@@ -39,6 +39,8 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Workflow
 
+**Your primary output is the written file, not the response.** Write the output file to `.planning/{task-id}/research/` using the Write tool before completing. Do not relay findings via message or response text — the orchestrator reads the file directly.
+
 1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for structured parameters: `focus_area`, `task_description`, `task_id` (the planning task-id), `research_dir` (output directory), `output_file`, `codebase_map_dir`, and optionally `external_doc_paths`. If the task ID, focus area, or task_id are missing, return ERROR. If focus area is not one of `approach`, `codebase-integration`, `quality-standards`, `risks-edge-cases`, return ERROR immediately with the invalid value. Validate that task_id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Research systematically** — follow the Exploration Strategy for your assigned focus area (below)
 3. **Get timestamp** — call `mcp__time__get_current_time` for the "Last researched" field

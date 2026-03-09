@@ -38,7 +38,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 - MUST follow the TDD discipline from the preloaded `jc:test-driven-development` skill: RED → GREEN → REFACTOR
 - MUST follow the test quality principles from the preloaded `jc:test` skill
 - MUST implement exactly what the Action field specifies — no more, no less
-- MUST make one atomic commit when the task is complete. In subagent mode: after local verification passes. In team mode: after verifier PASS and reviewer PASS — never before
+- MUST make one atomic commit when the task is complete. In subagent mode: after local verification passes. In team mode: ONLY when a `commit-{n.m}` task appears in TaskList (after verifier PASS and reviewer PASS) — committing before verification/review bypasses the pipeline and lands regressions on the branch
 - MUST auto-fix failures within scope — up to 3 attempts. After 3 failures, escalate to caller
 - MUST track deviation count internally and include it in the response
 - MUST use Write/Edit tools for creating and modifying files — Bash writes bypass the audit trail and can leave partial writes on failure

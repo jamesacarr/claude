@@ -36,6 +36,8 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Workflow
 
+**Your primary output is the written file, not the response.** Write files to `.planning/codebase/` using the Write tool before completing. Do not relay findings via message or response text — the orchestrator reads the files directly.
+
 1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for structured parameters: `focus_area` and `codebase_map_dir`. The task description provides additional context. If focus area is not one of `technology`, `architecture`, `quality`, `concerns`, return ERROR immediately with the invalid value
 2. **Explore systematically** — use Glob for project structure, Grep for patterns, Read for key files
 3. **Get timestamp** — call `mcp__time__get_current_time` for the "Last mapped" field
