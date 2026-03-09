@@ -1,43 +1,46 @@
 # Agent I/O Contract
 
-Standard calling convention for all JC team agents. Every agent invocation — whether via Task tool (skill orchestration) or Agent Team (Team Leader coordination) — follows this structure.
+Standard calling convention for all JC team agents. Every agent invocation — whether via Task tool (skill orchestration) or Agent Team (Team Leader coordination) — uses Task metadata as the primary assignment and result channel.
 
 ## Invocation Format
 
-When spawning an agent via the Task tool, the prompt MUST include these sections in order:
+When spawning an agent via the Task tool, the orchestrator (skill or leader) follows this two-step pattern:
+
+### Step 1: Create task with metadata
 
 ```
-## Task
-<What the agent should do — one sentence>
-
-## Context
-<Background the agent needs>
-- Task ID: <task-id>
-- Project root: <absolute path>
-- Planning directory: <absolute path to .planning/>
-- <Additional context fields specific to the agent>
-
-## Input
-<Specific data the agent operates on — file paths, descriptions, configuration>
-
-## Expected Output
-<What the agent should produce — file paths, formats, return values>
+TaskCreate(
+  subject: "<descriptive subject>",
+  description: "<what the agent should do>",
+  metadata: {
+    "<key>": "<value>",
+    ...
+  }
+)
 ```
 
-### Section Rules
+Metadata contains all structured parameters the agent needs — paths, focus areas, mode flags, descriptions. Each agent's `.md` file defines an **Assignment** section with the metadata keys it expects (required and optional).
 
-| Section | Required | Content |
-|---------|----------|---------|
-| **Task** | Always | Single imperative sentence. No ambiguity — the agent should know exactly what to do |
-| **Context** | Always | Task ID, project root, planning directory. Additional fields vary by agent |
-| **Input** | Always | Concrete data. File paths use absolute paths. Descriptions are verbatim from the plan or user |
-| **Expected Output** | Always | Exact file paths for written output. Return format for stdout responses |
+### Step 2: Spawn agent with task ID only
+
+```
+Agent tool with subagent_type: "<agent-type>", prompt: "Your task is <task-id-from-TaskCreate>."
+```
+
+The spawn prompt is minimal — just the task ID. The agent calls `TaskGet` to read its full assignment from the task metadata.
+
+### Reading results
+
+After the agent completes, the orchestrator reads results via `TaskGet` on the same task. Agents call `TaskUpdate` on completion with structured result metadata (verdicts, paths, hashes, etc.). Each agent's `.md` file documents its completion metadata contract.
 
 ## Output Convention
 
-Agents produce output in two ways:
+Agents produce output in three ways:
 
-### File output (primary)
+### Task metadata (primary for structured results)
+Agents report completion via `TaskUpdate(taskId, status: completed, metadata: {...})`. The orchestrator reads results via `TaskGet`. This is the canonical channel for structured data (verdicts, commit hashes, report paths, etc.).
+
+### File output (primary for documents)
 Agents write structured documents directly to `.planning/`. The orchestrator does NOT relay file content — agents write files themselves to minimise context transfer.
 
 After writing, agents return a **short confirmation** to the orchestrator:
@@ -83,4 +86,4 @@ The orchestrator decides whether to retry, escalate, or abort. Agents do NOT ret
 
 ## Agent Team Mode
 
-When agents are coordinated by the Team Leader as an Agent Team (rather than spawned via Task tool), the same information structure applies — the Team Leader shares equivalent context through team coordination rather than prompt sections. The contract defines _what_ information flows between agents, not the transport mechanism.
+When agents are coordinated by the Team Leader as an Agent Team (rather than spawned via Task tool), the same Task metadata mechanism applies — the Team Leader creates tasks with metadata via `TaskCreate`, and agents pick up assignments via `TaskList` + `TaskGet`. Persistent agents (executor, verifier, reviewer, debugger) poll `TaskList` in a loop for new work rather than receiving a single task at spawn time.

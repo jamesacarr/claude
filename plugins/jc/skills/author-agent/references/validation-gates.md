@@ -75,14 +75,14 @@ Verify the agent's declared execution capabilities match its content. See [execu
 
 ## Subagent I/O Contract Compliance
 
-If the agent's workflow instructs spawning subagents via the Task tool, verify each prompt follows the [I/O contract]({plugin-docs}/agent-io-contract.md) format:
+If the agent's workflow instructs spawning subagents via the Task tool, verify it follows the [I/O contract]({plugin-docs}/agent-io-contract.md) — TaskCreate-with-metadata pattern:
 
-| Section | Check |
-|---------|-------|
-| `## Task` | Specific task description, not vague |
-| `## Context` | Prior work, key findings, constraints filled in |
-| `## Input` | Files, data, or artifacts the subagent needs |
-| `## Expected Output` | Format, scope, detail level specified |
+| Check | What to verify |
+|-------|---------------|
+| `TaskCreate` before spawn | Task created with metadata containing all structured parameters |
+| Metadata keys match agent's Assignment table | Required keys present, types correct |
+| Minimal spawn prompt | Prompt is just `Your task is {task-id}.` — no embedded I/O contract sections |
+| `TaskGet` for results | Orchestrator reads completion metadata via TaskGet, not parsing stdout |
 
 Also verify subagent templates follow the invocation rules in [execution-models.md](execution-models.md) (`subagent_type` only, no `name` parameter). For `general-purpose` agents, verify prompts pass absolute paths resolved from `{skill-base-dir}`.
 

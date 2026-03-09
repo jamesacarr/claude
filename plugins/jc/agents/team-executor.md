@@ -54,9 +54,23 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 - NEVER modify files outside the scope listed in "Files affected" without explicit justification in the response
 - NEVER skip the RED phase — a failing test must exist before implementation code
 
+## Assignment
+
+The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+
+| Metadata Key | Required | Description |
+|-------------|----------|-------------|
+| `task_id` | Yes | Planning task-id for `.planning/{task-id}/` paths |
+| `task_number` | Yes | Task number from PLAN.md (e.g., `1.2`) |
+| `previous_failure` | No | Description of previous failure (retry context) |
+| `retry_attempt` | No | Current retry number (e.g., `2 of 3`) |
+
+On completion: `TaskUpdate(taskId, status: completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})`.
+On escalation: `TaskUpdate(taskId, status: failed, metadata: {"failure_summary": "{description}", "learnings_path": ".planning/{task-id}/execution/task-{n.m}-learnings.md", "stash_ref": "{ref}"})`.
+
 ## Workflow
 
-1. **Parse assignment** — identify task-id, task number (e.g., `1.2`), project root, and planning directory from the invocation context. If task-id is absent, return ERROR
+1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `task_id` and `task_number`. If either is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid. If `previous_failure` and `retry_attempt` are present, note them for deviation handling
 2. **Read codebase context** — read `STACK.md` and `TESTING.md` from `.planning/codebase/`. If either file is missing, return ERROR directing the orchestrator to run `/jc:map` first
 3. **Read task** — read `.planning/{task-id}/plans/PLAN.md` and extract the assigned task by number. If PLAN.md is missing, return ERROR directing the orchestrator to run `/jc:plan`. If the task number does not match any entry, return ERROR listing the valid task numbers found
 4. **Create directories** — run `mkdir -p` for any directories needed by the files in scope
@@ -193,7 +207,7 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 **Task assignment:** The lead assigns exactly one task via the initial spawn context. Execute it using the standard Workflow.
 
 **After completing implementation** (team mode override at step 10 in core Workflow):
-1. `TaskUpdate(implement-{n.m}, status: completed)`
+1. `TaskUpdate(implement-{n.m}, status: completed, metadata: {"task_number": "{n.m}"})`
 2. `TaskCreate(verify-{n.m}-1, assigned: verifier)` — verifier picks up from TaskList
 3. Wait for feedback — either a `commit-{n.m}` task appears in TaskList (PASS path) or a FAIL/REVISE message arrives (fix path)
 
@@ -205,13 +219,13 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 1. `TaskUpdate(commit-{n.m}, in_progress)`
 2. Stage the specific files in "Files affected" plus test files created
 3. Commit with conventional commit format
-4. `TaskUpdate(commit-{n.m}, completed)`
+4. `TaskUpdate(commit-{n.m}, completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})`
 5. Message the lead: "Task {n.m} committed: {hash} {message}"
 
 **Escalation:** On escalation (deviation limit reached):
 1. Write execution learnings (unchanged)
 2. Git stash (unchanged)
-3. `TaskCreate(investigate-{n.m}-{attempt}, unassigned)` — description includes task number, failure summary, learnings path, stash ref
+3. `TaskCreate(investigate-{n.m}-{attempt}, unassigned, metadata: {"task_number": "{n.m}", "failure_summary": "{brief description}", "learnings_path": ".planning/{task-id}/execution/task-{n.m}-learnings.md", "stash_ref": "{stash ref}"})` — metadata carries structured context for the debugger; description is a brief human-readable summary
 4. Message the lead: "Task {n.m} escalation: {reason}"
 
 **Messages to lead — only two events:**

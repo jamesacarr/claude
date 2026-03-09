@@ -35,14 +35,14 @@ Read references/token-efficiency.md. Run the checklist against all new or change
 
 ## Subagent I/O Contract Compliance
 
-If the skill instructs spawning subagents via the Task tool, verify each prompt follows the I/O contract format (read `{skill-base-dir}/../../docs/agent-io-contract.md`):
+If the skill instructs spawning subagents via the Task tool, verify it follows the I/O contract — TaskCreate-with-metadata pattern (read `{skill-base-dir}/../../docs/agent-io-contract.md`):
 
-| Section | Check |
-|---------|-------|
-| `## Task` | Specific task description, not vague |
-| `## Context` | Prior work, key findings, constraints filled in |
-| `## Input` | Files, data, or artifacts the subagent needs |
-| `## Expected Output` | Format, scope, detail level specified |
+| Check | What to verify |
+|-------|---------------|
+| `TaskCreate` before spawn | Task created with metadata containing all structured parameters |
+| Metadata keys match agent's Assignment table | Required keys present, types correct |
+| Minimal spawn prompt | Prompt is just `Your task is {task-id}.` — no embedded I/O contract sections |
+| `TaskGet` for results | Skill reads completion metadata via TaskGet, not parsing stdout |
 
 Also verify subagent templates do NOT use the `name` parameter (it creates team members, not foreground subagents). For `general-purpose` agents, verify prompts pass absolute paths resolved from `{skill-base-dir}` (the directory containing the skill's SKILL.md, resolved from the `Skill directory:` input).
 

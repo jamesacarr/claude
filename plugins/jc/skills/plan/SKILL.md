@@ -90,29 +90,16 @@ ls .planning/{task-id}/ACCEPTANCE-CRITERIA.md 2>/dev/null
 
 If it exists, skip to Step 5 (resume case — criteria already generated).
 
-If not, spawn a `team-criteria-generator` agent via the Task tool. `{task_description}` is the user's original planning request from the current conversation. Prompt follows the I/O contract in `{plugin-docs}/agent-io-contract.md`:
+If not, spawn a `team-criteria-generator` agent via the Task tool. `{task_description}` is the user's original planning request from the current conversation.
 
-```
-## Task
-Generate acceptance criteria for the given task.
+1. `TaskCreate` with:
+   - subject: `criteria-{task-id}`
+   - description: `Generate acceptance criteria for: {task_description}`
+   - metadata: `{"task_id": "{task-id}", "task_description": "{task_description}", "research_dir": "{absolute_project_root}/.planning/{task-id}/research/", "codebase_map_dir": "{absolute_project_root}/.planning/codebase/", "acceptance_criteria_path": "{absolute_project_root}/.planning/{task-id}/ACCEPTANCE-CRITERIA.md", "external_doc_paths": "{external_doc_paths or null}"}`
 
-## Context
-- Task ID: {task-id}
-- Project root: {absolute_project_root}
-- Planning directory: {absolute_project_root}/.planning
+2. Spawn agent with `subagent_type: "team-criteria-generator"`, prompt: `Your task is {task-id-from-TaskCreate}.`
 
-## Input
-- Task description: {task_description}
-- Research directory: {absolute_project_root}/.planning/{task-id}/research/
-- Codebase map directory: {absolute_project_root}/.planning/codebase/
-- External documents: {external_doc_paths or "None"}
-
-## Expected Output
-- Write acceptance criteria to {absolute_project_root}/.planning/{task-id}/ACCEPTANCE-CRITERIA.md
-- Return short confirmation listing file written
-```
-
-Use `subagent_type: "team-criteria-generator"` for the agent.
+After the agent completes, read results via `TaskGet` on the created task to confirm completion.
 
 After the agent completes, verify the output file exists:
 
@@ -140,44 +127,29 @@ If no completed tasks, proceed with fresh plan (overwrite).
 
 Get the absolute project root via `pwd`. All planner invocations use `subagent_type: "team-planner"`.
 
-Prompt template following the I/O contract in `{plugin-docs}/agent-io-contract.md`:
+For each planner invocation, create a task via `TaskCreate` with metadata, then spawn the agent with only the task ID:
 
-```
-## Task
-{action} for the given task.
+1. `TaskCreate` with:
+   - subject: `planner-{mode}-{task-id}` (use a unique suffix if multiple invocations of the same mode, e.g., `planner-critique-{task-id}-2`)
+   - description: `{action} for: {task_description}`
+   - metadata: `{"mode": "{mode}", "task_id": "{task-id}", "planner_workflows_path": "{plugin-docs}/planner-workflows.md", "plan_schema_path": "{plugin-docs}/plan-schema.md", "acceptance_criteria_path": "{absolute_project_root}/.planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": "{absolute_project_root}/.planning/{task-id}/research/", "codebase_map_dir": "{absolute_project_root}/.planning/codebase/"}`
 
-## Context
-- Task ID: {task-id}
-- Project root: {absolute_project_root}
-- Planning directory: {absolute_project_root}/.planning
-- Mode: {mode}
+2. Spawn agent with `subagent_type: "team-planner"`, prompt: `Your task is {task-id-from-TaskCreate}.`
 
-## Input
-- Task description: {task_description}
-- Research directory: {absolute_project_root}/.planning/{task-id}/research/
-- Codebase map directory: {absolute_project_root}/.planning/codebase/
-- Plan file: {absolute_project_root}/.planning/{task-id}/plans/PLAN.md
-- Plan schema: {plugin-docs}/plan-schema.md
-- Planner workflows: {plugin-docs}/planner-workflows.md
-- Acceptance criteria: {absolute_project_root}/.planning/{task-id}/ACCEPTANCE-CRITERIA.md
-- Critique file: {absolute_project_root}/.planning/{task-id}/plans/CRITIQUE.md
-
-## Expected Output
-- Write {output_file} to {absolute_project_root}/.planning/{task-id}/plans/
-- Return short confirmation or structured result
-```
+After each agent completes, read results via `TaskGet` on the created task to confirm completion.
 
 **Mode-to-action mapping:**
 
-| Mode | `{action}` | `{output_file}` |
-|------|-----------|-----------------|
-| `plan` | Create an implementation plan | `PLAN.md` |
-| `critique` | Adversarially critique the plan | `CRITIQUE.md` |
-| `revise` | Revise the plan to address critique objections | `PLAN.md` |
-| `replan` | Replan remaining work preserving completed tasks | `PLAN.md` |
+| Mode | `{action}` |
+|------|-----------|
+| `plan` | Create an implementation plan |
+| `critique` | Adversarially critique the plan |
+| `revise` | Revise the plan to address critique objections |
+| `replan` | Replan remaining work preserving completed tasks |
 
 For `replan` mode, `{task_description}` is taken from the existing PLAN.md's `## Goal` section.
 For `plan` mode, `{task_description}` is the user's original planning request from the current conversation.
+For `replan` mode, include `"execution_learnings_dir": "{absolute_project_root}/.planning/{task-id}/execution/"` in metadata if the directory exists.
 
 **Loop execution:**
 
@@ -194,7 +166,7 @@ Steps 6a and 6b are **always** executed. Steps 6c-6d execute only if 6b returns 
 
 Each planner invocation is a **separate** Task tool call (sequential, not parallel — each depends on the previous output).
 
-**Result parsing:** Read the `## Result` line of the critique agent's stdout response. If it contains `PASS`, no objections. If `OBJECTIONS`, proceed to revision. If `ERROR` or unparseable, surface the agent's `## Summary` and `## Details` to the user, stop the loop, and suggest remediation.
+**Result parsing:** After each critique invocation completes, read the task's completion metadata via `TaskGet`. Check the `result` field: if `PASS`, no objections — proceed to Step 7. If `OBJECTIONS`, proceed to revision. If `ERROR`, surface the error to the user, stop the loop, and suggest remediation.
 
 **Replan note:** For `replan` mode, acceptance criteria from the existing `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` are passed as-is — they represent the task goals, not the implementation approach.
 

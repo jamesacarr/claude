@@ -71,28 +71,18 @@ User can override individual focus areas (e.g., replace "risks-edge-cases" with 
 
 Get the absolute project root via `pwd`. Spawn all 4 `team-researcher` agents in a **single message** (parallel execution) via the Task tool.
 
-Prompt template per agent, following the I/O contract in `{plugin-docs}/agent-io-contract.md`:
+For each agent, create a task via `TaskCreate` with metadata, then spawn the agent with only the task ID:
 
-```
-## Task
-Research the {focus_area} dimension of the given task.
+**Per agent:**
 
-## Context
-- Task ID: {task-id}
-- Project root: {absolute_project_root}
-- Planning directory: {absolute_project_root}/.planning
+1. `TaskCreate` with:
+   - subject: `research-{focus_area}`
+   - description: `Research the {focus_area} dimension of: {task_description}`
+   - metadata: `{"focus_area": "{focus_area}", "task_description": "{task_description}", "task_id": "{task-id}", "research_dir": "{absolute_project_root}/.planning/{task-id}/research/", "output_file": "{absolute_project_root}/.planning/{task-id}/research/{focus-area}.md", "codebase_map_dir": "{absolute_project_root}/.planning/codebase/"}`
 
-## Input
-- Focus area: {focus_area}
-- Task description: {task_description}
-- Output file: {absolute_project_root}/.planning/{task-id}/research/{focus-area}.md
+2. Spawn agent with `subagent_type: "team-researcher"`, prompt: `Your task is {task-id-from-TaskCreate}.`
 
-## Expected Output
-- Write findings to .planning/{task-id}/research/{focus-area}.md
-- Return short confirmation listing file written
-```
-
-Use `subagent_type: "team-researcher"` for each agent.
+After each agent completes, read results via `TaskGet` on the created task to confirm completion.
 
 ### Step 5: Verify Output
 

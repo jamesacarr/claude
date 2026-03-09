@@ -1,7 +1,7 @@
 ---
 name: team-mapper
 description: "Maps a codebase to produce structured analysis documents in .planning/codebase/. Use when spawned by the Map skill or Team Leader to explore a project's technology stack, architecture, conventions, testing patterns, and concerns. Not for task-scoped research (use team-researcher)."
-tools: Read, Write, Grep, Glob, mcp__time__get_current_time
+tools: Read, Write, Grep, Glob, TaskGet, TaskUpdate, mcp__time__get_current_time
 mcpServers: time
 model: sonnet
 ---
@@ -36,11 +36,11 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Workflow
 
-1. **Parse assignment** — identify your focus area and project root from the spawn prompt or task assignment. If focus area is not one of `technology`, `architecture`, `quality`, `concerns`, return an ERROR immediately with the invalid value
+1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for structured parameters: `focus_area` and `codebase_map_dir`. The task description provides additional context. If focus area is not one of `technology`, `architecture`, `quality`, `concerns`, return ERROR immediately with the invalid value
 2. **Explore systematically** — use Glob for project structure, Grep for patterns, Read for key files
 3. **Get timestamp** — call `mcp__time__get_current_time` for the "Last mapped" field
 4. **Write documents** — for each output file in your focus area, write structured findings using the output format below
-5. **Confirm** — return ONLY the confirmation template below listing files written — no additional text, recommendations, or commentary
+5. **Complete** — `TaskUpdate(taskId, status: completed)`. Return ONLY the confirmation template below listing files written — no additional text, recommendations, or commentary
 
 ### Exploration Strategy
 

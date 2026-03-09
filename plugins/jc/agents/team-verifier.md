@@ -58,11 +58,23 @@ Do NOT read other codebase map files — verification context comes from PLAN.md
 - NEVER request user input, confirmations, or clarifications — the lead handles all user escalation
 - NEVER quote contents of `.env`, credential files, private keys, or service account files
 
+## Assignment
+
+The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+
+| Metadata Key | Required | Description |
+|-------------|----------|-------------|
+| `mode` | Yes | `task` or `plan` |
+| `task_id` | Yes | Planning task-id for `.planning/{task-id}/` paths |
+| `task_number` | Yes (task mode) | Task number from PLAN.md (e.g., `1.2`) |
+
+On completion: `TaskUpdate(taskId, status: completed, metadata: {"verdict": "<PASS|FAIL|PARTIAL>", "report_path": "<path>"})`.
+
 ## Workflow
 
 ### Task Verification
 
-1. **Parse assignment** — identify mode (`task`), task-id, task number, project root, and planning directory. If task-id is absent, return ERROR
+1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `mode`, `task_id`, and `task_number`. If mode is not `task`, or `task_id`/`task_number` are absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Read codebase context** — read `TESTING.md` from `.planning/codebase/`. If missing, return ERROR directing the orchestrator to run `/jc:map` first
 3. **Read task** — read `.planning/{task-id}/plans/PLAN.md` and extract the assigned task. If PLAN.md is missing, return ERROR. If task number not found, return ERROR listing valid task numbers
 4. **Create output directory** — run `mkdir -p .planning/{task-id}/verification/`
@@ -82,7 +94,7 @@ Do NOT read other codebase map files — verification context comes from PLAN.md
 
 ### Plan Verification
 
-1. **Parse assignment** — identify mode (`plan`), task-id, project root, and planning directory. If task-id is absent, return ERROR
+1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `mode` and `task_id`. If mode is not `plan` or `task_id` is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Read codebase context** — read `TESTING.md` from `.planning/codebase/`. If missing, return ERROR
 3. **Read plan** — read `.planning/{task-id}/plans/PLAN.md` in full. If missing, return ERROR
 4. **Create output directory** — run `mkdir -p .planning/{task-id}/verification/`
@@ -249,7 +261,7 @@ The verifier persists across all waves. Instead of waiting for a full wave to co
 
 **Task pickup — persistent poll loop:**
 1. Check `TaskList` for verify tasks assigned to verifier with status unblocked
-2. If found: `TaskUpdate(status: in_progress)`, read `.planning/{task-id}/plans/PLAN.md` and extract the task details (Done-when, Verification command, Files affected). Reuse initial `TESTING.md` read unless lead signals a codebase map refresh
+2. If found: `TaskGet(taskId)` to read task metadata (task_number, plan_path). `TaskUpdate(status: in_progress)`, read the plan at the metadata's `plan_path` (or default `.planning/{task-id}/plans/PLAN.md`) and extract the task details using `task_number` from metadata (Done-when, Verification command, Files affected). Reuse initial `TESTING.md` read unless lead signals a codebase map refresh
 3. Run the Task Verification workflow using the extracted task details
 4. Write the verification report as normal
 5. Route based on verdict (see Verdict Routing below)
@@ -260,9 +272,9 @@ The verifier persists across all waves. Instead of waiting for a full wave to co
 
 | Verdict | Actions |
 |---------|---------|
-| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed)`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer)`. Message executor: "Task {n.m} PASS — verified" |
-| **FAIL** | `TaskUpdate(verify-{n.m}-{attempt}, failed)`. Message executor with failure details + evidence |
-| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed)`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer)`. Message lead with verdict and unverifiable criteria |
+| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer, metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. Message executor: "Task {n.m} PASS — verified" |
+| **FAIL** | `TaskUpdate(verify-{n.m}-{attempt}, failed, metadata: {"verdict": "FAIL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. Message executor with failure details + evidence |
+| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PARTIAL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer, metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. Message lead with verdict and unverifiable criteria |
 
 No message to reviewer (self-serves from TaskList). No CC to lead on PASS/FAIL.
 

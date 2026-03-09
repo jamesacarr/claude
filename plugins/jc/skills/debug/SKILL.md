@@ -12,7 +12,7 @@ Resolve from the skill's base directory (the directory containing this SKILL.md)
 
 1. **Always spawn the debugger.** Spawning `team-debugger` ensures a session log for audit trail and consistent scientific-method analysis — always route through it, even for bugs that look trivial.
 2. **Collect context first.** Gather the problem description, error output, and any executor escalation details before spawning. The debugger cannot ask for more information — it runs autonomously.
-3. **Follow the I/O contract.** Every debugger invocation uses the standard prompt format from `{plugin-docs}/agent-io-contract.md`: Task, Context, Input, Expected Output.
+3. **Follow the I/O contract.** Every debugger invocation uses the TaskCreate-with-metadata pattern from `{plugin-docs}/agent-io-contract.md`: create task with structured metadata, spawn agent with task ID only.
 4. **One bug, one session.** Each invocation investigates one problem. For multiple failures, investigate sequentially — one spawn per bug.
 
 ## Quick Start
@@ -59,31 +59,16 @@ Map to `apply-fix: true` or `apply-fix: false` in the prompt context.
 
 ### Step 4: Spawn Debugger
 
-Spawn `team-debugger` via the Task tool using `subagent_type: "team-debugger"`.
+Create a task and spawn `team-debugger` via the Task tool:
 
-Use this prompt template following the I/O contract:
+1. `TaskCreate` with:
+   - subject: `debug-{task-id}`
+   - description: `Investigate: {brief problem description}`
+   - metadata: `{"task_id": "{task-id}", "problem_description": "{user's description or executor escalation summary}", "apply_fix": {true|false}}` — also include optional fields if available: `"error_output": "{verbatim error output}"`, `"failing_test": "{test name and command}"`, `"escalation_context": "{stash ref, attempted fixes, failure count}"`
 
-```
-## Task
-Investigate the root cause of {brief problem description}.
+2. Spawn agent with `subagent_type: "team-debugger"`, prompt: `Your task is {task-id-from-TaskCreate}.`
 
-## Context
-- Task ID: {task-id}
-- Project root: {absolute_project_root}
-- Planning directory: {absolute_project_root}/.planning
-- apply-fix: {true|false}
-
-## Input
-- Problem description: {user's description or executor escalation summary}
-- Error output:
-{verbatim error output, if available}
-- Executor escalation: {escalation details, if available — stash ref, attempted fixes, failure count}
-- Failing test: {test name and command, if available}
-
-## Expected Output
-- Session log at {absolute_project_root}/.planning/{task-id}/debug/{session-id}.md
-- Structured result: ROOT_CAUSE_FOUND or ESCALATE with diagnosis details
-```
+After the agent completes, read results via `TaskGet` — check metadata for `verdict`, `confidence`, and `session_log_path`.
 
 ### Step 5: Present Results
 

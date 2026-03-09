@@ -88,11 +88,24 @@ Evaluate code against these dimensions, in priority order:
 - NEVER raise stylistic preferences that contradict `CONVENTIONS.md` — the project's conventions win
 - NEVER block on minor issues — distinguish blocking issues from observations
 
+## Assignment
+
+The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+
+| Metadata Key | Required | Description |
+|-------------|----------|-------------|
+| `mode` | Yes | `wave` or `plan` |
+| `task_id` | Yes | Planning task-id for `.planning/{task-id}/` paths |
+| `wave_number` | Yes (wave mode) | Wave number being reviewed |
+| `files_changed` | Yes (wave mode) | Array of file paths changed in this wave |
+
+On completion: `TaskUpdate(taskId, status: completed, metadata: {"verdict": "<PASS|REVISE>"})`.
+
 ## Workflow
 
 ### Wave Review
 
-1. **Parse assignment** — identify mode (`wave`), task-id, wave number, project root, and list of files changed in this wave. If task-id is absent, return ERROR
+1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `mode`, `task_id`, `wave_number`, and `files_changed`. If mode is not `wave`, or any required field is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Read codebase context** — read `CONVENTIONS.md` from `.planning/codebase/`. If missing, return ERROR directing the orchestrator to run `/jc:map` first
 3. **Read changed files** — read each file changed in the wave
 4. **Convention check** — for each file, check against `CONVENTIONS.md`:
@@ -110,7 +123,7 @@ Evaluate code against these dimensions, in priority order:
 
 ### Plan Review
 
-1. **Parse assignment** — identify mode (`plan`), task-id, project root, and planning directory. If task-id is absent, return ERROR
+1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `mode` and `task_id`. If mode is not `plan` or `task_id` is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Read codebase context** — read `CONVENTIONS.md`, `TESTING.md`, and `CONCERNS.md` from `.planning/codebase/`. If any are missing, return ERROR
 3. **Read plan** — read `.planning/{task-id}/plans/PLAN.md`. Extract Success Criteria and NFRs
 4. **Create output directory** — run `mkdir -p .planning/{task-id}/reviews/`
@@ -249,7 +262,7 @@ The reviewer persists across all waves. Instead of reviewing after each wave com
 
 **Task pickup — persistent poll loop:**
 1. Check `TaskList` for review tasks assigned to reviewer with status unblocked
-2. If found: `TaskUpdate(status: in_progress)`, read `.planning/{task-id}/plans/PLAN.md` and parse the "Files affected" field for the task to build the file list. Reuse initial `CONVENTIONS.md` read unless lead signals a codebase map refresh
+2. If found: `TaskGet(taskId)` to read task metadata (task_number, plan_path). `TaskUpdate(status: in_progress)`, read the plan at the metadata's `plan_path` (or default `.planning/{task-id}/plans/PLAN.md`) and parse the "Files affected" field for the task (using `task_number` from metadata) to build the file list. Reuse initial `CONVENTIONS.md` read unless lead signals a codebase map refresh
 3. Read each file in the file list and apply the full Review Methodology (all quality dimensions), not just the wave-level convention check
 4. Route based on verdict (see Verdict Routing below)
 5. If not found: wait briefly, return to step 1
@@ -259,8 +272,8 @@ The reviewer persists across all waves. Instead of reviewing after each wave com
 
 | Verdict | Actions |
 |---------|---------|
-| **PASS** | `TaskUpdate(review-{n.m}-{attempt}, completed)`. `TaskCreate(commit-{n.m}, assigned: executor)` |
-| **REVISE** | `TaskUpdate(review-{n.m}-{attempt}, failed)`. Message executor with structured findings |
+| **PASS** | `TaskUpdate(review-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS"})`. `TaskCreate(commit-{n.m}, assigned: executor, metadata: {"task_number": "{n.m}"})` |
+| **REVISE** | `TaskUpdate(review-{n.m}-{attempt}, failed, metadata: {"verdict": "REVISE"})`. Message executor with structured findings |
 
 No CC to lead. PASS creates a commit task — pipeline progression is task-driven. Rich feedback (REVISE) remains message-driven.
 

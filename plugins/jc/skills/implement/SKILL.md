@@ -13,7 +13,7 @@ description: "Orchestrates plan execution through wave-based parallelization wit
 4. **Verify before re-executing.** When resuming, an `in_progress` task without a verification report is an information gap, not evidence of failure. Run the verifier first — only re-execute if verification fails. Preserve the existing retry counter
 5. **Pre-flight before every wave.** Parse "Files affected" from each task. Build file→task map. Sequential fallback for overlapping tasks. Log the fallback
 6. **Hard retry limits.** 3 per task (execute→verify→fix loop). 3 per plan-review revision round. After limit: escalate to user via AskUserQuestion — never override, because autonomous retries beyond 3 signal a fundamental issue only the user can resolve
-7. **I/O contract compliance.** Every agent invocation includes: Task, Context (task-id, project root, planning directory), Input, Expected Output. Agents read/write files directly — do not relay file contents through the orchestrator, because relaying bloats the orchestrator's context window and introduces transcription errors
+7. **I/O contract compliance.** Every agent invocation uses the TaskCreate-with-metadata pattern: create task with structured parameters, spawn agent with task ID only, read results via TaskGet. Agents read/write files directly — do not relay file contents through the orchestrator, because relaying bloats the orchestrator's context window and introduces transcription errors
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ Parse PLAN.md to determine the exact resume point:
 2. **Handle `in_progress` tasks** — check for verification report at `.planning/{task-id}/verification/task-{n}-VERIFICATION.md`:
    - Report exists with PASS → mark task `passed`, update PLAN.md
    - Report exists with FAIL → task needs re-execution (preserve retry counter)
-   - No report exists → spawn verifier (`mode: task`) to check current state. If PASS → mark `passed`. If FAIL → re-execute with retry counter preserved. If ERROR → surface error to user with options: retry verification, skip to execution, or abort
+   - No report exists → create task and spawn verifier to check current state: `TaskCreate` with metadata `{"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"}`, then spawn `team-verifier` with `Your task is {task-id-from-TaskCreate}.` Read verdict via `TaskGet`. If PASS → mark `passed`. If FAIL → re-execute with retry counter preserved. If ERROR → surface error to user via AskUserQuestion with options: retry verification, skip to execution, or abort
 
 3. **Determine resume wave:** First wave with any non-terminal task (`pending`, `in_progress`, `failed`)
 
@@ -133,25 +133,16 @@ For each wave (starting from `current_wave`):
 
 a. Update PLAN.md: task status → `in_progress`, `current_task: {n.m}`, `updated: <timestamp>`
 
-b. Spawn `team-executor` via Task tool (`subagent_type: "team-executor"`):
+b. Create task and spawn `team-executor`:
 
-```
-## Task
-Execute task {n.m} from PLAN.md.
+1. `TaskCreate` with:
+   - subject: `execute-{n.m}`
+   - description: `Execute task {n.m} from PLAN.md`
+   - metadata: `{"task_id": "{task-id}", "task_number": "{n.m}"}`
 
-## Context
-- Task ID: {task-id}
-- Project root: {absolute-path}
-- Planning directory: {absolute-path}/.planning
+2. Spawn agent with `subagent_type: "team-executor"`, prompt: `Your task is {task-id-from-TaskCreate}.`
 
-## Input
-- Task number: {n.m}
-- Plan path: .planning/{task-id}/plans/PLAN.md
-
-## Expected Output
-- Atomic commit with files from "Files affected"
-- Structured PASS/FAIL/ERROR result via stdout
-```
+After the agent completes, read results via `TaskGet` — check metadata for `commit_hash` (PASS) or `failure_summary` (FAIL).
 
 c. Parse executor response:
 
@@ -161,7 +152,16 @@ c. Parse executor response:
 | **FAIL** | If retries < 3: retry (Step 4). If retries ≥ 3: escalate (Step 5) |
 | **ERROR** | Escalate (Step 5) |
 
-d. **Verify** — Spawn `team-verifier` (`subagent_type: "team-verifier"`, mode: `task`). Include task number, task-id, project root, planning directory, mode: task. Expected output: verification report + PASS/FAIL/PARTIAL stdout result.
+d. **Verify** — Create task and spawn `team-verifier`:
+
+1. `TaskCreate` with:
+   - subject: `verify-{n.m}`
+   - description: `Verify task {n.m}`
+   - metadata: `{"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"}`
+
+2. Spawn agent with `subagent_type: "team-verifier"`, prompt: `Your task is {task-id-from-TaskCreate}.`
+
+After the agent completes, read results via `TaskGet` — check metadata for `verdict` and `report_path`.
 
 | Result | Action |
 |--------|--------|
@@ -174,9 +174,15 @@ d. **Verify** — Spawn `team-verifier` (`subagent_type: "team-verifier"`, mode:
 1. Increment `Retries` in PLAN.md for this task
 2. Record failure in `Last failure` field
 3. Update `updated` timestamp
-4. Re-spawn executor with previous failure context appended:
-   - Add to Input: `- Previous failure: {failure description from verifier/executor}`
-   - Add to Input: `- Retry attempt: {n} of 3`
+4. Re-spawn executor with retry context in metadata:
+
+   1. `TaskCreate` with:
+      - subject: `execute-{n.m}-retry-{n}`
+      - description: `Retry task {n.m} (attempt {n} of 3)`
+      - metadata: `{"task_id": "{task-id}", "task_number": "{n.m}", "previous_failure": "{failure description from verifier/executor}", "retry_attempt": "{n} of 3"}`
+
+   2. Spawn agent with `subagent_type: "team-executor"`, prompt: `Your task is {task-id-from-TaskCreate}.`
+
 5. Parse executor result at Step 3c (if FAIL and retries ≥ 3 → Step 5, otherwise proceed to verification at Step 3d)
 
 ### Step 5: TASK_ESCALATE
@@ -187,7 +193,7 @@ d. **Verify** — Spawn `team-verifier` (`subagent_type: "team-verifier"`, mode:
 | Option | Label | Action |
 |--------|-------|--------|
 | 1 | **Skip task** | Mark task `skipped`. Check if downstream tasks (later waves) reference any of this task's "Files affected". If so, warn: `"Tasks {list} may be affected by skipping {n.m}"` |
-| 2 | **Provide guidance** | User enters guidance text. Update task: status → `in_progress`, retry counter → 0. Re-execute with guidance appended to Input |
+| 2 | **Provide guidance** | User enters guidance text. Update task: status → `in_progress`, retry counter → 0. Re-execute via TaskCreate with metadata `{"task_id": "{task-id}", "task_number": "{n.m}", "previous_failure": "{last failure + user guidance}"}`, then spawn executor |
 | 3 | **Implement manually** | Mark task `manual`. Inform user to make changes, then re-run `/jc:implement {task-id}` to resume |
 | 4 | **Abort execution** | Update PLAN.md: `status: paused`, `pause_reason: "user abort after task {n.m} escalation"`. Stop execution. Worktree persists — re-run `/jc:implement {task-id}` to resume |
 
@@ -197,28 +203,53 @@ After all tasks in a wave complete:
 
 1. Update PLAN.md: wave status → `completed`
 2. Collect all files changed in this wave (union of "Files affected" from all tasks)
-3. Spawn `team-reviewer` (`subagent_type: "team-reviewer"`, mode: `wave`). Include task-id, project root, planning directory, wave number, files changed list. Expected output: PASS/REVISE stdout result.
+3. Create task and spawn `team-reviewer`:
+
+   1. `TaskCreate` with:
+      - subject: `review-wave-{wave_number}`
+      - description: `Wave {wave_number} review`
+      - metadata: `{"mode": "wave", "task_id": "{task-id}", "wave_number": {wave_number}, "files_changed": ["{file1}", "{file2}", ...]}`
+
+   2. Spawn agent with `subagent_type: "team-reviewer"`, prompt: `Your task is {task-id-from-TaskCreate}.`
+
+   After the agent completes, read results via `TaskGet` — check metadata for `verdict`.
 
 | Result | Action |
 |--------|--------|
 | **PASS** | If more waves: increment `current_wave`, go to Step 3. If last wave: go to Step 7 |
-| **REVISE** | Spawn executor to fix blocking issues (1 fix round max). Re-run wave review. If PASS: advance to next wave (or Step 7 if last wave). If still REVISE after fix round: present remaining issues to user via AskUserQuestion, then advance to next wave (or Step 7 if last wave) |
+| **REVISE** | Create task and spawn executor to fix blocking issues via TaskCreate (include reviewer findings in metadata as `previous_failure`), 1 fix round max. Re-run wave review via TaskCreate + spawn. If PASS: advance to next wave (or Step 7 if last wave). If still REVISE after fix round: present remaining issues to user via AskUserQuestion, then advance to next wave (or Step 7 if last wave) |
 
 ### Step 7: PLAN_VERIFY + PLAN_REVIEW (parallel)
 
-**Plan verification:** Spawn `team-verifier` (`subagent_type: "team-verifier"`, mode: `plan`). Include task-id, project root, planning directory. Expected output: plan verification report + PASS/FAIL/PARTIAL result.
+**Plan verification:**
 
-**Plan review:** Spawn `team-reviewer` (`subagent_type: "team-reviewer"`, mode: `plan`). Include task-id, project root, planning directory. Expected output: plan review report + PASS/REVISE result.
+1. `TaskCreate` with:
+   - subject: `verify-plan-{task-id}`
+   - description: `Verify plan for {task-id}`
+   - metadata: `{"mode": "plan", "task_id": "{task-id}"}`
+
+2. Spawn agent with `subagent_type: "team-verifier"`, prompt: `Your task is {task-id-from-TaskCreate}.`
+
+**Plan review:**
+
+1. `TaskCreate` with:
+   - subject: `review-plan-{task-id}`
+   - description: `Review plan for {task-id}`
+   - metadata: `{"mode": "plan", "task_id": "{task-id}"}`
+
+2. Spawn agent with `subagent_type: "team-reviewer"`, prompt: `Your task is {task-id-from-TaskCreate}.`
+
+Spawn both in parallel. After each completes, read results via `TaskGet` — check metadata for `verdict`.
 
 **Handle results:**
 
 | Verification | Review | Action |
 |-------------|--------|--------|
 | PASS | PASS | → COMPLETE (Step 8) |
-| PASS | REVISE | Spawn executor to fix blocking issues. Re-run plan review. Max 3 revision rounds, then escalate to user |
+| PASS | REVISE | Create task and spawn executor to fix blocking issues via TaskCreate (include reviewer findings in metadata as `previous_failure`). Re-run plan review via TaskCreate + spawn. Max 3 revision rounds, then escalate to user |
 | FAIL | any | Escalate to user with verification report. Present options: fix manually, provide guidance, abort |
 | PARTIAL | PASS | Warn user about unverifiable criteria. Proceed to COMPLETE |
-| PARTIAL | REVISE | Fix review issues first (max 3 rounds), then warn about unverifiable criteria |
+| PARTIAL | REVISE | Fix review issues via TaskCreate + executor spawn (max 3 rounds), then warn about unverifiable criteria |
 
 ### Step 8: COMPLETE
 

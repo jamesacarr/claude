@@ -97,18 +97,12 @@ No source files may be read, no skills invoked, no implementation tools used, un
 
 Entry: no `.planning/codebase/`, or map is stale and user chose to regenerate.
 
-1. Spawn 4 mapper teammates with focus areas:
-   - **Technology** → `STACK.md` + `INTEGRATIONS.md`
-   - **Architecture** → `ARCHITECTURE.md`
-   - **Quality** → `CONVENTIONS.md` + `TESTING.md`
-   - **Concerns** → `CONCERNS.md`
-2. Assign each mapper its focus area using the I/O contract format:
-   ```
-   ## Task — what to produce
-   ## Context — prior work, key findings, constraints
-   ## Input — files/data the teammate needs
-   ## Expected Output — format, scope, detail level
-   ```
+1. Spawn 4 mapper teammates via TaskCreate with focus-area metadata:
+   - **Technology** → metadata: `{"focus_area": "technology", "codebase_map_dir": ".planning/codebase/"}`
+   - **Architecture** → metadata: `{"focus_area": "architecture", "codebase_map_dir": ".planning/codebase/"}`
+   - **Quality** → metadata: `{"focus_area": "quality", "codebase_map_dir": ".planning/codebase/"}`
+   - **Concerns** → metadata: `{"focus_area": "concerns", "codebase_map_dir": ".planning/codebase/"}`
+2. Spawn each mapper with a minimal prompt referencing its task ID — the mapper reads its full assignment via `TaskGet`
 3. Wait for all 4 to complete → shut down all mappers
 4. Verify all 6 files exist in `.planning/codebase/`. If any mapper failed or produced an empty file, retry that mapper once. On second failure, proceed with a gap notice and flag to user
 
@@ -117,12 +111,12 @@ Entry: no `.planning/codebase/`, or map is stale and user chose to regenerate.
 Entry: no research files in `.planning/{task-id}/research/`.
 
 1. `mkdir -p .planning/{task-id}/research/`
-2. Spawn 4 researcher teammates with fixed focus areas:
-   - **Approach** → `approach.md`
-   - **Codebase integration** → `codebase-integration.md`
-   - **Quality & standards** → `quality-standards.md`
-   - **Risks & edge cases** → `risks-edge-cases.md`
-3. Assign each researcher its focus area + task description
+2. Spawn 4 researcher teammates via TaskCreate with focus-area metadata. Each receives: `focus_area`, `task_description`, `task_id`, `research_dir` (`.planning/{task-id}/research/`), `output_file`, `codebase_map_dir` (`.planning/codebase/`), and `external_doc_paths` (if any):
+   - **Approach** → metadata includes `{"focus_area": "approach", "output_file": "approach.md", ...}`
+   - **Codebase integration** → `{"focus_area": "codebase-integration", "output_file": "codebase-integration.md", ...}`
+   - **Quality & standards** → `{"focus_area": "quality-standards", "output_file": "quality-standards.md", ...}`
+   - **Risks & edge cases** → `{"focus_area": "risks-edge-cases", "output_file": "risks-edge-cases.md", ...}`
+3. Spawn each researcher with a minimal prompt referencing its task ID — the researcher reads its full assignment via `TaskGet`
 4. **Overlap optimization:** if map refresh is running concurrently, researchers start with existing (stale) map. Planner gets fresh map when it starts
 5. Wait for all 4 to complete → shut down all researchers
 6. Validate: read each research file, confirm non-empty. If any researcher failed or produced empty output, retry once. On second failure, proceed with gap notice and flag to user
@@ -141,8 +135,8 @@ Entry: research exists, no spike report, no PLAN.md.
 2. If no high-uncertainty signals: skip to PLAN. Tell the user: "Skipping spike — research is confident"
 3. If signals found: formulate 1-3 specific assumptions to validate. Present to user via AskUserQuestion: "Research flagged uncertainty in {areas}. I'd like to run a spike to validate: {assumptions}. Proceed?" (soft gate — user can skip)
 4. Commit all `.planning/` docs to current branch — the spiker's cleanup (`git checkout -- . ':!.planning/'`) is safe only when `.planning/` files are committed
-5. Spawn a single `team-spiker` teammate. Assign using I/O contract format with: task description, assumptions to validate, research directory path, codebase map directory path
-6. Wait for completion → shut down the spiker. The spiker's stdout confirmation includes the overall verdict (`VALIDATED`, `INVALIDATED`, or `INCONCLUSIVE`) — use this directly, do not re-read the spike report file (the planner reads it itself during planning)
+5. Spawn a single `team-spiker` teammate via TaskCreate with metadata: `{"assumptions": [<assumptions to validate>], "report_output_path": ".planning/{task-id}/research/spike-report.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/"}`. The spiker reads its assignment via `TaskGet`
+6. Wait for the spiker's task to reach `completed` status via TaskList. Read the verdict from task metadata (`verdict` key). Shut down the spiker
 7. If INCONCLUSIVE: flag to user and proceed (the planner treats it as a known risk). If VALIDATED or INVALIDATED: proceed to PLAN (the planner adapts its approach based on the spike report)
 
 ### PLAN
@@ -152,18 +146,18 @@ Entry: research exists, no PLAN.md (or user chose to replan).
 **For all plans (fresh and replan):** before spawning planners, generate acceptance criteria:
 
 1. Check if `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` exists
-2. If not: spawn a single `team-criteria-generator` teammate. Assign using the I/O contract format with: task description, research directory path, codebase map directory path, and external document paths (if any were provided by the user)
+2. If not: spawn a single `team-criteria-generator` teammate via TaskCreate with metadata: `{"task_id": "{task-id}", "task_description": "<description>", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "external_doc_paths": [<if any>]}`. The criteria generator reads its assignment via `TaskGet`
 3. Wait for completion → shut down the criteria generator
 4. Verify the file exists. If missing, retry once. On second failure, escalate to user via AskUserQuestion — do NOT proceed with planning until acceptance criteria exist (hard gate)
 5. All subsequent planner assignments (council proposals, plan mode, critique mode, replan mode) include the acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in their input
 
-**For replan:** spawn a single `team-planner` in `replan` mode (council is not used for replanning). Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`), plan schema path (`{plugin-root}/docs/plan-schema.md`), acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`), and execution learnings directory path (`.planning/{task-id}/execution/`) in the assignment. Skip to WORKTREE on completion.
+**For replan:** spawn a single `team-planner` in `replan` mode via TaskCreate with metadata: `{"mode": "replan", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "plan_schema_path": "{plugin-root}/docs/plan-schema.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "execution_learnings_dir": ".planning/{task-id}/execution/"}`. The planner reads its assignment via `TaskGet`. Skip to WORKTREE on completion.
 
 **For fresh plans:** use the council workflow with `team-council-planner` agents:
 
 1. `mkdir -p .planning/{task-id}/plans/`
-2. **Diverge** — spawn 3 `team-council-planner` teammates (Planner 1, 2, 3) in `propose` mode. Include planner workflows path (`{plugin-root}/docs/planner-workflows.md`) and acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in each assignment. Each writes a `PROPOSAL-{n}.md`. Wait for all 3 to complete
-3. **Vote** — message all 3 planners to switch to `vote` mode. Each reads all proposals and votes for the best one that is not their own. Wait for all 3 votes
+2. **Diverge** — spawn 3 `team-council-planner` teammates via TaskCreate. Each receives metadata: `{"planner_number": {n}, "mode": "propose", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/"}`. Each reads its assignment via `TaskGet`, writes a `PROPOSAL-{n}.md`. Wait for all 3 to complete
+3. **Vote** — message all 3 planners to switch to `vote` mode. Each reads all proposals and votes for the best one that is not their own, writing their vote to task metadata (`vote` and `rationale` keys). Wait for all 3 votes — read structured votes from `TaskGet` on each planner's task
 4. **Resolve votes:**
    - **Clear winner** (2-1 or 3-0): the winning planner's proposal proceeds
    - **3-way split** (1-1-1): present all 3 proposals and vote rationales to user via AskUserQuestion. User picks the approach
@@ -188,15 +182,15 @@ Entry: in worktree, PLAN.md has pending tasks.
 **Per wave:**
 
 1. **Pre-flight check:** parse "Files affected" from each task in the wave. Build file-to-task map. If any file appears in multiple tasks, assign those tasks sequentially instead of in parallel. Log the fallback
-2. **Create tasks:** for each task in the wave: `TaskCreate(implement-{n.m}, assigned: executor-{x})`
+2. **Create tasks:** for each task in the wave: `TaskCreate(implement-{n.m}, assigned: executor-{x}, metadata: {"task_number": "{n.m}", "task_id": "{task-id}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`
 3. **Spawn executors:** one per task in the wave. Assign exactly 1 task each
 4. **Spawn persistent verifier + reviewer** (first wave only — they persist across all waves)
-5. **Task-chain pipeline:** teammates self-coordinate through task creation — each agent creates the next step in the pipeline on completion:
-   - Executor implements → `TaskUpdate(implement-{n.m}, completed)` → `TaskCreate(verify-{n.m}-1, assigned: verifier)`
-   - Verifier picks up from TaskList → on PASS: `TaskCreate(review-{n.m}-1, assigned: reviewer)`; on FAIL: messages executor with failure details
-   - Reviewer picks up from TaskList → on PASS: `TaskCreate(commit-{n.m}, assigned: executor)`; on REVISE: messages executor with structured findings
-   - Executor picks up commit task from TaskList → commits → messages lead: "Task {n.m} committed: {hash} {message}"
-   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor creates a new verify task: `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — full pipeline restarts from verification
+5. **Task-chain pipeline:** teammates self-coordinate through task creation — each agent creates the next step in the pipeline on completion. All TaskCreate calls include metadata; all TaskUpdate calls on completion include result metadata. Agents call `TaskGet` after finding tasks in TaskList to read metadata:
+   - Executor implements → `TaskUpdate(implement-{n.m}, completed, metadata: {"task_number": "{n.m}"})` → `TaskCreate(verify-{n.m}-1, assigned: verifier, metadata: {"task_number": "{n.m}", "plan_path": "..."})`
+   - Verifier picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS", ...})` → `TaskCreate(review-{n.m}-1, assigned: reviewer, metadata: {"task_number": "{n.m}", "plan_path": "..."})`. On FAIL: `TaskUpdate(failed, metadata: {"verdict": "FAIL", ...})` → messages executor with failure details
+   - Reviewer picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS"})` → `TaskCreate(commit-{n.m}, assigned: executor, metadata: {"task_number": "{n.m}"})`. On REVISE: `TaskUpdate(failed, metadata: {"verdict": "REVISE"})` → messages executor with structured findings
+   - Executor picks up commit task from TaskList → commits → `TaskUpdate(commit-{n.m}, completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})` → messages lead: "Task {n.m} committed: {hash} {message}"
+   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor creates a new verify task: `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier, metadata: {"task_number": "{n.m}", "plan_path": "..."})` — full pipeline restarts from verification
 6. **Debugger:** spawned on first executor escalation. The debugger spawn prompt MUST include: task-id, project root, planning directory, path to PLAN.md, and path to the research directory (`.planning/{task-id}/research/`) — plan assumptions and research findings are critical debugging context. On escalation:
    a. Executor creates unassigned `investigate-{n.m}-{attempt}` task + messages lead
    b. Lead spawns debugger if not running → `TaskUpdate(investigate-{n.m}-{attempt}, owner: debugger)`

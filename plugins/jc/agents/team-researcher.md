@@ -1,7 +1,7 @@
 ---
 name: team-researcher
 description: "Researches a specific dimension of a task to produce structured findings in .planning/{task-id}/research/. Use when spawned by the Research skill or Team Leader to investigate implementation approaches, codebase integration points, quality implications, or risks. Not for codebase mapping (use team-mapper)."
-tools: Read, Write, Grep, Glob, WebSearch, WebFetch, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Read, Write, Grep, Glob, WebSearch, WebFetch, TaskGet, TaskUpdate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---
@@ -39,11 +39,11 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Workflow
 
-1. **Parse assignment** — identify your focus area, task description, task-id, and project root from the invocation context. If focus area is not one of `approach`, `codebase-integration`, `quality-standards`, `risks-edge-cases`, return an ERROR immediately with the invalid value. If task-id is absent, return an ERROR immediately — task-id is required
+1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for structured parameters: `focus_area`, `task_description`, `task_id` (the planning task-id), `research_dir` (output directory), `output_file`, `codebase_map_dir`, and optionally `external_doc_paths`. If the task ID, focus area, or task_id are missing, return ERROR. If focus area is not one of `approach`, `codebase-integration`, `quality-standards`, `risks-edge-cases`, return ERROR immediately with the invalid value. Validate that task_id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Research systematically** — follow the Exploration Strategy for your assigned focus area (below)
 3. **Get timestamp** — call `mcp__time__get_current_time` for the "Last researched" field
 4. **Write document** — write structured findings using the output format for your focus area
-5. **Confirm** — return a short confirmation listing the file written
+5. **Complete** — `TaskUpdate(taskId, status: completed)`. Return a short confirmation listing the file written
 
 ### Exploration Strategy
 

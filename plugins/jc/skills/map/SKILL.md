@@ -44,24 +44,7 @@ If user cancels, stop and report current map paths.
 
 Spawn 4 `team-mapper` agents in parallel via the Task tool. Each agent gets one focus area.
 
-Use this prompt template for each, following the I/O contract in `{plugin-docs}/agent-io-contract.md`:
-
-```
-## Task
-Map the {focus_area} focus area for this codebase.
-
-## Context
-- Project root: {absolute_project_root}
-- Planning directory: {absolute_project_root}/.planning
-
-## Input
-- Focus area: {focus_area}
-- Output directory: .planning/codebase/
-
-## Expected Output
-- Write {output_files} to .planning/codebase/
-- Return short confirmation listing files written
-```
+For each agent, create a task via `TaskCreate` with metadata, then spawn the agent with only the task ID:
 
 | Focus Area | `{focus_area}` | `{output_files}` |
 |-----------|----------------|-------------------|
@@ -70,7 +53,18 @@ Map the {focus_area} focus area for this codebase.
 | Quality | `quality` | `CONVENTIONS.md`, `TESTING.md` |
 | Concerns | `concerns` | `CONCERNS.md` |
 
-Spawn all 4 agents in a single message so they run concurrently — sequential spawning would serialize the analysis and roughly quadruple wall-clock time. Use `subagent_type: "team-mapper"` for each.
+**Per agent:**
+
+1. `TaskCreate` with:
+   - subject: `map-{focus_area}`
+   - description: `Map the {focus_area} focus area for this codebase`
+   - metadata: `{"focus_area": "{focus_area}", "codebase_map_dir": "{absolute_project_root}/.planning/codebase/"}`
+
+2. Spawn agent with `subagent_type: "team-mapper"`, prompt: `Your task is {task-id-from-TaskCreate}.`
+
+Spawn all 4 agents in a single message so they run concurrently — sequential spawning would serialize the analysis and roughly quadruple wall-clock time.
+
+After each agent completes, read results via `TaskGet` on the created task to confirm completion.
 
 ### Step 3B: Greenfield — Prompt and Write
 
@@ -91,7 +85,7 @@ After all agents complete (brownfield) or docs are written (greenfield), verify 
 ls .planning/codebase/STACK.md .planning/codebase/INTEGRATIONS.md .planning/codebase/ARCHITECTURE.md .planning/codebase/CONVENTIONS.md .planning/codebase/TESTING.md .planning/codebase/CONCERNS.md
 ```
 
-If any file is missing, report which files are missing. To recover, re-spawn a single `team-mapper` agent for the failed focus area using the same prompt template from Step 3A with the appropriate `{focus_area}`. The other files are safe — mapper agents only write their own focus area's files.
+If any file is missing, report which files are missing. To recover, re-spawn a single `team-mapper` agent for the failed focus area using the same TaskCreate + Agent pattern from Step 3A with the appropriate `{focus_area}`. The other files are safe — mapper agents only write their own focus area's files.
 
 ### Step 5: Commit
 
@@ -119,3 +113,7 @@ Report to user:
 - Codebase map committed to git
 - User informed of next step (`/jc:research`)
 
+## References
+
+- Agent definition: `../../agents/team-mapper.md`
+- I/O contract: `../../docs/agent-io-contract.md`

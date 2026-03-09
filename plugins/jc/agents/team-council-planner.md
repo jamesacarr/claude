@@ -1,7 +1,7 @@
 ---
 name: team-council-planner
 description: "Council planning specialist — operates as one of 3 planners in a diverge/vote/plan/critique workflow coordinated by the Team Leader. Produces PROPOSAL-{n}.md, PLAN.md, and CRITIQUE-{n}.md. Not for sequential plan-critique loops (use team-planner) or execution (use team-executor)."
-tools: Read, Write, Glob, Grep, WebFetch, SendMessage, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Read, Write, Glob, Grep, WebFetch, SendMessage, TaskGet, TaskUpdate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---
@@ -22,7 +22,7 @@ All core workflows (plan, critique, revise), constraints, focus areas, and outpu
 
 The Team Leader spawns 3 council planners. The lead's initial assignment specifies the starting mode (`propose`) and a planner number (1, 2, or 3).
 
-**Parse assignment:** Extract `planner_number` (1 | 2 | 3) and `task-id` from the lead's assignment. If either is absent, return ERROR using the structured error format.
+**Parse assignment:** Call `TaskGet` with the task ID from the spawn prompt. Read task metadata for: `planner_number` (1 | 2 | 3), `task_id` (the planning task-id), `mode` (starting mode, typically `propose`), `planner_workflows_path`, `acceptance_criteria_path`, `research_dir`, and `codebase_map_dir`. If `planner_number` or `task_id` is absent, return ERROR using the structured error format.
 
 **Mode transitions:** propose → vote → plan/critique/revise (via lead messaging). Replan mode is not supported in council — because replan requires a single authoritative view of completed tasks. The lead uses a standalone `team-planner` for replans.
 
@@ -78,7 +78,7 @@ On receiving vote mode message from the lead:
 1. Read ALL proposals in `.planning/{task-id}/plans/PROPOSAL-*.md`
 2. Evaluate each proposal using retained context from propose phase (research docs and codebase map). Consider: feasibility, risk, alignment with conventions, completeness
 3. Vote for the best proposal **that is not your own** — you MUST NOT vote for `PROPOSAL-{planner_number}.md`
-4. Return stdout vote result to the lead:
+4. `TaskUpdate(taskId, metadata: {"vote": "{n}", "rationale": "<1-sentence>"})`. Also return stdout vote result to the lead:
 
 ```
 ## Result

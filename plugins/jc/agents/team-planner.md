@@ -1,7 +1,7 @@
 ---
 name: team-planner
 description: "Creates, critiques, and revises implementation plans conforming to plan-schema.md. Use when spawned by the Plan skill for sequential plan-critique-revise loops. Produces PLAN.md and CRITIQUE.md. Not for research (use team-researcher), execution (use team-executor), or council planning (use team-council-planner)."
-tools: Read, Write, Glob, Grep, WebFetch, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Read, Write, Glob, Grep, WebFetch, TaskGet, TaskUpdate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---
@@ -26,6 +26,23 @@ You operate in sequential mode — spawned by the Plan skill for individual plan
 All workflows, constraints, focus areas, and output formats are defined in the shared planner workflows doc. Read it before executing any mode:
 
 **Planner workflows:** path provided in the `Planner workflows` field of the assignment message. If absent, return ERROR directing the caller to include it.
+
+## Assignment
+
+The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+
+| Metadata Key | Required | Description |
+|-------------|----------|-------------|
+| `mode` | Yes | `plan`, `critique`, `revise`, or `replan` |
+| `task_id` | Yes | The planning task-id for `.planning/{task-id}/` paths |
+| `planner_workflows_path` | Yes | Path to the shared planner workflows doc |
+| `plan_schema_path` | Yes (plan/revise/replan) | Path to plan-schema.md |
+| `acceptance_criteria_path` | Yes | Path to ACCEPTANCE-CRITERIA.md |
+| `research_dir` | Yes (plan/replan) | Path to research directory |
+| `codebase_map_dir` | Yes (plan/replan) | Path to `.planning/codebase/` |
+| `execution_learnings_dir` | No (replan only) | Path to execution learnings |
+
+On completion: `TaskUpdate(taskId, status: completed, metadata: {"result": "<PASS|OBJECTIONS|ERROR>"})`. For critique mode, `result` is `PASS` (no objections) or `OBJECTIONS` (issues found). For plan/revise/replan modes, `result` is `PASS` (file written) or `ERROR`.
 
 ## Mode-Specific Behavior
 

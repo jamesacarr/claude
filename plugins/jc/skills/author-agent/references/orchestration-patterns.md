@@ -593,7 +593,7 @@ Attachments:
 
 **Why explicit format matters**: Prevents information loss, ensures target agent has full context, enables validation.
 
-For subagents, use the [I/O contract]({plugin-docs}/agent-io-contract.md) format instead — it standardizes the same information.
+For subagents, use the [I/O contract]({plugin-docs}/agent-io-contract.md) TaskCreate-with-metadata pattern instead — structured parameters go in task metadata, spawn prompt is just the task ID.
 
 ### Synchronization
 
