@@ -17,7 +17,7 @@ plugins/
   jc/                     # James' Claude Toolkit
     .claude-plugin/
       plugin.json         # Plugin manifest
-    agents/               # 14 agent definitions
+    agents/               # 16 agent definitions
     docs/                 # Shared references (plan schema, agent I/O contract)
     skills/               # 14 skill modules
 ```
@@ -36,6 +36,8 @@ plugins/
 | `team-executor` | Implements tasks from PLAN.md using TDD (RED → GREEN → REFACTOR) |
 | `team-verifier` | Verifies task completion against done-when criteria |
 | `team-reviewer` | Reviews code for quality, security, performance, and architectural fit |
+| `team-refiner` | Epic refinement lead — orchestrates shapers through structured multi-phase refinement |
+| `team-shaper` | Epic refinement analyst — participates in refinement with a specific persona |
 | `team-debugger` | Investigates bugs and failures using scientific method |
 | `audit-agent-auditor` | Audits agent definitions for correctness and best practices |
 | `audit-skill-auditor` | Audits skill definitions for compliance |
