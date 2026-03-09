@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Task metadata for agent I/O and refiner/shaper agents
+
 ## [1.4.0] - 2026-03-08
 
 ### Added
