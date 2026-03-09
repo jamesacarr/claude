@@ -247,8 +247,9 @@ When spawned as a persistent teammate by the Team Leader (Agent Teams model), th
 
 ### Initialization
 
-1. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct executor messaging
-2. Check TaskList for any verification tasks assigned to you
+1. Check for team context — if a team name is available, the agent is in team mode. If not, follow the standard subagent Workflow and skip Team Behavior entirely
+2. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct executor messaging
+3. Check TaskList for any verification tasks assigned to you
 
 ### Pipelined Mode
 
@@ -272,9 +273,9 @@ The verifier persists across all waves. Instead of waiting for a full wave to co
 
 | Verdict | Actions |
 |---------|---------|
-| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer, metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. Message executor: "Task {n.m} PASS — verified" |
+| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. `TaskUpdate(taskId, owner: "reviewer")`. Message executor: "Task {n.m} PASS — verified" |
 | **FAIL** | `TaskUpdate(verify-{n.m}-{attempt}, failed, metadata: {"verdict": "FAIL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. Message executor with failure details + evidence |
-| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PARTIAL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(review-{n.m}-{attempt}, assigned: reviewer, metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. Message lead with verdict and unverifiable criteria |
+| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PARTIAL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. `TaskUpdate(taskId, owner: "reviewer")`. Message lead with verdict and unverifiable criteria |
 
 No message to reviewer (self-serves from TaskList). No CC to lead on PASS/FAIL.
 

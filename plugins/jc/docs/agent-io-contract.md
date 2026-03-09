@@ -86,4 +86,42 @@ The orchestrator decides whether to retry, escalate, or abort. Agents do NOT ret
 
 ## Agent Team Mode
 
-When agents are coordinated by the Team Leader as an Agent Team (rather than spawned via Task tool), the same Task metadata mechanism applies — the Team Leader creates tasks with metadata via `TaskCreate`, and agents pick up assignments via `TaskList` + `TaskGet`. Persistent agents (executor, verifier, reviewer, debugger) poll `TaskList` in a loop for new work rather than receiving a single task at spawn time.
+When agents are coordinated by the Team Leader (or Refinement Lead) as an Agent Team, the spawning mechanism differs from skill mode. Team members are persistent Claude Code sessions that stay alive, poll TaskList, and receive messages — unlike skill-mode subprocess agents that exit on completion.
+
+### Spawning Pattern
+
+```
+1. TeamCreate(team_name: "{id}")              → create team + task list (once per workflow)
+2. TaskCreate(subject: "...", metadata: {...}) → create task with structured assignment
+3. TaskUpdate(taskId, owner: "{name}")         → assign task to teammate by name
+4. Agent(subagent_type: "...", team_name: "{id}", name: "{name}", prompt: "Your task is {task-id}.") → spawn teammate
+```
+
+**Contrast with skill mode** (steps 2 + 4 only, no TeamCreate, no `team_name`/`name` on Agent):
+
+```
+1. TaskCreate(subject: "...", metadata: {...}) → create task
+2. Agent(subagent_type: "...", prompt: "Your task is {task-id}.") → spawn subprocess agent
+```
+
+Key differences:
+- **Subprocess agents** (skill mode): complete and exit. Cannot receive messages after spawn. Cannot poll TaskList for new work.
+- **Team members** (team mode): stay alive between turns, wake on messages via SendMessage, poll TaskList for new work assignments.
+
+### Team-Mode Detection
+
+Agents detect whether they are running in a team by checking for team context — if a team name is available, the agent is in a team. Agents with dual behavior (team mode vs subagent mode) use this to branch:
+
+- **Team context available** → follow Team Behavior (persistent polling, message-based coordination, wait for pipeline tasks)
+- **No team context** → follow standard subagent workflow (one-shot execution, return result to caller)
+
+### Task Ownership
+
+`TaskCreate` creates tasks with no owner. Ownership is set via `TaskUpdate`:
+
+```
+task = TaskCreate(subject: "verify-1.2-1", metadata: {...})
+TaskUpdate(taskId: task.id, owner: "verifier")
+```
+
+All task assignment flows through `TaskUpdate(owner: "{name}")` — there is no `assigned` parameter on `TaskCreate`.

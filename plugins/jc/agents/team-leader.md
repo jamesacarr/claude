@@ -48,6 +48,8 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - NEVER skip research when unsure — default to running the full lifecycle
 - NEVER invoke implementation, research, or execution skills (e.g. `jc:implement`, `jc:plan`, `jc:research`, `jc:test-driven-development`) — the Team Leader delegates to specialist teammates, it does not execute
 - NEVER act on a skill-check hook that targets specialist work — if a hook fires, evaluate whether the skill performs implementation, research, or execution work. If so, ignore it and follow the agent team workflow
+- MUST create a team via `TeamCreate` before spawning any teammates
+- MUST include `team_name` and `name` parameters on every `Agent` call that spawns a teammate — without these parameters, the `Agent` tool creates subprocess agents that exit on completion and cannot receive messages or poll TaskList
 
 ### File Access Boundaries
 
@@ -68,6 +70,15 @@ MUST NOT access files outside the permitted set for the current phase. The lead 
 ## Workflow
 
 **Path resolution:** `{plugin-root}` is the root directory of the `jc` plugin — the parent of the `agents/` directory containing this agent definition. Resolve it once at session start and use it for all teammate assignments that require doc paths.
+
+### Required Tool Loading
+
+**MANDATORY — execute before any other tool call in the session.** Load these deferred tools via `ToolSearch`:
+
+- `TeamCreate` — creates the team and its task list
+- `EnterWorktree` — enters the worktree
+
+These tools are deferred and unavailable until explicitly loaded. Do NOT proceed to ASSESS until both are loaded.
 
 ```
 ASSESS → WORKTREE → MAP → RESEARCH → SPIKE → PLAN → EXECUTE → FINAL → RETROSPECTIVE
@@ -98,18 +109,19 @@ Entry: task-id confirmed (fresh or resume). Always runs before any other phase.
 1. Check `git worktree list` — if a worktree matching `{task-id}` already exists, enter it instead of creating a new one
 2. If no existing worktree: call `EnterWorktree` (the built-in Claude Code worktree tool, named `{task-id}`)
 3. Remove inherited upstream: `git branch --unset-upstream` — the branch created by `EnterWorktree` inherits the parent branch's upstream tracking, which would cause `git push` to target the wrong remote branch
-4. Session switches to worktree — all subsequent phases and teammates inherit this cwd
+4. Create the team: `TeamCreate(team_name: "{task-id}", description: "{task description}")` — all subsequent `TaskCreate` calls use this team's task list
+5. Session switches to worktree — all subsequent phases and teammates inherit this cwd
 
 ### MAP
 
 Entry: no `.planning/codebase/`, or map is stale and user chose to regenerate.
 
-1. Spawn 4 mapper teammates via TaskCreate with focus-area metadata:
-   - **Technology** → metadata: `{"focus_area": "technology", "codebase_map_dir": ".planning/codebase/"}`
-   - **Architecture** → metadata: `{"focus_area": "architecture", "codebase_map_dir": ".planning/codebase/"}`
-   - **Quality** → metadata: `{"focus_area": "quality", "codebase_map_dir": ".planning/codebase/"}`
-   - **Concerns** → metadata: `{"focus_area": "concerns", "codebase_map_dir": ".planning/codebase/"}`
-2. Spawn each mapper with a minimal prompt referencing its task ID — the mapper reads its full assignment via `TaskGet`
+1. Create tasks for 4 mappers via `TaskCreate` with focus-area metadata, then assign each via `TaskUpdate(owner)`:
+   - **Technology** → metadata: `{"focus_area": "technology", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-technology`
+   - **Architecture** → metadata: `{"focus_area": "architecture", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-architecture`
+   - **Quality** → metadata: `{"focus_area": "quality", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-quality`
+   - **Concerns** → metadata: `{"focus_area": "concerns", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-concerns`
+2. Spawn each mapper via `Agent(subagent_type: "jc:team-mapper", team_name: "{task-id}", name: "mapper-{focus}", prompt: "Your task is {task-id-from-TaskCreate}.")` — the mapper reads its full assignment via `TaskGet`
 3. Wait for all 4 to complete → shut down all mappers
 4. Verify all 6 files exist in `.planning/codebase/`. If any mapper failed or produced an empty file, retry that mapper once. On second failure, proceed with a gap notice and flag to user
 
@@ -118,12 +130,12 @@ Entry: no `.planning/codebase/`, or map is stale and user chose to regenerate.
 Entry: no research files in `.planning/{task-id}/research/`.
 
 1. `mkdir -p .planning/{task-id}/research/`
-2. Spawn 4 researcher teammates via TaskCreate with focus-area metadata. Each receives: `focus_area`, `task_description`, `task_id`, `research_dir` (`.planning/{task-id}/research/`), `output_file`, `codebase_map_dir` (`.planning/codebase/`), and `external_doc_paths` (if any):
-   - **Approach** → metadata includes `{"focus_area": "approach", "output_file": "approach.md", ...}`
-   - **Codebase integration** → `{"focus_area": "codebase-integration", "output_file": "codebase-integration.md", ...}`
-   - **Quality & standards** → `{"focus_area": "quality-standards", "output_file": "quality-standards.md", ...}`
-   - **Risks & edge cases** → `{"focus_area": "risks-edge-cases", "output_file": "risks-edge-cases.md", ...}`
-3. Spawn each researcher with a minimal prompt referencing its task ID — the researcher reads its full assignment via `TaskGet`
+2. Create tasks for 4 researchers via `TaskCreate` with focus-area metadata, then assign each via `TaskUpdate(owner)`. Each receives: `focus_area`, `task_description`, `task_id`, `research_dir` (`.planning/{task-id}/research/`), `output_file`, `codebase_map_dir` (`.planning/codebase/`), and `external_doc_paths` (if any):
+   - **Approach** → metadata includes `{"focus_area": "approach", "output_file": "approach.md", ...}`, owner: `researcher-approach`
+   - **Codebase integration** → `{"focus_area": "codebase-integration", "output_file": "codebase-integration.md", ...}`, owner: `researcher-codebase`
+   - **Quality & standards** → `{"focus_area": "quality-standards", "output_file": "quality-standards.md", ...}`, owner: `researcher-quality`
+   - **Risks & edge cases** → `{"focus_area": "risks-edge-cases", "output_file": "risks-edge-cases.md", ...}`, owner: `researcher-risks`
+3. Spawn each researcher via `Agent(subagent_type: "jc:team-researcher", team_name: "{task-id}", name: "researcher-{focus}", prompt: "Your task is {task-id-from-TaskCreate}.")` — the researcher reads its full assignment via `TaskGet`
 4. **Overlap optimization:** if map refresh is running concurrently, researchers start with existing (stale) map. Planner gets fresh map when it starts
 5. Wait for all 4 to complete → shut down all researchers
 6. Validate: read each research file, confirm non-empty. If any researcher failed or produced empty output, retry once. On second failure, proceed with gap notice and flag to user
@@ -142,7 +154,7 @@ Entry: research exists, no spike report, no PLAN.md.
 2. If no high-uncertainty signals: skip to PLAN. Tell the user: "Skipping spike — research is confident"
 3. If signals found: formulate 1-3 specific assumptions to validate. Present to user via AskUserQuestion: "Research flagged uncertainty in {areas}. I'd like to run a spike to validate: {assumptions}. Proceed?" (soft gate — user can skip)
 4. Commit all `.planning/` docs to current branch — the spiker's cleanup (`git checkout -- . ':!.planning/'`) is safe only when `.planning/` files are committed
-5. Spawn a single `team-spiker` teammate via TaskCreate with metadata: `{"assumptions": [<assumptions to validate>], "report_output_path": ".planning/{task-id}/research/spike-report.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/"}`. The spiker reads its assignment via `TaskGet`
+5. Create a task via `TaskCreate` with metadata: `{"assumptions": [<assumptions to validate>], "report_output_path": ".planning/{task-id}/research/spike-report.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/"}`. Assign via `TaskUpdate(owner: "spiker")`. Spawn via `Agent(subagent_type: "jc:team-spiker", team_name: "{task-id}", name: "spiker", prompt: "Your task is {task-id-from-TaskCreate}.")`. The spiker reads its assignment via `TaskGet`
 6. Wait for the spiker's task to reach `completed` status via TaskList. Read the verdict from task metadata (`verdict` key). Shut down the spiker
 7. If INCONCLUSIVE: flag to user and proceed (the planner treats it as a known risk). If VALIDATED or INVALIDATED: proceed to PLAN (the planner adapts its approach based on the spike report)
 
@@ -153,17 +165,17 @@ Entry: research exists, no PLAN.md (or user chose to replan).
 **For all plans (fresh and replan):** before spawning planners, generate acceptance criteria:
 
 1. Check if `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` exists
-2. If not: spawn a single `team-criteria-generator` teammate via TaskCreate with metadata: `{"task_id": "{task-id}", "task_description": "<description>", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "external_doc_paths": [<if any>]}`. The criteria generator reads its assignment via `TaskGet`
+2. If not: create a task via `TaskCreate` with metadata: `{"task_id": "{task-id}", "task_description": "<description>", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "ticket_id": "<if any>", "external_doc_paths": [<if any>]}`. Assign via `TaskUpdate(owner: "criteria-generator")`. Spawn via `Agent(subagent_type: "jc:team-criteria-generator", team_name: "{task-id}", name: "criteria-generator", prompt: "Your task is {task-id-from-TaskCreate}.")`. The criteria generator reads its assignment via `TaskGet`
 3. Wait for completion → shut down the criteria generator
 4. Verify the file exists. If missing, retry once. On second failure, escalate to user via AskUserQuestion — do NOT proceed with planning until acceptance criteria exist (hard gate)
 5. All subsequent planner assignments (council proposals, plan mode, critique mode, replan mode) include the acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in their input
 
-**For replan:** spawn a single `team-planner` in `replan` mode via TaskCreate with metadata: `{"mode": "replan", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "plan_schema_path": "{plugin-root}/docs/plan-schema.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "execution_learnings_dir": ".planning/{task-id}/execution/"}`. The planner reads its assignment via `TaskGet`. Proceed to EXECUTE on completion.
+**For replan:** create a task via `TaskCreate` with metadata: `{"mode": "replan", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "plan_schema_path": "{plugin-root}/docs/plan-schema.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "execution_learnings_dir": ".planning/{task-id}/execution/"}`. Assign via `TaskUpdate(owner: "planner")`. Spawn via `Agent(subagent_type: "jc:team-planner", team_name: "{task-id}", name: "planner", prompt: "Your task is {task-id-from-TaskCreate}.")`. The planner reads its assignment via `TaskGet`. Proceed to EXECUTE on completion.
 
 **For fresh plans:** use the council workflow with `team-council-planner` agents:
 
 1. `mkdir -p .planning/{task-id}/plans/`
-2. **Diverge** — spawn 3 `team-council-planner` teammates via TaskCreate. Each receives metadata: `{"planner_number": {n}, "mode": "propose", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/"}`. Each reads its assignment via `TaskGet`, writes a `PROPOSAL-{n}.md`. Wait for all 3 to complete
+2. **Diverge** — create 3 tasks via `TaskCreate`, each with metadata: `{"planner_number": {n}, "mode": "propose", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/"}`. Assign each via `TaskUpdate(owner: "planner-{n}")`. Spawn 3 `team-council-planner` teammates via `Agent(subagent_type: "jc:team-council-planner", team_name: "{task-id}", name: "planner-{n}", prompt: "Your task is {task-id-from-TaskCreate}.")`. Each reads its assignment via `TaskGet`, writes a `PROPOSAL-{n}.md`. Wait for all 3 to complete
 3. **Vote** — message all 3 planners to switch to `vote` mode. Each reads all proposals and votes for the best one that is not their own, writing their vote to task metadata (`vote` and `rationale` keys). Wait for all 3 votes — read structured votes from `TaskGet` on each planner's task
 4. **Resolve votes:**
    - **Clear winner** (2-1 or 3-0): the winning planner's proposal proceeds
@@ -179,18 +191,18 @@ Entry: in worktree, PLAN.md has pending tasks.
 **Per wave:**
 
 1. **Pre-flight check:** parse "Files affected" from each task in the wave. Build file-to-task map. If any file appears in multiple tasks, assign those tasks sequentially instead of in parallel. Log the fallback
-2. **Create tasks:** for each task in the wave: `TaskCreate(implement-{n.m}, assigned: executor-{x}, metadata: {"task_number": "{n.m}", "task_id": "{task-id}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`
-3. **Spawn executors:** one per task in the wave. Assign exactly 1 task each
-4. **Spawn persistent verifier + reviewer** (first wave only — they persist across all waves)
-5. **Task-chain pipeline:** teammates self-coordinate through task creation — each agent creates the next step in the pipeline on completion. All TaskCreate calls include metadata; all TaskUpdate calls on completion include result metadata. Agents call `TaskGet` after finding tasks in TaskList to read metadata:
-   - Executor implements → `TaskUpdate(implement-{n.m}, completed, metadata: {"task_number": "{n.m}"})` → `TaskCreate(verify-{n.m}-1, assigned: verifier, metadata: {"task_number": "{n.m}", "plan_path": "..."})`
-   - Verifier picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS", ...})` → `TaskCreate(review-{n.m}-1, assigned: reviewer, metadata: {"task_number": "{n.m}", "plan_path": "..."})`. On FAIL: `TaskUpdate(failed, metadata: {"verdict": "FAIL", ...})` → messages executor with failure details
-   - Reviewer picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS"})` → `TaskCreate(commit-{n.m}, assigned: executor, metadata: {"task_number": "{n.m}"})`. On REVISE: `TaskUpdate(failed, metadata: {"verdict": "REVISE"})` → messages executor with structured findings
+2. **Create tasks:** for each task in the wave: `TaskCreate(subject: "implement-{n.m}", metadata: {"task_number": "{n.m}", "task_id": "{task-id}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`, then `TaskUpdate(taskId, owner: "executor-{n.m}")`
+3. **Spawn executors:** one per task in the wave via `Agent(subagent_type: "jc:team-executor", team_name: "{task-id}", name: "executor-{n.m}", prompt: "Your task is {task-id-from-TaskCreate}.")`. Assign exactly 1 task each
+4. **Spawn persistent verifier + reviewer** (first wave only — they persist across all waves): `Agent(subagent_type: "jc:team-verifier", team_name: "{task-id}", name: "verifier", prompt: "You are the verifier for team {task-id}.")` and `Agent(subagent_type: "jc:team-reviewer", team_name: "{task-id}", name: "reviewer", prompt: "You are the reviewer for team {task-id}.")`
+5. **Task-chain pipeline:** teammates self-coordinate through task creation — each agent creates the next step in the pipeline on completion. All `TaskCreate` calls include metadata; all `TaskUpdate` calls on completion include result metadata. Agents call `TaskGet` after finding tasks in `TaskList` to read metadata. Task ownership is set via `TaskUpdate(owner)` immediately after `TaskCreate`:
+   - Executor implements → `TaskUpdate(implement-{n.m}, completed, metadata: {"task_number": "{n.m}"})` → `TaskCreate(verify-{n.m}-1, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "verifier")`
+   - Verifier picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS", ...})` → `TaskCreate(review-{n.m}-1, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "reviewer")`. On FAIL: `TaskUpdate(failed, metadata: {"verdict": "FAIL", ...})` → messages executor with failure details
+   - Reviewer picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS"})` → `TaskCreate(commit-{n.m}, metadata: {"task_number": "{n.m}"})` + `TaskUpdate(owner: "executor-{n.m}")`. On REVISE: `TaskUpdate(failed, metadata: {"verdict": "REVISE"})` → messages executor with structured findings
    - Executor picks up commit task from TaskList → commits → `TaskUpdate(commit-{n.m}, completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})` → messages lead: "Task {n.m} committed: {hash} {message}"
-   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor creates a new verify task: `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier, metadata: {"task_number": "{n.m}", "plan_path": "..."})` — full pipeline restarts from verification
+   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor creates a new verify task: `TaskCreate(verify-{n.m}-{attempt}, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "verifier")` — full pipeline restarts from verification
 6. **Debugger:** spawned on first executor escalation. The debugger spawn prompt MUST include: task-id, project root, planning directory, path to PLAN.md, and path to the research directory (`.planning/{task-id}/research/`) — plan assumptions and research findings are critical debugging context. On escalation:
    a. Executor creates unassigned `investigate-{n.m}-{attempt}` task + messages lead
-   b. Lead spawns debugger if not running → `TaskUpdate(investigate-{n.m}-{attempt}, owner: debugger)`
+   b. Lead assigns task: `TaskUpdate(investigate-{n.m}-{attempt}, owner: "debugger")`. If debugger not yet running, spawn first: `Agent(subagent_type: "jc:team-debugger", team_name: "{task-id}", name: "debugger", prompt: "You are the debugger for team {task-id}.")`
    c. Subsequent escalations: lead assigns new investigation tasks to the already-running debugger
 7. **Retry handling:** max 3 retries per executor ↔ verifier loop. Executor tracks deviations across verifier and reviewer feedback. After 3, executor messages lead to escalate (see Failure Handling)
 8. **Update PLAN.md** — lead updates status immediately on each executor message:

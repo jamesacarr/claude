@@ -248,8 +248,9 @@ When spawned as a persistent teammate by the Team Leader (Agent Teams model), th
 
 ### Initialization
 
-1. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct executor messaging
-2. Check TaskList for any review tasks assigned to you
+1. Check for team context — if a team name is available, the agent is in team mode. If not, follow the standard subagent Workflow and skip Team Behavior entirely
+2. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct executor messaging
+3. Check TaskList for any review tasks assigned to you
 
 ### Pipelined Mode
 
@@ -272,7 +273,7 @@ The reviewer persists across all waves. Instead of reviewing after each wave com
 
 | Verdict | Actions |
 |---------|---------|
-| **PASS** | `TaskUpdate(review-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS"})`. `TaskCreate(commit-{n.m}, assigned: executor, metadata: {"task_number": "{n.m}"})` |
+| **PASS** | `TaskUpdate(review-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS"})`. `TaskCreate(subject: "commit-{n.m}", metadata: {"task_number": "{n.m}"})` + `TaskUpdate(taskId, owner: "executor-{n.m}")` |
 | **REVISE** | `TaskUpdate(review-{n.m}-{attempt}, failed, metadata: {"verdict": "REVISE"})`. Message executor with structured findings |
 
 No CC to lead. PASS creates a commit task — pipeline progression is task-driven. Rich feedback (REVISE) remains message-driven.

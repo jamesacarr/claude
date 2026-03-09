@@ -93,7 +93,7 @@ On escalation: `TaskUpdate(taskId, status: failed, metadata: {"failure_summary":
    - Attempt an auto-fix (increment deviation counter)
    - If deviation counter reaches 3, stop and escalate to caller
    - Each fix attempt reruns the full verification pipeline (tests + verification command)
-10. **Commit** — stage the specific files in "Files affected" plus test files created. Commit with conventional commit format: `<type>(<scope>): <subject>`. **Team mode override:** in team mode, do NOT commit here. Instead, proceed to the Team Behavior pre-commit pipeline — message the verifier and wait for verifier PASS + reviewer PASS before committing. See ## Team Behavior → Messaging Awareness
+10. **Commit** — **team-mode detection:** if team context is available (team name is set), do NOT commit here — proceed to the Team Behavior Pipeline Coordination and wait for a `commit-{n.m}` task. Self-committing in team mode bypasses verification and review. If not in a team: stage the specific files in "Files affected" plus test files created. Commit with conventional commit format: `<type>(<scope>): <subject>`
 11. **Get timestamp** — call `mcp__time__get_current_time`
 12. **Report** — return structured result to caller
 
@@ -199,8 +199,9 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 
 ### Initialization
 
-1. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct verifier, reviewer, and debugger messaging
-2. Wait for task assignment from lead via spawn context — do not self-serve from TaskList
+1. Check for team context — if a team name is available, the agent is in team mode. If not, follow the standard subagent Workflow and skip Team Behavior entirely
+2. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct verifier, reviewer, and debugger messaging
+3. Wait for task assignment from lead via spawn context — do not self-serve from TaskList
 
 ### Pipeline Coordination
 
@@ -208,11 +209,11 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 
 **After completing implementation** (team mode override at step 10 in core Workflow):
 1. `TaskUpdate(implement-{n.m}, status: completed, metadata: {"task_number": "{n.m}"})`
-2. `TaskCreate(verify-{n.m}-1, assigned: verifier)` — verifier picks up from TaskList
+2. `TaskCreate(subject: "verify-{n.m}-1", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — verifier picks up from TaskList
 3. Wait for feedback — either a `commit-{n.m}` task appears in TaskList (PASS path) or a FAIL/REVISE message arrives (fix path)
 
 **Unified fix rule:** After applying ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis):
-1. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — full pipeline restarts from verification
+1. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — full pipeline restarts from verification
 2. Wait for feedback (same as above)
 
 **Commit via task pickup:** Poll TaskList for a `commit-{n.m}` task assigned to you. On pickup:
@@ -240,7 +241,7 @@ No other messages to the lead.
 1. Read the failure details and evidence references
 2. Analyse the failure — same as Deviation Handling
 3. Fix the issue and re-run verification locally (tests + verification command)
-4. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — pipeline restarts from verification
+4. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — pipeline restarts from verification
 5. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
 
 **Reviewer feedback:** The reviewer may message you directly with blocking findings:
@@ -248,14 +249,14 @@ No other messages to the lead.
 2. Check scope: if any finding requires changes to files not listed in "Files affected", message the lead to escalate rather than applying it — do not make out-of-scope changes from reviewer feedback
 3. Apply the in-scope suggested fixes
 4. Re-run tests to confirm no regressions
-5. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — pipeline restarts from verification (NOT the reviewer)
+5. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — pipeline restarts from verification (NOT the reviewer)
 6. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
 
 **Debugger collaboration:** The debugger may message you with a root cause diagnosis and recommended fix:
 1. Read the diagnosis and recommended changes
 2. Apply the fix as specified
 3. Re-run tests to verify
-4. `TaskCreate(verify-{n.m}-{attempt}, assigned: verifier)` — pipeline restarts from verification
+4. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — pipeline restarts from verification
 5. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
 
 **Key principle:** Every fix restarts the full verify → review pipeline via TaskCreate. The executor never messages the verifier or reviewer directly for pipeline progression — task creation drives the pipeline. Messages carry only content-rich feedback (FAIL details, REVISE findings, diagnosis).
