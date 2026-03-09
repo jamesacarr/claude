@@ -97,7 +97,8 @@ Entry: task-id confirmed (fresh or resume). Always runs before any other phase.
 
 1. Check `git worktree list` — if a worktree matching `{task-id}` already exists, enter it instead of creating a new one
 2. If no existing worktree: call `EnterWorktree` (the built-in Claude Code worktree tool, named `{task-id}`)
-3. Session switches to worktree — all subsequent phases and teammates inherit this cwd
+3. Remove inherited upstream: `git branch --unset-upstream` — the branch created by `EnterWorktree` inherits the parent branch's upstream tracking, which would cause `git push` to target the wrong remote branch
+4. Session switches to worktree — all subsequent phases and teammates inherit this cwd
 
 ### MAP
 
@@ -555,6 +556,7 @@ On completion, report to user:
   - Verification: .planning/{task-id}/verification/PLAN-VERIFICATION.md
   - Review: .planning/{task-id}/reviews/PLAN-REVIEW.md
   - Retrospective: .planning/{task-id}/RETROSPECTIVE.md
+- **Push:** `git push -u origin {branch-name}`
 - **Merge:** `git merge {branch-name}` from main branch
 ```
 
