@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Require TeamCreate and fix task ownership across agent team workflow — teammates were spawned as subprocess agents instead of persistent team members, causing pipeline failures
+
 ## [1.5.2] - 2026-03-09
 
 ### Fixed
