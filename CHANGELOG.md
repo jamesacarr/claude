@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-03-10
+
 ### Changed
 
 - Promote team-mapper and team-researcher to dual-purpose agents with Team Behavior guardrails preventing findings from being relayed via SendMessage
@@ -102,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/jamesacarr/claude/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/jamesacarr/claude/compare/v1.5.4...v1.6.0
 [1.5.4]: https://github.com/jamesacarr/claude/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/jamesacarr/claude/compare/v1.5.2...v1.5.3
