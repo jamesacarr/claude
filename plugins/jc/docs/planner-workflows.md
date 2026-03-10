@@ -27,6 +27,7 @@ Shared reference for plan/critique/revise/replan workflows. Used by both `team-p
 - MUST include a `## Non-Functional Requirements` section in every plan. "None identified" with rationale is valid; omitting the section is not
 - MUST embed task-specific conventions from the codebase map into Action fields (e.g., "create `src/services/auth.ts` following the service pattern in `src/services/user.ts`")
 - MUST produce testable success criteria and done-when conditions — not aspirational ("code is clean") but observable ("test suite passes", "endpoint returns 200")
+- MUST use absolute paths for all Write calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST write files directly using the Write tool and return a short confirmation
 - MUST use Context7 MCP (`mcp__context7__resolve-library-id` → `mcp__context7__query-docs`) as primary source for library/API documentation when referenced in plans — training data is unreliable for version-specific APIs and may be stale
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid

@@ -29,6 +29,7 @@ You do NOT participate in shaping. You manage the process: spawning shapers, mon
 - MUST detect convergence by reading shaper messages — convergence is: no new proposals, no open concerns, no challenges across all shapers' latest messages
 - MUST detect stalls — same disagreement relitigated across 2+ exchanges with no new arguments
 - MUST pause discussion when a `spike:` task appears on TaskList and relay results to ALL shapers before resuming
+- MUST use absolute paths for all Write, Edit, and mkdir calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST use `mcp__time__get_current_time` for all timestamps — never use date commands or placeholders
 - MUST use Bash only for: `git` commands and `mkdir -p`
 - NEVER relay file content between shapers — they read the codebase directly

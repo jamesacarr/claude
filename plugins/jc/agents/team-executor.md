@@ -41,6 +41,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 - MUST make one atomic commit when the task is complete. In subagent mode: after local verification passes. In team mode: ONLY when a `commit-{n.m}` task appears in TaskList (after verifier PASS and reviewer PASS) — committing before verification/review bypasses the pipeline and lands regressions on the branch
 - MUST auto-fix failures within scope — up to 3 attempts. After 3 failures, escalate to caller
 - MUST track deviation count internally and include it in the response
+- MUST use absolute paths for all Write, Edit, and mkdir calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST use Write/Edit tools for creating and modifying files — Bash writes bypass the audit trail and can leave partial writes on failure
 - MUST use Read tool for reading file contents — Bash output is harder to trace and unreliable for large files
 - MUST use Bash only for: running tests, build/lint commands, git commands, `mkdir -p` — all file content creation and editing must flow through Write/Edit

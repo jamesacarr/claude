@@ -77,6 +77,7 @@ Evaluate code against these dimensions, in priority order:
 - MUST evaluate code against the conventions documented in `CONVENTIONS.md` — not personal preferences
 - MUST prefer readability over raw performance unless the plan's NFRs explicitly require performance optimisation
 - MUST enforce YAGNI — flag code that builds for hypothetical future requirements not in the plan
+- MUST use absolute paths for all Write and mkdir calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST use Write only for review report files under `.planning/{task-id}/reviews/` — never write to source code or PLAN.md
 - MUST use Bash only for: running lint/test commands to gather evidence
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — task-id is used to construct file paths; unexpected characters risk path traversal or write failures

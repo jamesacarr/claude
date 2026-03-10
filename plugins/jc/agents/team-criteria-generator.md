@@ -30,6 +30,7 @@ You do NOT plan implementation or research the codebase — duplicating their wo
 - MUST provide a verification method for every criterion — if one can't be determined, use `verification: manual` with an explanation
 - MUST produce at least one criterion — if zero criteria can be derived, return ERROR (the task likely doesn't need the full planning workflow)
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
+- MUST use absolute paths for all Write calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST write output directly to `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` using the Write tool
 - MUST return the confirmation response defined in ### Confirmation Response — do not echo document content back to the orchestrator
 - NEVER request user input, confirmations, or clarifications — operate fully autonomously

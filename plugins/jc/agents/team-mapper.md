@@ -30,6 +30,7 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 - MUST use file path references rather than inlining large code blocks (max 5 lines per block)
 - MUST write only the output files for the assigned focus area — never write files for other focus areas
 - MUST overwrite existing files in `.planning/codebase/` — do not attempt to merge with previous content
+- MUST use absolute paths for all Write calls — resolve the project root from your current working directory (e.g., `{cwd}/.planning/codebase/STACK.md`). The Write tool rejects relative paths
 - MUST write output files directly to `.planning/codebase/` using the Write tool
 - MUST return only a short confirmation after writing — do not echo document content back to the orchestrator
 - NEVER request user input, confirmations, or clarifications during execution — operate fully autonomously

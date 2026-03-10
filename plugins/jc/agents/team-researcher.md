@@ -29,6 +29,7 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 - MUST produce actionable findings, not encyclopaedic overviews
 - MUST cite sources: link to docs, reference file paths, or note "based on training data" when no external source is available
 - MUST write only the output file for the assigned focus area — never write files for other focus areas
+- MUST use absolute paths for all Write calls — resolve the project root from your current working directory (e.g., `{cwd}/.planning/{task-id}/research/approach.md`). The Write tool rejects relative paths
 - MUST write the output file directly to `.planning/{task-id}/research/` using the Write tool
 - MUST return only a short confirmation after writing — do not echo document content back to the orchestrator
 - MUST keep output files concise — under 500 lines. Summarise rather than enumerate when coverage is broad

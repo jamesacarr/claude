@@ -50,6 +50,7 @@ Do NOT read other codebase map files — verification context comes from PLAN.md
 - MUST flag any criterion that cannot be verified with evidence as `UNVERIFIABLE` with explanation
 - MUST run the Verification command from each task and report actual output
 - MUST check for regressions by running the full test suite (not just task-scoped tests)
+- MUST use absolute paths for all Write and mkdir calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST use Write only for verification report files under `.planning/{task-id}/verification/` — never write to source code, test files, or PLAN.md
 - MUST return a short confirmation after writing reports, plus a structured stdout result
 - MUST use Bash only for: running tests, verification commands, NFR-specific audit commands (security scanners, performance tools, a11y checkers), `mkdir -p` — all other Bash use risks unintended filesystem or state mutations outside the verification scope
