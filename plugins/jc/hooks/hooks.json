@@ -1,12 +1,11 @@
 {
   "hooks": {
-    "SubagentStart": [
+    "SessionStart": [
       {
-        "matcher": "jc:.*",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/handlers/subagent-start.sh \"${CLAUDE_PLUGIN_ROOT}\""
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/handlers/inject-plugin-root.sh \"${CLAUDE_PLUGIN_ROOT}\""
           }
         ]
       }

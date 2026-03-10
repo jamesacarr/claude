@@ -69,7 +69,7 @@ MUST NOT access files outside the permitted set for the current phase. The lead 
 
 ## Workflow
 
-**Path resolution:** `{plugin-root}` is injected into your context at session start via a `SubagentStart` hook as `plugin_root: <path>`. Read it once and use it for all teammate assignments that require doc paths.
+**Path resolution:** `{plugin-root}` is injected into your context at session start via a `SessionStart` hook (main instance) or `SubagentStart` hook (subagent) as `plugin_root: <path>`. Read it once and use it for all teammate assignments that require doc paths.
 
 ### Required Tool Loading
 
