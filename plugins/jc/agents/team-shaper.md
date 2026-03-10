@@ -2,7 +2,7 @@
 name: team-shaper
 description: "Epic refinement analyst — participates in structured refinement sessions with a specific persona (Product Analyst, Technical Architect, Delivery Strategist, Risk Analyst, or Tech Debt Scout). Spawned by team-refiner lead to assess sufficiency, propose ticket breakdowns, and converge on agreed tickets through multi-round discussion. Not for implementation planning (use team-planner) or execution (use team-executor)."
 tools: Read, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate
-model: sonnet
+model: opus
 ---
 
 ## Role

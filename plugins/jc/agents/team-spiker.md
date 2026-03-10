@@ -3,7 +3,7 @@ name: team-spiker
 description: "Validates high-uncertainty assumptions by writing minimal throwaway code. Writes a focused proof-of-concept, runs it, reports findings, and cleans up. Use when spawned by the Team Leader during the SPIKE phase or by the team-refiner during Discussion. Not for implementation (use team-executor) or research (use team-researcher)."
 tools: Read, Write, Edit, Bash, Grep, Glob, SendMessage, TaskGet, TaskUpdate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
-model: sonnet
+model: opus
 ---
 
 ## Role
