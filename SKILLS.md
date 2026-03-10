@@ -9,7 +9,7 @@ A complete reference for every skill in the `jc` plugin. Skills are invoked as `
   - [map](#map) — Map a codebase to structured analysis documents
   - [research](#research) — Research a task across 4 dimensions
   - [plan](#plan) — Create an implementation plan with adversarial critique
-  - [implement](#implement) — Execute a plan with wave-based parallelization
+  - [implement](#implement) — Execute a plan through a static task graph
 - [Quality & Debugging](#quality--debugging)
   - [test](#test) — Enforce test quality standards
   - [test-driven-development](#test-driven-development) — Enforce RED-GREEN-REFACTOR TDD discipline
@@ -161,28 +161,28 @@ Plan → Critique → [if objections] Revise → Re-critique → [if objections]
 
 ### implement
 
-Orchestrates plan execution through wave-based parallelization with verification, review, and failure handling. This is the most complex skill — it manages the full execution state machine.
+Orchestrates plan execution through a static task graph with a poll-spawn loop. All pipeline tasks are pre-created with `blockedBy` dependencies — agents discover work by polling TaskList for unblocked tasks.
 
 **What it does:**
 - Commits `.planning/` docs, then creates an **isolated git worktree** for all source changes
-- Executes tasks wave-by-wave, respecting file-overlap constraints
-- After each task: spawns a `team-verifier` to verify the work
-- After each wave: spawns a `team-reviewer` for code review
+- Creates a static task graph (implement → verify + review → commit → wave-review) with `blockedBy` dependencies
+- Runs a poll-spawn loop: polls TaskList for unblocked tasks and spawns the appropriate agent
+- Verification and review run in parallel per task; wave-review gates cross-wave progression
 - After all waves: runs plan-level verification and review in parallel
-- Handles retries (max 3 per task), escalation, pause/resume, and crash recovery
-- Updates `PLAN.md` at every state transition for reliable recovery
+- Handles fix cycles (max 3 deviations per task), escalation, pause/resume, and crash recovery
+- TaskList is the execution state; PLAN.md receives terminal-state checkpoints only (`passed`, `skipped`, `manual`)
 
 **Execution flow:**
 
 ```
-INIT → WORKTREE → [WAVE_START → EXECUTE → VERIFY → WAVE_REVIEW] × N → PLAN_VERIFY + PLAN_REVIEW → COMPLETE
+INIT → WORKTREE → GRAPH → EXECUTE (poll-spawn loop) → PLAN_VERIFY + PLAN_REVIEW → COMPLETE
 ```
 
 **Failure handling:**
 
-When a task fails after 3 retries, you're presented with options:
+When a task exhausts 3 fix attempts, you're presented with options:
 1. **Skip task** — mark it skipped, warns about downstream impact
-2. **Provide guidance** — give the executor specific instructions, resets retry counter
+2. **Provide guidance** — give the executor specific instructions
 3. **Implement manually** — make changes yourself, then resume
 4. **Abort execution** — pauses the plan, worktree persists for later resumption
 
@@ -369,9 +369,11 @@ Bumps the version, finalizes the changelog, commits, tags, and pushes. Atomic: o
 
 ### status
 
-Reports on `.planning/` state without modifying anything. Strictly read-only.
+Reports on `.planning/` state and TaskList without modifying anything. Strictly read-only.
 
 **What it does:**
+- Reads TaskList as the primary source for execution state (task statuses, wave progress, fix cycle counts, blocked-by annotations)
+- Falls back to PLAN.md terminal states for crash-recovery context when TaskList is empty
 - Scans `.planning/` for the codebase map (existence, staleness, missing files) and task directories
 - Reports each task's phase (Research, Planned, Executing, Paused, Completed) with wave progress, task counts, and verification status
 - Directs you to the appropriate skill for any action

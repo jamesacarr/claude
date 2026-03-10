@@ -59,7 +59,7 @@ How the agent team works together to take a feature from description to working 
 
 | Agent | Phase | Lifecycle | What it does |
 |-------|-------|-----------|-------------|
-| `team-leader` | All | Main session (always running) | Coordinates teammates, owns PLAN.md status, escalates to user |
+| `team-leader` | All | Main session (always running) | Coordinates teammates, writes PLAN.md terminal-state checkpoints, escalates to user |
 | `team-mapper` | MAP | 4 spawned in parallel → shut down | Analyses one dimension of the codebase (technology, architecture, quality, concerns) |
 | `team-researcher` | RESEARCH | 4 spawned in parallel → shut down | Investigates one dimension of the task (approach, integration, quality, risks) |
 | `team-criteria-generator` | PLAN | 1 spawned → shut down | Synthesises acceptance criteria from research and external docs |
@@ -215,7 +215,7 @@ The leader commits `.planning/` docs, shuts down all pre-execution teammates, an
 
 #### EXECUTE
 
-Wave-by-wave execution with a per-task pipeline. See [Execution Pipeline](#execution-pipeline) for the full flow.
+Execution via a static task graph with `blockedBy` dependencies. See [Execution Pipeline](#execution-pipeline) for the full flow.
 
 #### FINAL
 
@@ -241,55 +241,51 @@ The leader writes this itself — no teammate is spawned. It evaluates how the t
 
 ### Execution Pipeline
 
-Each task flows through a pipeline driven by task creation (not message relaying):
+All pipeline tasks are pre-created in a **static task graph** with `blockedBy` dependencies. Agents discover work by polling TaskList for unblocked tasks — no agent creates successor pipeline tasks.
 
 ```
-┌───────────────────────────────────────────────────┐
-│               EXECUTION PIPELINE                  │
-│                                                   │
-│  Executor                                         │
-│  ┌────────────────────────┐                       │
-│  │  1. RED   (fail test)  │                       │
-│  │  2. GREEN (make pass)  │                       │
-│  │  3. REFACTOR           │                       │
-│  └────────────┬───────────┘                       │
-│               │                                   │
-│               ▼ creates verify task               │
-│  ┌────────────────────────┐                       │
-│  │  Verifier              │                       │
-│  │  (goal-backward        │                       │
-│  │   evidence check)      │                       │
-│  └────────────┬───────────┘                       │
-│               │                                   │
-│          PASS │           FAIL                    │
-│               │        ┌─────→ message executor   │
-│               │        │       (fix + re-verify)  │
-│               ▼        │                          │
-│  ┌────────────────────────┐                       │
-│  │  Reviewer              │                       │
-│  │  (quality check)       │                       │
-│  └────────────┬───────────┘                       │
-│               │                                   │
-│          PASS │           REVISE                  │
-│               │        ┌─────→ message executor   │
-│               │        │       (fix + re-verify)  │
-│               ▼        │                          │
-│  ┌────────────────────────┐                       │
-│  │  Executor commits      │                       │
-│  │  Messages leader:      │                       │
-│  │  "Task N.M committed"  │                       │
-│  └────────────────────────┘                       │
-│                                                   │
-└───────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                  STATIC TASK GRAPH                     │
+│                                                        │
+│  Per plan item:                                        │
+│                                                        │
+│  implement-{n.m}                                       │
+│       │                                                │
+│       ▼                                                │
+│  verify-{n.m} ──── review-{n.m}   (parallel,           │
+│       │               │            both blockedBy      │
+│       │               │            implement)          │
+│       ▼               ▼                                │
+│         commit-{n.m}               (blockedBy          │
+│               │                     verify + review)   │
+│               │                                        │
+│  Per wave:    ▼                                        │
+│         wave-review-{n}            (blockedBy          │
+│               │                     all wave commits)  │
+│               ▼                                        │
+│  Next wave's implement tasks unblock                   │
+│                                                        │
+│  Fix cycles (dynamic):                                 │
+│  ┌────────────────────────────────────────────┐        │
+│  │  Verifier FAIL → creates fix-{n.m}-v{n}    │        │
+│  │    → blocks verify (held open)             │        │
+│  │    → executor fixes → verify unblocks      │        │
+│  │                                            │        │
+│  │  Reviewer REVISE → creates fix-{n.m}-r{n}  │        │
+│  │    → blocks review (held open)             │        │
+│  │    → executor fixes → review unblocks      │        │
+│  └────────────────────────────────────────────┘        │
+│                                                        │
+└────────────────────────────────────────────────────────┘
 ```
 
 **Key design decisions:**
 
-- **Task-driven progression.** Each agent creates the next step in the pipeline via `TaskCreate`. The leader doesn't relay between agents.
-- **Messages carry content only.** Direct messages between agents carry failure details, review findings, or diagnoses — not status updates.
-- **Any fix restarts from verification.** Whether the fix came from the verifier, reviewer, or debugger, the executor always creates a new verify task. The full pipeline re-runs.
+- **Graph-driven progression.** All pipeline tasks (implement, verify, review, commit, wave-review) are pre-created with `blockedBy` dependencies. No agent creates successor tasks — the graph handles progression.
+- **Messages carry content only.** Direct messages between agents carry failure details or review findings — not status updates.
+- **Fix tasks block the parent.** On FAIL/REVISE, verifier/reviewer holds their task open and creates a dynamic fix task that blocks it. When the executor completes the fix, the parent unblocks and re-checks automatically.
 - **3-deviation limit.** All fix attempts (from any source) count toward the same 3-attempt limit per task. After 3, the executor escalates to the leader.
-- **Persistent verifier and reviewer.** Spawned once at the start of wave 1 and persist across all waves, picking up tasks from TaskList as they appear.
+- **Persistent verifier and reviewer.** Spawned once at the start of wave 1 and persist across all waves, picking up unblocked tasks from TaskList.
 - **On-demand debugger.** Only spawned when the first executor escalation occurs. Persists for the remainder of execution.
 
 ---
@@ -338,12 +334,11 @@ The leader explicitly assigns tasks to specific teammates. Executors receive exa
 
 #### PLAN.md Status Ownership
 
-Only the leader writes PLAN.md status updates. Teammates report via messaging; the leader writes the status. This prevents race conditions.
+Only the leader writes PLAN.md status updates. PLAN.md receives terminal-state checkpoints only — execution state lives in TaskList.
 
 ```
-Task:  pending → in_progress → passed / failed / skipped / manual
-Wave:  pending → in_progress → completed
-Plan:  planning → executing → verifying → completed / paused
+Task:  pending → passed / skipped / manual   (terminal states only)
+Plan:  planning → executing → completed / paused
 ```
 
 #### Message Inventory
@@ -354,9 +349,8 @@ All messages carry actionable content. No status-only notifications.
 |-----------|------|---------|
 | Executor → Leader | Task committed | Short hash + commit message |
 | Executor → Leader | Escalation | Brief reason + learnings path |
-| Verifier → Executor | Verify FAIL | Failure details + evidence |
-| Reviewer → Executor | Review REVISE | Structured findings (file, line, issue, suggestion) |
-| Debugger → Executor | Diagnosis | Root cause + recommended fix |
+| Verifier → Executor | Alongside fix task | Failure details + evidence |
+| Reviewer → Executor | Alongside fix task | Structured findings (file, line, issue, suggestion) |
 | Debugger → Leader | Escalation | Unresolved investigation |
 | Any → Leader | Stall | "Stalled waiting for {role} on task {n.m}" |
 | Council Author ↔ Critics | Plan/critique cycle | Objections or sign-off |
@@ -412,13 +406,13 @@ The leader checks `.planning/` state on startup and routes to the right phase:
 | Research exists, no spike report, no PLAN.md | SPIKE (evaluates signals — may skip to PLAN) |
 | Research + spike report, no PLAN.md | PLAN |
 | PLAN.md exists, no worktree | WORKTREE |
-| Worktree exists, pending tasks | EXECUTE (spawn fresh teammates) |
+| Worktree exists, pending tasks or non-terminal TaskList tasks | EXECUTE (create/resume graph, spawn fresh teammates) |
 | PLAN.md `status: paused` | EXECUTE (present summary, resume) |
-| PLAN.md `status: verifying` | FINAL |
+| All wave-review tasks completed in TaskList | FINAL (plan-level verification) |
 | PLAN.md `status: completed`, no retrospective | RETROSPECTIVE |
 | PLAN.md `status: completed`, retrospective exists | Report completion |
 
-Tasks with `status: in_progress` but no verification report are treated as needing re-execution. The leader writes a `LEADER-STATE.md` checkpoint at every wave boundary for crash recovery.
+If resuming cross-session (TaskList gone), the leader reads PLAN.md terminal states and recreates the graph for non-terminal tasks only. The leader writes a `LEADER-STATE.md` checkpoint at every wave boundary for crash recovery.
 
 ---
 
