@@ -170,7 +170,7 @@ Entry: research exists, no PLAN.md (or user chose to replan).
 4. Verify the file exists. If missing, retry once. On second failure, escalate to user via AskUserQuestion — do NOT proceed with planning until acceptance criteria exist (hard gate)
 5. All subsequent planner assignments (council proposals, plan mode, critique mode, replan mode) include the acceptance criteria path (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`) in their input
 
-**For replan:** create a task via `TaskCreate` with metadata: `{"mode": "replan", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "plan_schema_path": "{plugin-root}/docs/plan-schema.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "execution_learnings_dir": ".planning/{task-id}/execution/"}`. Assign via `TaskUpdate(owner: "planner")`. Spawn via `Agent(subagent_type: "jc:team-planner", team_name: "{task-id}", name: "planner", prompt: "Your task is {task-id-from-TaskCreate}.")`. The planner reads its assignment via `TaskGet`. Proceed to EXECUTE on completion.
+**For replan:** create a task via `TaskCreate` with metadata: `{"mode": "replan", "task_id": "{task-id}", "planner_workflows_path": "{plugin-root}/docs/planner-workflows.md", "plan_schema_path": "{plugin-root}/docs/plan-schema.md", "acceptance_criteria_path": ".planning/{task-id}/ACCEPTANCE-CRITERIA.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/", "execution_learnings_dir": ".planning/{task-id}/execution/"}`. Assign via `TaskUpdate(owner: "planner")`. Spawn via `Agent(subagent_type: "jc:team-planner", team_name: "{task-id}", name: "planner", prompt: "Your task is {task-id-from-TaskCreate}.")`. The planner reads its assignment via `TaskGet`. On completion, shut down the planner, then proceed to EXECUTE.
 
 **For fresh plans:** use the council workflow with `team-council-planner` agents:
 
@@ -232,7 +232,7 @@ Entry: all waves complete.
 3. Run both in parallel
 4. If reviewer flags issues: assign executor to fix, re-review (max 3 rounds). If still unresolved, escalate to user
 5. Update PLAN.md status to `completed`
-6. Shut down all remaining teammates
+6. Shut down all remaining teammates (verifier, reviewer, debugger if running)
 7. Proceed to RETROSPECTIVE
 
 ### RETROSPECTIVE
@@ -428,6 +428,8 @@ Stall detection is teammate-driven. Each teammate self-reports after 3 consecuti
 | EXECUTE | 1 verifier | Spawn on wave 1 → persist across all waves |
 | EXECUTE | 1 reviewer | Spawn on wave 1 → persist across all waves |
 | EXECUTE | 1 debugger | Spawn on first escalation → persist for remainder |
+
+**"Shut down" means:** send `SendMessage(recipient: "{teammate-name}", content: "shutdown_request")`. Wait for a `shutdown_response`. If the teammate responds with `approve: false` (task in progress), wait for it to finish before retrying. When shutting down multiple teammates at a phase boundary, send all `shutdown_request` messages in parallel. Every "shut down" instruction in this document follows this procedure.
 
 ## Context Management
 
