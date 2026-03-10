@@ -95,6 +95,7 @@ The spawn prompt provides only the task ID. Read the full assignment via `TaskGe
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
 | `task_id` | Yes | Planning task-id for `.planning/{task-id}/` paths |
+| `task_number` | Yes (team mode) | Task number from PLAN.md (e.g., `1.2`) |
 | `problem_description` | Yes | Description of the bug or failure |
 | `apply_fix` | Yes | `true` to diagnose and fix; `false` for diagnosis only |
 | `session_id` | No | Override session-id (default: generated from problem description) |
@@ -241,7 +242,7 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the debugger 
 
 ### On-Demand Persistence
 
-**Spawn trigger:** The lead spawns the debugger when the first executor hits the 3-deviation limit and escalates. The debugger is not pre-spawned — it would waste tokens idling. The lead assigns investigation tasks to the debugger via `TaskUpdate(investigate-{n.m}-{attempt}, owner: debugger)`.
+**Spawn trigger:** The lead spawns the debugger when the first executor hits the 3-deviation limit and escalates. The debugger is not pre-spawned — it would waste tokens idling. The lead assigns investigation tasks to the debugger via `TaskUpdate(investigate-{n.m}, owner: debugger)`.
 
 **Once spawned, persist:** After the first investigation, remain available for subsequent escalations via the task poll loop.
 
@@ -250,16 +251,16 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the debugger 
 The debugger picks up work from TaskList, not from direct messages:
 
 1. On spawn, poll `TaskList` for investigation tasks assigned to debugger
-2. If found: `TaskGet(taskId)` to read the full task description and metadata (task_number, failure_summary, learnings_path, stash_ref). `TaskUpdate(status: in_progress)` → run standard investigation workflow using the metadata values as input context
+2. If found: `TaskGet(taskId)` to read the full task description and metadata (task_number, problem_description, apply_fix). `TaskUpdate(status: in_progress)` → run standard investigation workflow using the metadata values as input context
 3. Write the session log as normal
-4. **On ROOT_CAUSE_FOUND:** `TaskUpdate(investigate-{n.m}-{attempt}, completed, metadata: {"verdict": "ROOT_CAUSE_FOUND", "confidence": "<high|medium|low>", "session_log_path": ".planning/{task-id}/debug/{session-id}.md"})`. Create a fix task for the executor: `TaskCreate(subject: "fix-{n.m}-d{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md", "source": "debugger", "session_log_path": ".planning/{task-id}/debug/{session-id}.md"})` + `TaskUpdate(taskId, owner: "executor-{n.m}")`. Optionally message the executor with interactive fix guidance (e.g., "try X first, if that doesn't work try Y")
-5. **On ESCALATE:** Message the lead with findings for user escalation. `TaskUpdate(investigate-{n.m}-{attempt}, completed, metadata: {"verdict": "ESCALATE", "confidence": "low", "session_log_path": ".planning/{task-id}/debug/{session-id}.md"})` — investigation is done even if root cause wasn't found
+4. **On ROOT_CAUSE_FOUND:** `TaskUpdate(investigate-{n.m}, completed, metadata: {"verdict": "ROOT_CAUSE_FOUND", "confidence": "<high|medium|low>", "session_log_path": ".planning/{task-id}/debug/{session-id}.md"})` — completing the investigate task unblocks the executor's original task automatically. The executor reads the session log via path in investigate task metadata and applies the fix itself. No fix task creation by the debugger
+5. **On ESCALATE:** `TaskUpdate(investigate-{n.m}, completed, metadata: {"verdict": "ESCALATE", "confidence": "low", "session_log_path": ".planning/{task-id}/debug/{session-id}.md"})` — investigation is done even if root cause wasn't found. Executor's task unblocks but the executor should message the lead for user escalation. Message the lead with findings for user escalation
 6. After completion, return to step 1 (poll for next investigation)
 7. Exit loop only on `shutdown_request`
 
 ### Cross-Investigation Awareness
 
-At the start of each new investigation, scan TaskList for prior `investigate-*` tasks. For each, call `TaskGet` to read the task description and metadata (verdict, confidence, session_log_path). Also read any existing session logs in `.planning/{task-id}/debug/` using the Read tool. Check for related prior failures before forming hypotheses — if the current failure shares symptoms with a prior investigation, reference it in your Observe phase and consider shared root causes. If multiple investigations point to the same underlying issue, note this pattern in your session log and message the lead about potential systematic failure.
+At the start of each new investigation, scan TaskList for prior completed `investigate-*` tasks. For each, call `TaskGet` to read the task metadata (verdict, confidence, session_log_path). Also read any existing session logs in `.planning/{task-id}/debug/` using the Read tool. Check for related prior failures before forming hypotheses — if the current failure shares symptoms with a prior investigation, reference it in your Observe phase and consider shared root causes. If multiple investigations point to the same underlying issue, note this pattern in your session log and message the lead about potential systematic failure.
 
 ### Shutdown Handling
 

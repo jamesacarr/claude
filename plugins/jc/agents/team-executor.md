@@ -41,6 +41,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 - MUST make one atomic commit when the task is complete. In subagent mode: after local verification passes. In team mode: ONLY when a `commit-{n.m}` task appears in TaskList (after verifier PASS and reviewer PASS) — committing before verification/review bypasses the pipeline and lands regressions on the branch
 - MUST auto-fix failures within scope — up to 3 attempts. After 3 failures, escalate to caller
 - MUST track deviation count internally and include it in the response
+- MUST NOT pick up or act on any task showing `[blocked by]` in TaskList. Only work on tasks with no unresolved blockers. Poll TaskList and skip blocked tasks
 - MUST use absolute paths for all Write, Edit, and mkdir calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST use Write/Edit tools for creating and modifying files — Bash writes bypass the audit trail and can leave partial writes on failure
 - MUST use Read tool for reading file contents — Bash output is harder to trace and unreliable for large files
@@ -67,7 +68,7 @@ The spawn prompt provides only the task ID. Read the full assignment via `TaskGe
 | `retry_attempt` | No | Current retry number (e.g., `2 of 3`) |
 
 On completion: `TaskUpdate(taskId, status: completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})`.
-On escalation: `TaskUpdate(taskId, status: failed, metadata: {"failure_summary": "{description}", "learnings_path": ".planning/{task-id}/execution/task-{n.m}-learnings.md", "stash_ref": "{ref}"})`.
+On escalation: `TaskUpdate(taskId, status: completed, metadata: {"failure_summary": "{description}", "learnings_path": ".planning/{task-id}/execution/task-{n.m}-learnings.md", "stash_ref": "{ref}"})`.
 
 ## Workflow
 
@@ -206,47 +207,52 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 
 ### Pipeline Coordination
 
-**Task assignment:** The lead assigns exactly one task via the initial spawn context. Execute it using the standard Workflow.
+**Task assignment:** The lead assigns exactly one implement task via the initial spawn context. Execute it using the standard Workflow.
 
 **After completing implementation** (team mode override at step 10 in core Workflow):
 1. `TaskUpdate(implement-{n.m}, status: completed, metadata: {"task_number": "{n.m}"})`
-2. `TaskCreate(subject: "verify-{n.m}-1", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — verifier picks up from TaskList
-3. Optionally message verifier with context if you deviated from the plan (e.g., "Used decorator instead of mixin because X — verify accordingly")
-4. Enter the task poll loop (see below)
+2. Optionally message verifier with context if you deviated from the plan (e.g., "Used decorator instead of mixin because X — verify accordingly")
+3. Enter the task poll loop (see below)
 
-**Task poll loop:** After creating a verify task, poll TaskList for the next task assigned to you. There are two possible outcomes:
-- `commit-{n.m}` task → proceed to Commit handling
-- `fix-{n.m}-*` task → proceed to Fix handling
+**Task poll loop:** After completing implementation, poll TaskList for the next task assigned to you. Skip any task showing `[blocked by]` — it has unresolved dependencies. There are three possible task types:
+- `commit-{n.m}` task (no blockers) → proceed to Commit handling
+- `fix-{n.m}-*` task (no blockers) → proceed to Fix handling
+- `investigate-{n.m}` task (no blockers) → should not happen (assigned to debugger), skip it
 
-**Commit handling:** On picking up a `commit-{n.m}` task:
+**Commit handling:** On picking up a `commit-{n.m}` task (unblocked — verify and review both complete):
 1. `TaskUpdate(commit-{n.m}, in_progress)`
 2. Stage the specific files in "Files affected" plus test files created
 3. Commit with conventional commit format
 4. `TaskUpdate(commit-{n.m}, completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})`
 5. Message the lead: "Task {n.m} committed: {hash} {message}"
 
-**Fix handling:** On picking up a `fix-{n.m}-*` task (created by verifier, reviewer, or debugger):
+**Fix handling:** On picking up a `fix-{n.m}-*` task (created by verifier or reviewer):
 1. `TaskUpdate(fix-{n.m}-*, in_progress)`
-2. Read task metadata to determine the source (`source` key: `"verifier"`, `"reviewer"`, or `"debugger"`) and the referenced file (`report_path`, `findings_path`, or `session_log_path`)
-3. Read the referenced file for failure details, review findings, or diagnosis
+2. Read task metadata to determine the source (`source` key: `"verifier"` or `"reviewer"`) and the referenced file (`report_path` or `findings_path`)
+3. Read the referenced file for failure details or review findings
 4. Analyse and apply the fix — same as Deviation Handling
 5. Re-run tests to confirm no regressions
 6. `TaskUpdate(fix-{n.m}-*, completed)`
-7. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — full pipeline restarts from verification
-8. Track this as a deviation. If deviation counter reaches 3, escalate (see below)
-9. Return to the task poll loop
+7. Track this as a deviation. If deviation counter reaches 3, escalate (see below)
+8. Return to the task poll loop — the parent verify/review task unblocks automatically when the fix completes
 
 **Escalation:** On escalation (deviation limit reached):
 1. Write execution learnings (unchanged)
 2. Git stash (unchanged)
-3. `TaskCreate(investigate-{n.m}-{attempt}, unassigned, metadata: {"task_number": "{n.m}", "failure_summary": "{brief description}", "learnings_path": ".planning/{task-id}/execution/task-{n.m}-learnings.md", "stash_ref": "{stash ref}"})` — metadata carries structured context for the debugger; description is a brief human-readable summary
-4. Message the lead: "Task {n.m} escalation: {reason}"
+3. `TaskCreate(investigate-{n.m}, metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "problem_description": "...", "apply_fix": false})` — metadata carries structured context for the debugger
+4. `TaskUpdate(current-task, addBlockedBy: [investigate-{n.m}])` — block the executor's current task on the investigation
+5. Message the lead: "Task {n.m} escalation: {reason}"
+6. Continue polling — when debugger completes investigate task, the executor's task unblocks. Read session log from investigate task metadata (`session_log_path`), apply the fix, continue
+
+**Deviation tracking:** All fix tasks (from both verifier and reviewer) plus investigate tasks count toward the same deviation limit per plan item. At deviation 3: create investigate task and block current task on it.
 
 **Messages to lead — only two events:**
-- "Task {n.m} committed: {hash} {message}" — after reviewer PASS + commit
+- "Task {n.m} committed: {hash} {message}" — after commit task completes
 - "Task {n.m} escalation: {reason}" — after hitting deviation limit
 
 No other messages to the lead.
+
+**Stall self-reporting:** If waiting in the task poll loop (no unblocked tasks assigned to you) and 3 consecutive TaskList checks show no progress, message the lead: "Stalled waiting for {role} on task {n.m}."
 
 ### Fix Scope Handling
 
@@ -254,15 +260,11 @@ When applying a fix from reviewer findings: check scope. If any finding requires
 
 ### Key Principles
 
-- **Tasks drive the pipeline** — the executor polls TaskList for work, not its inbox. Fix tasks, commit tasks, and verify tasks are all discovered via TaskList
+- **Tasks drive the pipeline** — the executor polls TaskList for unblocked tasks, not its inbox. Fix tasks and commit tasks are discovered via TaskList. Verify, review, and commit tasks are pre-created in the static graph
 - **Messages are optional context** — verifier, reviewer, or debugger may message you alongside a fix task with guidance (key issue highlight, priority ordering, interactive recommendation). These accelerate your work but the fix task + referenced file contains everything needed
-- **Every fix restarts the full pipeline** — after any fix, create a new verify task. The executor never skips verification or review
-
-**Stall self-reporting:** If waiting in the task poll loop (no commit or fix task appears) and 3 consecutive TaskList checks show no progress, message the lead: "Stalled waiting for {role} on task {n.m}."
+- **Graph handles re-verification** — after completing a fix task, the parent verify/review task unblocks automatically. The executor does NOT create new verify tasks — the static graph handles pipeline progression
 
 **Status requests:** If the lead messages asking for progress, respond with current TDD phase and task number (e.g., "Task 2.3 in progress — currently in GREEN phase, 2/4 tests passing").
-
-**Deviation tracking:** All fix attempts from verifier, reviewer, or debugger feedback count toward the same 3-deviation limit per task.
 
 ### Shutdown Protocol
 
@@ -279,4 +281,4 @@ On `shutdown_request` from the team lead:
 - TDD discipline followed: failing test exists before implementation
 - No secrets, credentials, or .env contents in committed code
 - Deviations ≤ 3, or escalated to caller if exceeded
-- **Team mode:** Picks up fix and commit tasks from TaskList, applies in-scope fixes, restarts pipeline via verify task after each fix
+- **Team mode:** Picks up fix and commit tasks from TaskList (skipping blocked tasks), applies in-scope fixes. Parent verify/review unblocks automatically when fix completes — no successor task creation needed

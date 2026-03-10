@@ -1,6 +1,8 @@
 # Plan Document Schema
 
-Specification for `PLAN.md` — the central plan document produced by the Planner agent and consumed by Implement, Resume, Status, Verifier, and Reviewer.
+Specification for `PLAN.md` — the central planning document produced by the Planner agent.
+
+PLAN.md is a planning document. Execution state lives in TaskList. PLAN.md receives terminal-state checkpoints (`passed`, `skipped`, `manual`) for crash recovery. Both the Implement skill and Team Leader use TaskList for execution and write terminal states to PLAN.md.
 
 Location: `.planning/{task-id}/plans/PLAN.md`
 
@@ -10,11 +12,9 @@ Location: `.planning/{task-id}/plans/PLAN.md`
 ---
 task_id: <string>
 title: <string>
-status: planning | executing | verifying | completed | paused
+status: planning | executing | completed | paused
 created: <ISO 8601 UTC>
 updated: <ISO 8601 UTC>
-current_wave: <number | null>
-current_task: <number | null>
 pause_reason: <string | null>
 ---
 
@@ -35,16 +35,13 @@ pause_reason: <string | null>
 1. <NFR criterion>
 
 ## Wave <n>: <Wave Title>
-Status: pending | in_progress | completed
 
 ### Task <n.m>: <Task Title>
-- **Status:** pending | in_progress | passed | failed | skipped | manual
+- **Status:** pending | passed | skipped | manual
 - **Files affected:** <comma-separated file paths>
 - **Action:** <What to do — specific enough for an executor to act without interpretation>
 - **Verification:** <Command or check to confirm the task is done>
 - **Done when:** <Observable condition — not "code is written" but "test X passes">
-- **Retries:** <number, default 0>
-- **Last failure:** <string | null>
 
 ### Task <n.m+1>: <Task Title>
 ...
@@ -61,12 +58,10 @@ Status: pending | in_progress | completed
 |-------|------|--------|-------------|
 | `task_id` | string | Planner | Matches the `.planning/{task-id}/` directory name |
 | `title` | string | Planner | Human-readable task title |
-| `status` | enum | Implement/Resume | Overall plan execution status |
+| `status` | enum | Implement/Leader | Overall plan execution status |
 | `created` | ISO 8601 | Planner | When the plan was first written |
 | `updated` | ISO 8601 | Any writer | Updated on every modification |
-| `current_wave` | number \| null | Implement/Resume | Wave currently being executed. Null when not executing |
-| `current_task` | number \| null | Implement/Resume | Task currently being executed within the wave. Null when not executing |
-| `pause_reason` | string \| null | Implement/Resume | Why execution was paused. Null when not paused |
+| `pause_reason` | string \| null | Implement/Leader | Why execution was paused. Null when not paused |
 
 ### Plan-level sections
 
@@ -75,14 +70,6 @@ Status: pending | in_progress | completed
 | **Goal** | Yes | Planner | Goal-backward statement. What must be true when done |
 | **Success Criteria** | Yes | Planner | Numbered, testable outcomes. Verifier checks each one. When acceptance criteria exist (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`), each should reference the AC it satisfies (e.g., `[AC-1]`). All ACs must be covered by at least one success criterion |
 | **Non-Functional Requirements** | Yes | Planner | Security, performance, a11y criteria. "None identified" is valid but must include rationale. Cannot be omitted |
-
-### Wave fields
-
-| Field | Values | Set by |
-|-------|--------|--------|
-| Status | `pending` \| `in_progress` \| `completed` | Implement/Resume |
-
-Waves execute sequentially. All tasks in a wave must complete before the next wave starts.
 
 ### Task fields
 
@@ -93,17 +80,13 @@ Waves execute sequentially. All tasks in a wave must complete before the next wa
 | **Action** | Yes | Specific instructions for the executor. Must include file paths, patterns to follow, and enough detail that the executor does not need to interpret intent |
 | **Verification** | Yes | Command to run or check to perform. Typically a test command |
 | **Done when** | Yes | Observable condition tied to verification. Not "code is written" — something provable |
-| **Retries** | Yes | Number of retry attempts so far. Starts at 0 |
-| **Last failure** | No | Most recent failure description. Set by Implement skill on retry |
 
 ### Task status values
 
 | Status | Meaning |
 |--------|---------|
 | `pending` | Not yet started |
-| `in_progress` | Executor currently working on it |
 | `passed` | Executor completed, Verifier confirmed |
-| `failed` | Exhausted retries, not resolved |
 | `skipped` | User chose to skip after escalation |
 | `manual` | User implementing manually |
 
@@ -119,9 +102,9 @@ Waves execute sequentially. All tasks in a wave must complete before the next wa
 
 | Consumer | Reads | Writes |
 |----------|-------|--------|
-| **Implement skill** | Full document | Frontmatter status, wave status, task status, retries, last failure |
-| **Resume skill** | Full document | Same as Implement |
-| **Status skill** | Full document | Nothing (read-only) |
+| **Implement skill** | Full document | Frontmatter status, task terminal status (`passed`, `skipped`, `manual`) |
+| **Team Leader** | Full document | Same as Implement |
+| **Status skill** | Plan title, pause reason, task count fallback | Nothing (read-only). Reads TaskList for execution state |
 | **Verifier agent** | Success Criteria, NFRs, individual tasks | Nothing (writes separate verification reports) |
 | **Reviewer agent** | Success Criteria, NFRs, task structure | Nothing (writes separate review reports) |
 | **Planner (revise)** | Full document + CRITIQUE.md | Overwrites full document |

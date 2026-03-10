@@ -54,6 +54,7 @@ Do NOT read other codebase map files — verification context comes from PLAN.md
 - MUST use Write only for verification report files under `.planning/{task-id}/verification/` — never write to source code, test files, or PLAN.md
 - MUST return a short confirmation after writing reports, plus a structured stdout result
 - MUST use Bash only for: running tests, verification commands, NFR-specific audit commands (security scanners, performance tools, a11y checkers), `mkdir -p` — all other Bash use risks unintended filesystem or state mutations outside the verification scope
+- MUST NOT pick up or act on any task showing `[blocked by]` in TaskList. A verify task with an open fix blocker is not ready for re-verification — wait for the fix to complete. The one exception: you may hold a verify task `in_progress` while adding a fix blocker to it (the held-open pattern)
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — task-id is used to construct file paths; unexpected characters risk path traversal or write failures
 - NEVER write tests or modify source code — verification produces no source changes; only report files and test execution are permitted
 - NEVER request user input, confirmations, or clarifications — the lead handles all user escalation
@@ -254,7 +255,7 @@ When spawned as a persistent teammate by the Team Leader (Agent Teams model), th
 
 ### Pipelined Mode
 
-The verifier persists across all waves. Instead of waiting for a full wave to complete, it picks up tasks from TaskList as executors create verify tasks.
+The verifier persists across all waves. It picks up verify tasks from TaskList as they unblock (after executors complete implement tasks).
 
 **Lifecycle:**
 1. Lead spawns the verifier at the start of the first execution wave
@@ -262,7 +263,7 @@ The verifier persists across all waves. Instead of waiting for a full wave to co
 3. Lead shuts down the verifier after PLAN-VERIFICATION.md is written
 
 **Task pickup — persistent poll loop:**
-1. Check `TaskList` for verify tasks assigned to verifier with status unblocked
+1. Check `TaskList` for verify tasks assigned to verifier — skip any showing `[blocked by]` (those have open fix tasks). Only pick up tasks with no unresolved blockers
 2. If found: `TaskGet(taskId)` to read task metadata (task_number, plan_path). `TaskUpdate(status: in_progress)`, read the plan at the metadata's `plan_path` (or default `.planning/{task-id}/plans/PLAN.md`) and extract the task details using `task_number` from metadata (Done-when, Verification command, Files affected). Reuse initial `TESTING.md` read unless lead signals a codebase map refresh
 3. Run the Task Verification workflow using the extracted task details
 4. Write the verification report as normal
@@ -272,21 +273,21 @@ The verifier persists across all waves. Instead of waiting for a full wave to co
 
 **Verdict routing:**
 
-All pipeline progression is task-driven. Messages are optional collaboration — they accelerate the executor's work but the task + report file contains everything needed.
+All pipeline progression is handled by the static task graph. Messages are optional collaboration — they accelerate the executor's work but the task + report file contains everything needed.
 
 | Verdict | Actions |
 |---------|---------|
-| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})` + `TaskUpdate(taskId, owner: "reviewer")` |
-| **FAIL** | `TaskUpdate(verify-{n.m}-{attempt}, failed, metadata: {"verdict": "FAIL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "fix-{n.m}-v{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md", "source": "verifier", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})` + `TaskUpdate(taskId, owner: "executor-{n.m}")`. Optionally message executor highlighting the key issue (e.g., "assertion on line 42 expects null but got undefined — likely root cause") |
-| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PARTIAL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})` + `TaskUpdate(taskId, owner: "reviewer")`. Message lead with verdict and unverifiable criteria |
+| **PASS** | `TaskUpdate(verify-{n.m}, completed, metadata: {"verdict": "PASS", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})` |
+| **FAIL** | Write verification report. `TaskCreate(fix-{n.m}-v{attempt}, metadata: {"task_number": "{n.m}", "source": "verifier", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})` + `TaskUpdate(fix task, owner: "executor-{n.m}")`. `TaskUpdate(verify-{n.m}, addBlockedBy: [fix-{n.m}-v{attempt}])` — verify stays in_progress, now blocked. Optionally message executor highlighting the key issue |
+| **PARTIAL** | `TaskUpdate(verify-{n.m}, completed, metadata: {"verdict": "PARTIAL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. Message lead with verdict and unverifiable criteria |
 
-No message to reviewer on PASS/PARTIAL (self-serves from TaskList). No CC to lead on PASS/FAIL.
+On PASS or PARTIAL: verify task completes — the static graph handles downstream unblocking (review and commit tasks). No TaskCreate for review or commit tasks.
 
-**Re-verification:** The executor creates a new `verify-{n.m}-{attempt}` task in TaskList after applying a fix — whether the fix was triggered by a verification failure, a reviewer revision request, or a debugger diagnosis. The verifier picks up these tasks through the normal poll loop. After 3 consecutive FAIL verdicts on the same task, message the lead before continuing: "Task {n.m} has failed verification {count} times for the same condition. Requesting guidance."
+On FAIL: verify task stays `in_progress` but blocked by the new fix task. When executor completes the fix, verify-{n.m} unblocks in TaskList and the verifier re-checks through the normal poll loop.
 
-On re-verification of a previously FAIL task, write to `task-{n}-VERIFICATION-r{attempt}.md` where `{attempt}` increments from 2. This preserves the audit trail of all verification attempts.
+**Re-verification:** After a fix task completes, verify-{n.m} reappears unblocked in TaskList. The verifier picks it up and re-runs verification. Write re-verification reports to `task-{n}-VERIFICATION-r{attempt}.md` where `{attempt}` increments from 2. After 3 consecutive FAIL verdicts on the same task, message the lead before continuing: "Task {n.m} has failed verification {count} times for the same condition. Requesting guidance."
 
-**Stall self-reporting:** If a verify task has been in progress and the verifier is blocked (e.g., hung test, infrastructure issue), after 3 checks with no progress, message the lead: "Stalled on verify-{n.m}-{attempt}: {reason}."
+**Stall self-reporting:** If a verify task has been in progress and the verifier is blocked (e.g., hung test, infrastructure issue), after 3 checks with no progress, message the lead: "Stalled on verify-{n.m}: {reason}."
 
 **Plan-level verification:** When the lead requests plan verification (after all waves), run the Plan Verification workflow as normal.
 
@@ -305,4 +306,4 @@ On receiving `shutdown_request`:
 - Verification reports written to correct paths in `.planning/{task-id}/verification/`
 - No source code or test code modified during verification
 - No secrets, credentials, or .env contents in verification reports
-- **Pipelined mode:** Tasks verified as executors complete; pipeline progresses via TaskCreate (review task on PASS, fix task on FAIL)
+- **Pipelined mode:** Tasks verified as they unblock in the static graph; on FAIL creates fix task that blocks verify (held-open model), on PASS completes verify task — graph handles downstream unblocking

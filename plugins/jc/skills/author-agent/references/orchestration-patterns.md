@@ -382,52 +382,62 @@ This is how `/jc:implement` orchestrates plan execution — tasks within a wave 
 
 Team members communicate through two mechanisms:
 
-1. **Task creation** — pipeline coordination. Each agent creates the next step on completion:
+1. **Static task graph** — pipeline coordination. All pipeline tasks (implement, verify, review, commit, wave-review) are pre-created with `blockedBy` dependencies. Agents discover work by polling TaskList for unblocked tasks. No agent creates successor pipeline tasks — the graph handles progression. Fix cycles create dynamic fix tasks that block the parent task:
 ```markdown
-Executor completes → TaskCreate(verify-1.1-1, assigned: verifier)
-Verifier PASS → TaskCreate(review-1.1-1, assigned: reviewer)
-Reviewer PASS → TaskCreate(commit-1.1, assigned: executor)
+Verifier FAIL → TaskCreate(fix-{n.m}-v1) + TaskUpdate(verify-{n.m}, addBlockedBy: [fix-{n.m}-v1])
+Reviewer REVISE → TaskCreate(fix-{n.m}-r1) + TaskUpdate(review-{n.m}, addBlockedBy: [fix-{n.m}-r1])
+Executor completes fix → parent verify/review unblocks → agent re-checks
 ```
 
 2. **Messages** — content-carrying feedback only. Messages are for rich, actionable content that doesn't fit in a task description:
 ```markdown
-Verifier → Executor: FAIL details with evidence references
-Reviewer → Executor: Structured findings (file, line, issue, suggestion)
-Debugger → Executor: Root cause diagnosis + recommended fix
+Verifier → Executor: FAIL details with evidence references (alongside fix task)
+Reviewer → Executor: Structured findings (file, line, issue, suggestion) (alongside fix task)
+Debugger → Executor: Root cause diagnosis + recommended fix (session log in investigate task metadata)
 ```
 
 **Design considerations:**
-- Pipeline progression is task-driven, not message-driven
+- Pipeline progression is graph-driven via `blockedBy`, not message-driven or task-chain-driven
+- Both the Team Leader and Implement skill create the same static task graph (see [agent-io-contract.md](../../docs/agent-io-contract.md) Unified Task Graph)
+- Fix tasks are the only dynamic task creation — all other pipeline tasks are pre-created
 - Messages carry only actionable content — no CC messages, no status-only notifications
 - The team lead receives only committed/escalation messages and stall self-reports
 - Teammates self-report stalls after 3 checks with no progress on expected peer responses
 
 ### Task-Driven Coordination
 
-The shared task list is the primary coordination mechanism. Each agent creates the next step in the pipeline on completion — no pre-created chains, no orphaned tasks.
+The shared task list is the primary coordination mechanism. All pipeline tasks are pre-created in a static graph with `blockedBy` dependencies. Agents discover work by polling TaskList for unblocked tasks — no agent creates successor pipeline tasks. Fix tasks are the only dynamic creation.
 
-**Task-chain pipeline pattern:**
+**Static task graph pattern:**
 ```markdown
-Lead: TaskCreate(implement-1.1, assigned: executor)
-  Executor completes → TaskCreate(verify-1.1-1, assigned: verifier)
-    Verifier PASS → TaskCreate(review-1.1-1, assigned: reviewer)
-      Reviewer PASS → TaskCreate(commit-1.1, assigned: executor)
-        Executor commits → messages lead
+Graph creation (by lead or skill):
+  TaskCreate(implement-{n.m}) → TaskCreate(verify-{n.m}) → TaskCreate(review-{n.m}) → TaskCreate(commit-{n.m})
+  TaskUpdate(verify-{n.m}, addBlockedBy: [implement-{n.m}])
+  TaskUpdate(review-{n.m}, addBlockedBy: [implement-{n.m}])
+  TaskUpdate(commit-{n.m}, addBlockedBy: [verify-{n.m}, review-{n.m}])
+  TaskCreate(wave-review-{n}, addBlockedBy: [all commit tasks in wave])
+
+Execution (self-coordinating):
+  Executor completes implement-{n.m} → verify + review unblock → agents pick up
+  Both pass → commit unblocks → executor commits → wave-review unblocks when all commits done
 ```
 
 **Task naming convention:**
-- `implement-{n.m}` — implementation task
-- `verify-{n.m}-{attempt}` — verification (attempt starts at 1)
-- `review-{n.m}-{attempt}` — review (attempt starts at 1)
-- `commit-{n.m}` — commit (no attempt number — only created on reviewer PASS)
-- `investigate-{n.m}-{attempt}` — investigation (attempt starts at 1)
+- `implement-{n.m}` — implementation (static, one per plan item)
+- `verify-{n.m}` — verification (static, held open through fix cycles)
+- `review-{n.m}` — per-task review (static, held open through fix cycles)
+- `commit-{n.m}` — commit (static, unblocks when verify + review complete)
+- `wave-review-{n}` — wave-level review (static, one per wave, blockedBy all wave commits)
+- `fix-{n.m}-v{attempt}` — fix from verifier (dynamic, blocks verify)
+- `fix-{n.m}-r{attempt}` — fix from reviewer (dynamic, blocks review)
+- `investigate-{n.m}` — debugger investigation (dynamic, blocks executor's current task)
 
 **Tiered state model:**
-- **Same session:** TaskList is primary source of truth
-- **Fresh session (after pause):** PLAN.md is primary (TaskList is gone). Lead creates fresh task chains for non-terminal tasks
+- **TaskList is always primary** — both same-session and cross-session when available
+- **PLAN.md is crash-recovery checkpoint** — receives terminal-state checkpoints only (`passed`, `skipped`, `manual`). No `in_progress` writes during execution
 - **LEADER-STATE.md:** Supplementary — captures session context (active teammates, guidance, patterns) that neither TaskList nor PLAN.md can
 
-**Rule**: Prefer task list state over messages for tracking progress. Messages supplement — they don't replace — task state. Pipeline coordination uses TaskCreate; messages carry only content-rich feedback.
+**Rule**: Prefer task list state over messages for tracking progress. Messages supplement — they don't replace — task state. Pipeline coordination uses the static graph with `blockedBy`; messages carry only content-rich feedback.
 
 ## Hybrid Approaches
 
@@ -740,9 +750,11 @@ Heavy coordinator = bottleneck. Coordinator should route and synthesize, not do 
 
 ### Task List As Source Of Truth
 
-**For Agent Teams, the task list is the canonical state within a session**.
+**For Agent Teams, the task list is the canonical state — both within and across sessions when available**.
 
-Messages are ephemeral context. Task state (pending/in_progress/completed, owner, blockedBy) is the durable record within a session. For cross-session durability, PLAN.md serves as the backup — updated per-task, not at wave boundaries. LEADER-STATE.md captures session context (active teammates, guidance, retry patterns) that neither TaskList nor PLAN.md can. Design workflows around task state transitions, not message exchanges.
+Messages are ephemeral context. Task state (pending/in_progress/completed, owner, blockedBy) is the durable record. For cross-session durability when TaskList is gone, PLAN.md serves as the crash-recovery checkpoint — terminal states only (`passed`, `skipped`, `manual`). LEADER-STATE.md captures session context (active teammates, guidance, retry patterns) that neither TaskList nor PLAN.md can. Design workflows around task state transitions, not message exchanges.
+
+**blockedBy discipline (CRITICAL):** The Task API's `blockedBy` is advisory — it does not enforce dependency order. Agents MUST enforce it themselves. When polling TaskList, skip any task showing `[blocked by ...]`. Only pick up tasks with no unresolved blockers. The one exception is the fix-cycle hold pattern: a verifier/reviewer may hold a task `in_progress` while adding a fix blocker to it. See [agent-io-contract.md](../../docs/agent-io-contract.md) for the full blockedBy discipline rules.
 
 ### Prefer Subagents Over Teams
 
