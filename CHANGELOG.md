@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace dynamic task-chains with static task graph using blockedBy dependencies
+- Make pipeline progression task-driven with optional collaborative messaging
+
+### Fixed
+
+- Define explicit shutdown procedure for team-leader teammates
+- Inject plugin_root into main instance via SessionStart hook
+- Require absolute paths for Write calls in all agents
+
 ## [1.5.4] - 2026-03-09
 
 ### Fixed
