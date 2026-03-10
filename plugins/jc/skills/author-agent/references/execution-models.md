@@ -31,7 +31,7 @@ One-shot execution: receives input, does work, returns result. No inter-agent co
 - Keep prompts focused — one task per subagent invocation
 - Handle errors by returning structured error output, not retrying
 
-**Canonical examples:** `team-mapper` (writes analysis docs, returns confirmation)
+**Canonical examples:** (none currently)
 
 ## Forked Skill Capability
 
@@ -92,7 +92,7 @@ When spawned as a standalone subagent:
 - No team coordination needed
 ```
 
-**Canonical examples:** `team-executor`, `team-reviewer`, `team-verifier` (can be spawned standalone or as part of an agent team)
+**Canonical examples:** `team-mapper`, `team-researcher`, `team-executor`, `team-reviewer`, `team-verifier` (can be spawned standalone or as part of an agent team)
 
 ## Decision Framework
 
