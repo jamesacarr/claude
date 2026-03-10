@@ -272,21 +272,17 @@ The verifier persists across all waves. Instead of waiting for a full wave to co
 
 **Verdict routing:**
 
+All pipeline progression is task-driven. Messages are optional collaboration — they accelerate the executor's work but the task + report file contains everything needed.
+
 | Verdict | Actions |
 |---------|---------|
-| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. `TaskUpdate(taskId, owner: "reviewer")`. Message executor: "Task {n.m} PASS — verified" |
-| **FAIL** | `TaskUpdate(verify-{n.m}-{attempt}, failed, metadata: {"verdict": "FAIL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. Message executor with failure details + evidence |
-| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PARTIAL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`. `TaskUpdate(taskId, owner: "reviewer")`. Message lead with verdict and unverifiable criteria |
+| **PASS** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})` + `TaskUpdate(taskId, owner: "reviewer")` |
+| **FAIL** | `TaskUpdate(verify-{n.m}-{attempt}, failed, metadata: {"verdict": "FAIL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "fix-{n.m}-v{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md", "source": "verifier", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})` + `TaskUpdate(taskId, owner: "executor-{n.m}")`. Optionally message executor highlighting the key issue (e.g., "assertion on line 42 expects null but got undefined — likely root cause") |
+| **PARTIAL** | `TaskUpdate(verify-{n.m}-{attempt}, completed, metadata: {"verdict": "PARTIAL", "report_path": ".planning/{task-id}/verification/task-{n}-VERIFICATION.md"})`. `TaskCreate(subject: "review-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})` + `TaskUpdate(taskId, owner: "reviewer")`. Message lead with verdict and unverifiable criteria |
 
-No message to reviewer (self-serves from TaskList). No CC to lead on PASS/FAIL.
+No message to reviewer on PASS/PARTIAL (self-serves from TaskList). No CC to lead on PASS/FAIL.
 
-**Direct executor feedback:**
-When messaging an executor about a FAIL, include:
-- Which Done-when conditions failed and why
-- Relevant command output or evidence
-- Reference to the full verification report path
-
-**Re-verification:** The executor creates a new `verify-{n.m}-{attempt}` task in TaskList after ANY fix — whether the fix was triggered by a verification failure, a reviewer revision request, or a debugger diagnosis. The verifier picks up these tasks through the normal poll loop. After 3 consecutive FAIL verdicts on the same task, message the lead before continuing: "Task {n.m} has failed verification {count} times for the same condition. Requesting guidance."
+**Re-verification:** The executor creates a new `verify-{n.m}-{attempt}` task in TaskList after applying a fix — whether the fix was triggered by a verification failure, a reviewer revision request, or a debugger diagnosis. The verifier picks up these tasks through the normal poll loop. After 3 consecutive FAIL verdicts on the same task, message the lead before continuing: "Task {n.m} has failed verification {count} times for the same condition. Requesting guidance."
 
 On re-verification of a previously FAIL task, write to `task-{n}-VERIFICATION-r{attempt}.md` where `{attempt}` increments from 2. This preserves the audit trail of all verification attempts.
 
@@ -309,4 +305,4 @@ On receiving `shutdown_request`:
 - Verification reports written to correct paths in `.planning/{task-id}/verification/`
 - No source code or test code modified during verification
 - No secrets, credentials, or .env contents in verification reports
-- **Pipelined mode:** Tasks verified as executors complete, feedback sent directly to executors, lead notified of all verdicts
+- **Pipelined mode:** Tasks verified as executors complete; pipeline progresses via TaskCreate (review task on PASS, fix task on FAIL)

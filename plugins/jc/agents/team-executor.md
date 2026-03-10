@@ -211,18 +211,30 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 **After completing implementation** (team mode override at step 10 in core Workflow):
 1. `TaskUpdate(implement-{n.m}, status: completed, metadata: {"task_number": "{n.m}"})`
 2. `TaskCreate(subject: "verify-{n.m}-1", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — verifier picks up from TaskList
-3. Wait for feedback — either a `commit-{n.m}` task appears in TaskList (PASS path) or a FAIL/REVISE message arrives (fix path)
+3. Optionally message verifier with context if you deviated from the plan (e.g., "Used decorator instead of mixin because X — verify accordingly")
+4. Enter the task poll loop (see below)
 
-**Unified fix rule:** After applying ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis):
-1. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — full pipeline restarts from verification
-2. Wait for feedback (same as above)
+**Task poll loop:** After creating a verify task, poll TaskList for the next task assigned to you. There are two possible outcomes:
+- `commit-{n.m}` task → proceed to Commit handling
+- `fix-{n.m}-*` task → proceed to Fix handling
 
-**Commit via task pickup:** Poll TaskList for a `commit-{n.m}` task assigned to you. On pickup:
+**Commit handling:** On picking up a `commit-{n.m}` task:
 1. `TaskUpdate(commit-{n.m}, in_progress)`
 2. Stage the specific files in "Files affected" plus test files created
 3. Commit with conventional commit format
 4. `TaskUpdate(commit-{n.m}, completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})`
 5. Message the lead: "Task {n.m} committed: {hash} {message}"
+
+**Fix handling:** On picking up a `fix-{n.m}-*` task (created by verifier, reviewer, or debugger):
+1. `TaskUpdate(fix-{n.m}-*, in_progress)`
+2. Read task metadata to determine the source (`source` key: `"verifier"`, `"reviewer"`, or `"debugger"`) and the referenced file (`report_path`, `findings_path`, or `session_log_path`)
+3. Read the referenced file for failure details, review findings, or diagnosis
+4. Analyse and apply the fix — same as Deviation Handling
+5. Re-run tests to confirm no regressions
+6. `TaskUpdate(fix-{n.m}-*, completed)`
+7. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — full pipeline restarts from verification
+8. Track this as a deviation. If deviation counter reaches 3, escalate (see below)
+9. Return to the task poll loop
 
 **Escalation:** On escalation (deviation limit reached):
 1. Write execution learnings (unchanged)
@@ -236,33 +248,17 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 
 No other messages to the lead.
 
-### Feedback Handling
+### Fix Scope Handling
 
-**Verifier feedback:** The verifier may message you directly with a FAIL verdict:
-1. Read the failure details and evidence references
-2. Analyse the failure — same as Deviation Handling
-3. Fix the issue and re-run verification locally (tests + verification command)
-4. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — pipeline restarts from verification
-5. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
+When applying a fix from reviewer findings: check scope. If any finding requires changes to files not listed in "Files affected", message the lead to escalate rather than applying it — do not make out-of-scope changes from reviewer feedback.
 
-**Reviewer feedback:** The reviewer may message you directly with blocking findings:
-1. Read each finding (file, line, issue, suggestion)
-2. Check scope: if any finding requires changes to files not listed in "Files affected", message the lead to escalate rather than applying it — do not make out-of-scope changes from reviewer feedback
-3. Apply the in-scope suggested fixes
-4. Re-run tests to confirm no regressions
-5. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — pipeline restarts from verification (NOT the reviewer)
-6. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
+### Key Principles
 
-**Debugger collaboration:** The debugger may message you with a root cause diagnosis and recommended fix:
-1. Read the diagnosis and recommended changes
-2. Apply the fix as specified
-3. Re-run tests to verify
-4. `TaskCreate(subject: "verify-{n.m}-{attempt}", metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(taskId, owner: "verifier")` — pipeline restarts from verification
-5. Track this as a deviation. If deviation counter reaches 3, escalate (see Escalation above)
+- **Tasks drive the pipeline** — the executor polls TaskList for work, not its inbox. Fix tasks, commit tasks, and verify tasks are all discovered via TaskList
+- **Messages are optional context** — verifier, reviewer, or debugger may message you alongside a fix task with guidance (key issue highlight, priority ordering, interactive recommendation). These accelerate your work but the fix task + referenced file contains everything needed
+- **Every fix restarts the full pipeline** — after any fix, create a new verify task. The executor never skips verification or review
 
-**Key principle:** Every fix restarts the full verify → review pipeline via TaskCreate. The executor never messages the verifier or reviewer directly for pipeline progression — task creation drives the pipeline. Messages carry only content-rich feedback (FAIL details, REVISE findings, diagnosis).
-
-**Stall self-reporting:** If waiting for a peer response (commit task or feedback) and 3 consecutive TaskList checks show no progress, message the lead: "Stalled waiting for {role} on task {n.m}."
+**Stall self-reporting:** If waiting in the task poll loop (no commit or fix task appears) and 3 consecutive TaskList checks show no progress, message the lead: "Stalled waiting for {role} on task {n.m}."
 
 **Status requests:** If the lead messages asking for progress, respond with current TDD phase and task number (e.g., "Task 2.3 in progress — currently in GREEN phase, 2/4 tests passing").
 
@@ -283,4 +279,4 @@ On `shutdown_request` from the team lead:
 - TDD discipline followed: failing test exists before implementation
 - No secrets, credentials, or .env contents in committed code
 - Deviations ≤ 3, or escalated to caller if exceeded
-- **Team mode:** Responds to all teammate feedback messages, applies in-scope fixes, notifies lead after each fix
+- **Team mode:** Picks up fix and commit tasks from TaskList, applies in-scope fixes, restarts pipeline via verify task after each fix

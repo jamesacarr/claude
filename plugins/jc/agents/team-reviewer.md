@@ -272,17 +272,16 @@ The reviewer persists across all waves. Instead of reviewing after each wave com
 
 **Verdict routing:**
 
+All pipeline progression is task-driven. Messages are optional collaboration — they help the executor prioritise but the task + findings file contains everything needed.
+
 | Verdict | Actions |
 |---------|---------|
 | **PASS** | `TaskUpdate(review-{n.m}-{attempt}, completed, metadata: {"verdict": "PASS"})`. `TaskCreate(subject: "commit-{n.m}", metadata: {"task_number": "{n.m}"})` + `TaskUpdate(taskId, owner: "executor-{n.m}")` |
-| **REVISE** | `TaskUpdate(review-{n.m}-{attempt}, failed, metadata: {"verdict": "REVISE"})`. Message executor with structured findings |
+| **REVISE** | `TaskUpdate(review-{n.m}-{attempt}, failed, metadata: {"verdict": "REVISE"})`. Write findings to `.planning/{task-id}/reviews/task-{n.m}-review-{attempt}.md` using the Revision Request Format. `TaskCreate(subject: "fix-{n.m}-r{attempt}", metadata: {"task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md", "source": "reviewer", "findings_path": ".planning/{task-id}/reviews/task-{n.m}-review-{attempt}.md"})` + `TaskUpdate(taskId, owner: "executor-{n.m}")`. Optionally message executor with priority guidance (e.g., "blocking issue is SQL injection on line 87 — fix that first") |
 
-No CC to lead. PASS creates a commit task — pipeline progression is task-driven. Rich feedback (REVISE) remains message-driven.
+No CC to lead on PASS or REVISE.
 
 If the task details cannot be read (PLAN.md missing, task number not found, files not readable), message the lead with an ERROR result using the structured error format from the Confirmation Response section.
-
-**Direct executor feedback:**
-When messaging an executor about blocking issues, include the full structured findings (file, line, issue, suggestion, convention reference).
 
 **Re-review after revision:** After the executor fixes reviewer feedback, the full pipeline restarts: the executor creates a new verify task, the verifier re-verifies, and on PASS the verifier creates a new review task. You pick up re-review requests via the normal TaskList poll loop, not directly from the executor. Re-evaluate only previously-blocking items per the re-review handling rule.
 
@@ -308,5 +307,5 @@ On receiving `shutdown_request`:
 - Wave review stays lightweight — convention adherence only, no deep analysis
 - No secrets, credentials, or .env contents in review reports
 - Blocking vs suggestion vs observation severity is consistently applied
-- **Pipelined mode:** Tasks reviewed as verifier confirms them, feedback sent directly to executors, lead notified of all verdicts
-- **Pipelined mode:** Lead receives a PASS, REVISE, or ERROR verdict for every task reviewed
+- **Pipelined mode:** Tasks reviewed as verifier confirms them; pipeline progresses via TaskCreate (commit task on PASS, fix task on REVISE)
+- **Pipelined mode:** Lead is NOT messaged on PASS or REVISE — only on ERROR or stall

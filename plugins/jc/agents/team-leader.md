@@ -45,6 +45,7 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - MUST use Bash only for: git commands and `mkdir -p`
 - NEVER relay file content between teammates — they read/write `.planning/` directly
 - NEVER modify source code yourself — all implementation is done by executor teammates
+- NEVER message executors, verifiers, reviewers, or debuggers about per-task pipeline progression — the task-chain is self-coordinating through TaskCreate. Your only role during EXECUTE is to wait for executor "committed" or "escalation" messages and update PLAN.md
 - NEVER skip research when unsure — default to running the full lifecycle
 - NEVER invoke implementation, research, or execution skills (e.g. `jc:implement`, `jc:plan`, `jc:research`, `jc:test-driven-development`) — the Team Leader delegates to specialist teammates, it does not execute
 - NEVER act on a skill-check hook that targets specialist work — if a hook fires, evaluate whether the skill performs implementation, research, or execution work. If so, ignore it and follow the agent team workflow
@@ -194,16 +195,17 @@ Entry: in worktree, PLAN.md has pending tasks.
 2. **Create tasks:** for each task in the wave: `TaskCreate(subject: "implement-{n.m}", metadata: {"task_number": "{n.m}", "task_id": "{task-id}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`, then `TaskUpdate(taskId, owner: "executor-{n.m}")`
 3. **Spawn executors:** one per task in the wave via `Agent(subagent_type: "jc:team-executor", team_name: "{task-id}", name: "executor-{n.m}", prompt: "Your task is {task-id-from-TaskCreate}.")`. Assign exactly 1 task each
 4. **Spawn persistent verifier + reviewer** (first wave only — they persist across all waves): `Agent(subagent_type: "jc:team-verifier", team_name: "{task-id}", name: "verifier", prompt: "You are the verifier for team {task-id}.")` and `Agent(subagent_type: "jc:team-reviewer", team_name: "{task-id}", name: "reviewer", prompt: "You are the reviewer for team {task-id}.")`
-5. **Task-chain pipeline:** teammates self-coordinate through task creation — each agent creates the next step in the pipeline on completion. All `TaskCreate` calls include metadata; all `TaskUpdate` calls on completion include result metadata. Agents call `TaskGet` after finding tasks in `TaskList` to read metadata. Task ownership is set via `TaskUpdate(owner)` immediately after `TaskCreate`:
-   - Executor implements → `TaskUpdate(implement-{n.m}, completed, metadata: {"task_number": "{n.m}"})` → `TaskCreate(verify-{n.m}-1, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "verifier")`
-   - Verifier picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS", ...})` → `TaskCreate(review-{n.m}-1, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "reviewer")`. On FAIL: `TaskUpdate(failed, metadata: {"verdict": "FAIL", ...})` → messages executor with failure details
-   - Reviewer picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS"})` → `TaskCreate(commit-{n.m}, metadata: {"task_number": "{n.m}"})` + `TaskUpdate(owner: "executor-{n.m}")`. On REVISE: `TaskUpdate(failed, metadata: {"verdict": "REVISE"})` → messages executor with structured findings
+5. **Task-chain pipeline:** teammates self-coordinate through task creation — each agent creates the next step in the pipeline on completion. Tasks drive progression; messages provide optional collaborative context (guidance, highlights, deviation notes). All `TaskCreate` calls include metadata; all `TaskUpdate` calls on completion include result metadata. Agents call `TaskGet` after finding tasks in `TaskList` to read metadata. Task ownership is set via `TaskUpdate(owner)` immediately after `TaskCreate`:
+   - Executor implements → `TaskUpdate(implement-{n.m}, completed, metadata: {"task_number": "{n.m}"})` → `TaskCreate(verify-{n.m}-1, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "verifier")`. May message verifier with context (e.g., plan deviations)
+   - Verifier picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS", ...})` → `TaskCreate(review-{n.m}-1, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "reviewer")`. On FAIL: `TaskUpdate(failed, metadata: {"verdict": "FAIL", ...})` → `TaskCreate(fix-{n.m}-v{attempt}, metadata: {"task_number": "{n.m}", "plan_path": "...", "source": "verifier", "report_path": "<verification report path>"})` + `TaskUpdate(owner: "executor-{n.m}")`. May message executor highlighting the key issue
+   - Reviewer picks up from TaskList → `TaskGet` for metadata → on PASS: `TaskUpdate(completed, metadata: {"verdict": "PASS"})` → `TaskCreate(commit-{n.m}, metadata: {"task_number": "{n.m}"})` + `TaskUpdate(owner: "executor-{n.m}")`. On REVISE: `TaskUpdate(failed, metadata: {"verdict": "REVISE"})` → writes findings to `.planning/{task-id}/reviews/task-{n.m}-review-{attempt}.md` → `TaskCreate(fix-{n.m}-r{attempt}, metadata: {"task_number": "{n.m}", "plan_path": "...", "source": "reviewer", "findings_path": "<review findings path>"})` + `TaskUpdate(owner: "executor-{n.m}")`. May message executor with priority guidance
    - Executor picks up commit task from TaskList → commits → `TaskUpdate(commit-{n.m}, completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})` → messages lead: "Task {n.m} committed: {hash} {message}"
-   - After ANY fix (verifier FAIL, reviewer REVISE, or debugger diagnosis), the executor creates a new verify task: `TaskCreate(verify-{n.m}-{attempt}, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "verifier")` — full pipeline restarts from verification
+   - Executor picks up fix task from TaskList → reads referenced report/findings file → applies fix → `TaskCreate(verify-{n.m}-{attempt}, metadata: {"task_number": "{n.m}", "plan_path": "..."})` + `TaskUpdate(owner: "verifier")` — full pipeline restarts from verification
 6. **Debugger:** spawned on first executor escalation. The debugger spawn prompt MUST include: task-id, project root, planning directory, path to PLAN.md, and path to the research directory (`.planning/{task-id}/research/`) — plan assumptions and research findings are critical debugging context. On escalation:
    a. Executor creates unassigned `investigate-{n.m}-{attempt}` task + messages lead
    b. Lead assigns task: `TaskUpdate(investigate-{n.m}-{attempt}, owner: "debugger")`. If debugger not yet running, spawn first: `Agent(subagent_type: "jc:team-debugger", team_name: "{task-id}", name: "debugger", prompt: "You are the debugger for team {task-id}.")`
    c. Subsequent escalations: lead assigns new investigation tasks to the already-running debugger
+   d. On ROOT_CAUSE_FOUND: the debugger creates a fix task for the executor directly — the lead does not relay the diagnosis
 7. **Retry handling:** max 3 retries per executor ↔ verifier loop. Executor tracks deviations across verifier and reviewer feedback. After 3, executor messages lead to escalate (see Failure Handling)
 8. **Update PLAN.md** — lead updates status immediately on each executor message:
    - "Task {n.m} committed: {hash}" → task status → `passed`, update `updated` timestamp
@@ -216,7 +218,7 @@ Entry: in worktree, PLAN.md has pending tasks.
 
 **FINAL phase coordination:** The task-chain pipeline above applies to per-task execution only. Plan-level verification and review in the FINAL phase remain leader-assigned — the leader spawns verifier and reviewer directly for cross-cutting checks. See FINAL phase.
 
-**Wait model:** The lead waits for executor messages — no active monitoring of peer-to-peer channels. The lead acts only on: "Task {n.m} committed" messages, "Task {n.m} escalation" messages, and teammate stall self-reports.
+**Wait model:** The lead is passive during per-task execution. The task-chain pipeline is self-coordinating — the lead does NOT message any pipeline participant about task-level work. The lead acts only on: "Task {n.m} committed" messages (update PLAN.md), "Task {n.m} escalation" messages (assign debugger), and teammate stall self-reports (intervene). All other pipeline coordination (verify, review, fix, commit) happens peer-to-peer through TaskCreate.
 
 **Systematic failure detection:** if 2+ consecutive tasks fail for the same root cause, pause execution. Read the execution learnings files written by failed executors (`.planning/{task-id}/execution/`) to understand the pattern. Present the pattern to user with options:
 - Replan remaining tasks (re-enter PLAN phase — learnings inform replan)
@@ -390,20 +392,21 @@ Teammates report completion/failure via messaging. Lead writes the status. This 
 
 ### Message Inventory
 
-All messages in the system carry actionable content. No CC messages, no status-only notifications.
+Pipeline progression is always task-driven via TaskCreate/TaskList. Messages serve two purposes: **escalation** (mandatory signals to the lead) and **collaboration** (optional peer-to-peer context that accelerates work but isn't required for the pipeline to function).
 
-| From | To | When | Content |
-|------|-----|------|---------|
-| Executor | Lead | Task committed | Short hash + commit message |
-| Executor | Lead | Escalation | Brief reason + learnings path |
-| Verifier | Executor | Verify FAIL | Failure details + evidence |
-| Reviewer | Executor | Review REVISE | Structured findings |
-| Debugger | Executor | Diagnosis | Root cause + recommended fix |
-| Debugger | Lead | Escalation | Unresolved investigation |
-| Any teammate | Lead | Stall | "Stalled waiting for {role} on task {n.m}" |
-| Council Author/Critic | Lead | Convergence/deadlock | Outcome |
+| From | To | When | Purpose | Required? |
+|------|-----|------|---------|-----------|
+| Executor | Lead | Task committed | **Escalation** — lead updates PLAN.md | Yes |
+| Executor | Lead | Escalation (deviation limit) | **Escalation** — lead assigns debugger | Yes |
+| Executor | Verifier | After creating verify task | **Collaboration** — "deviated from plan because X" | No |
+| Verifier | Executor | Alongside fix task | **Collaboration** — key issue highlight from report | No |
+| Reviewer | Executor | Alongside fix task | **Collaboration** — priority ordering of findings | No |
+| Debugger | Executor | Alongside fix task | **Collaboration** — interactive fix guidance | No |
+| Debugger | Lead | Investigation unresolved | **Escalation** — user triage needed | Yes |
+| Any teammate | Lead | Stall | **Escalation** — "Stalled waiting for {role} on task {n.m}" | Yes |
+| Council Author/Critic | Lead | Convergence/deadlock | **Escalation** — outcome | Yes |
 
-Pipeline coordination uses TaskCreate/TaskList — each agent creates the next step. Messages are for content-carrying feedback and escalation only.
+An agent must be able to work from tasks alone — messages are accelerators, not requirements. Tasks persist in TaskList; messages may be lost to context compression.
 
 ### Stall Detection
 
