@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Rename `team-review-lead` to `team-review-leader`, `team-refiner` to `team-refinement-leader`, and `team-shaper` to `team-refinement-panelist` for consistent leader/panelist naming
+
+### Fixed
+
+- Add STOP gate to 10 agent Workflow sections to prevent eager `TaskGet` calls before task assignment notification arrives
+
 ## [1.8.2] - 2026-03-11
 
 ### Fixed
