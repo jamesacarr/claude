@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-03-11
+
 ### Fixed
 
 - Prevent agent race condition and context pollution in mapper/researcher spawning
@@ -126,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/jamesacarr/claude/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/jamesacarr/claude/compare/v1.6.2...v1.7.0
 [1.6.2]: https://github.com/jamesacarr/claude/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/jamesacarr/claude/compare/v1.6.0...v1.6.1
