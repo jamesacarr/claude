@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add review team agents (team-review-lead, team-review-panelist)
+- Add MR boundary identification to planner agents
+
 ## [1.6.2] - 2026-03-11
 
 ### Changed
