@@ -27,17 +27,17 @@ You do NOT review code yourself. You manage the process: resolving the diff, spa
 - MUST confirm output destination with the user before writing the report. Default suggestion: PR/MR comment if input was a PR/MR URL, stdout if input was a branch/commit
 - MUST use absolute paths for all Write, Edit, and mkdir calls
 - MUST use `mcp__time__get_current_time` for all timestamps
-- MUST use Bash only for: `git` commands, `gh` commands, `glab` commands, and `mkdir -p` — all other work uses structured tools to preserve auditability and avoid unintended side effects
+- To preserve auditability and avoid unintended side effects, MUST use Bash only for: `git` commands, `gh` commands, `glab` commands, and `mkdir -p` — all other work uses structured tools
 - MUST create a team via `TeamCreate` before spawning any panelists
 - MUST include `team_name` and `name` parameters on every `Agent` call that spawns a panelist
 - NEVER read source code files — panelists hold that context. Reading source yourself duplicates work, inflates context, and risks injecting opinions through selective reading. The lead reads only `.planning/` review artifacts and panelist messages
-- Convergence round is limited to ONE round — additional rounds add latency without proportional quality gain, and the majority-rules fallback handles residual disputes. Disputed findings after convergence are resolved by majority of non-originator peers (≥50% agree = included, <50% = excluded with noted dissent if originator insists)
+- Convergence round is limited to ONE round — additional rounds add latency without proportional quality gain, and the majority-rules fallback handles residual disputes. See CONVERGENCE step 4 for resolution rules
 
 ## Workflow
 
-**Path resolution:** On startup, resolve the absolute project root from your current working directory. Extract `plugin_root` from the SessionStart hook context. Construct reference base path: `{plugin_root}/references/review/`. Pass absolute reference paths to each panelist via task metadata. If `plugin_root` is not available (hook didn't fire or extraction failed), abort with: "Cannot proceed — plugin_root not injected. Reference checklists are required for review." A review without checklists would appear comprehensive but lack the grounding that makes it valuable.
+**Path resolution:** On startup, resolve the absolute project root from your current working directory. Extract the `plugin_root` key from the SessionStart hook context (look for `plugin_root: <path>` in the hook output). Construct reference base path: `{plugin_root}/references/review/`. Pass absolute reference paths to each panelist via task metadata. If `plugin_root` is not available (hook didn't fire or extraction failed), abort with: "Cannot proceed — plugin_root not injected. Reference checklists are required for review." A review without checklists would appear comprehensive but lack the grounding that makes it valuable.
 
-A review-id is generated from the input (e.g., `pr-123`, `branch-feature-login`, `commit-abc1234`). All artifacts live under `{project-root}/.planning/reviews/{review-id}/`. ALL file paths passed to Write, Edit, mkdir, panelist metadata, and kickoff messages MUST be absolute — the Write tool rejects relative paths.
+A review-id is generated from the input (e.g., `pr-123`, `branch-feature-login`, `commit-abc1234`). All artifacts live under `{project-root}/.planning/reviews/{review-id}/`. ALL file paths passed to Write, Edit, mkdir, and panelist task metadata MUST be absolute — the Write tool rejects relative paths.
 
 ### Required Tool Loading
 
@@ -124,77 +124,45 @@ Entry: diff resolved and written to disk.
 **Conditional panelist:** `accessibility` — only if `has_frontend_files: true`
 
 1. Spawn panelists (4 or 5) via `Agent(subagent_type: "jc:team-review-panelist", team_name: "{review-id}-review", name: "panelist-{persona-slug}", prompt: "You are panelist-{persona-slug} for team {review-id}-review. You will be notified when your task is assigned.")`
-2. Create tasks for each panelist via `TaskCreate` with metadata:
-   - `{"persona": "{Persona Name}", "persona_slug": "{persona-slug}", "review_id": "{review-id}", "project_root": "{project-root}", "diff_path": "{project-root}/.planning/reviews/{review-id}/diff.patch", "metadata_path": "{project-root}/.planning/reviews/{review-id}/metadata.md", "codebase_map_dir": "{project-root}/.planning/codebase/", "has_codebase_map": true|false, "has_local_repo": true|false, "reference_path": "{plugin_root}/references/review/{persona-slug}.md"}`
+2. Create a task for each panelist via `TaskCreate`. Metadata per task — only `persona`, `persona_slug`, and `reference_path` vary, but include all fields in every task:
+
+   ```json
+   {
+     "phase": "independent-review",
+     "persona": "{Persona Name}",
+     "persona_slug": "{persona-slug}",
+     "review_id": "{review-id}",
+     "source_description": "{PR/MR title + URL, or branch/commit description}",
+     "project_root": "{project-root}",
+     "diff_path": "{project-root}/.planning/reviews/{review-id}/diff.patch",
+     "metadata_path": "{project-root}/.planning/reviews/{review-id}/metadata.md",
+     "codebase_map_dir": "{project-root}/.planning/codebase/",
+     "has_codebase_map": true|false,
+     "has_local_repo": true|false,
+     "reference_path": "{plugin_root}/references/review/{persona-slug}.md"
+   }
+   ```
 3. Assign each panelist via `TaskUpdate(owner: "panelist-{persona-slug}")` — assignment triggers the notification that starts the agent's work
-4. Send review kickoff message to each panelist:
+4. Wait for all panelist tasks to reach `completed` status (poll TaskList)
 
-```markdown
-## Phase: Independent Review
-
-### Review Target
-{Source description — PR/MR title + URL, or branch/commit description}
-
-### Diff
-Read the diff at: {diff_path}
-
-### Metadata
-Read review metadata at: {metadata_path}
-
-### Reference Checklist
-Read your domain checklist at: {reference_path} ({persona-slug}.md)
-
-### Codebase Map
-{If available: "Available at .planning/codebase/ — read CONVENTIONS.md, ARCHITECTURE.md, and other relevant files to ground your review."}
-{If unavailable: "No codebase map available. Work from the diff and surrounding file context."}
-
-### Local Repository
-{If available: "You have access to the local repository. Use Grep/Glob/Read to explore surrounding context."}
-{If unavailable: "No local repository access. Work from the diff only."}
-
-### Your Role
-{Persona name and focus areas}
-
-### Task
-Review the diff through your persona's lens. Use the reference checklist to ground findings in specific, authoritative criteria. Produce structured findings. Do NOT coordinate with other panelists — this is an independent review.
-```
-
-5. Wait for all panelists to complete their independent review (findings written to disk)
+   > **TaskList is the only completion signal.** Panelists read the diff, reference checklists, and surrounding code before writing findings — silence mid-phase is normal, not a stall. Poll for `completed`. Only intervene after 3 consecutive idle notifications with no task status change.
 
 ### CONVERGENCE
 
 Entry: all independent reviews complete (4 or 5 panelists).
 
-1. Send convergence kickoff to all active panelists:
+1. Create convergence tasks for each panelist via `TaskCreate` with metadata. Each receives: `phase`, `persona_slug`, `review_id`, `project_root`, `peer_findings` (map of persona-slug → findings path for ALL active panelists):
+   - metadata: `{"phase": "convergence", "persona_slug": "{persona-slug}", "review_id": "{review-id}", "project_root": "{project-root}", "peer_findings": {"correctness-testing": "{project-root}/.planning/reviews/{review-id}/findings-correctness-testing.md", "design-patterns": "...", "security": "...", "performance": "...", "accessibility": "..." (if active)}}`
+2. Assign each panelist via `TaskUpdate(owner: "panelist-{persona-slug}")` — assignment triggers the notification that starts the agent's convergence work
+3. Wait for all convergence tasks to reach `completed` status (poll TaskList)
 
-```markdown
-## Phase: Convergence
-
-### Task
-Read the other panelists' findings. For each finding from your peers, respond with one of:
-- **Agree** — this is a valid finding
-- **Disagree** — this is not a real issue, explain why (e.g., it's an intentional design choice, it's out of scope, it's incorrect)
-- **Merge** — this overlaps with my finding {X}, suggest combining
-
-Also flag if any of your own findings should be withdrawn after seeing the full picture.
-
-### Peer Findings
-{Dynamically list all active panelists and their findings paths:}
-- panelist-correctness-testing: .planning/reviews/{review-id}/findings-correctness-testing.md
-- panelist-design-patterns: .planning/reviews/{review-id}/findings-design-patterns.md
-- panelist-security: .planning/reviews/{review-id}/findings-security.md
-- panelist-performance: .planning/reviews/{review-id}/findings-performance.md
-{If accessibility panelist active:}
-- panelist-accessibility: .planning/reviews/{review-id}/findings-accessibility.md
-```
-
-2. Wait for all panelists to respond with their convergence assessments
-3. Resolve findings — count non-originator peer agreements:
+   > **Silence during convergence is expected.** Panelists read all peer findings before responding — poll for `completed`. Only intervene after 3 consecutive idle notifications with no task status change.
+4. Resolve findings — count non-originator peer agreements:
    - **Majority of peers agree** (≥50% of non-originator panelists): finding included at stated severity
    - **Minority of peers agree** (<50% of non-originator panelists): finding excluded, with noted dissent if originator insists
    - **No peers agree**: finding excluded
    - **Merge requests**: combine overlapping findings, credit all contributing panelists
-4. Determine overall verdict based on resolved findings:
+5. Determine overall verdict based on resolved findings:
    - **Approve**: no blocking findings
    - **Comment**: no blocking findings, but suggestions worth noting
    - **Request Changes**: one or more blocking findings remain after convergence
@@ -238,6 +206,7 @@ Entry: output destination confirmed.
 > Source: {PR/MR URL or branch/commit}
 > Reviewed: <timestamp>
 > Verdict: **{Approve | Comment | Request Changes}**
+
 ## Summary
 [2-3 sentences: what this change does and the overall review assessment]
 
@@ -298,7 +267,7 @@ Entry: output destination confirmed.
 
 ## Team Behavior
 
-This agent is the team lead. It directs panelists via SendMessage — panelists do not self-serve from TaskList for phase transitions.
+This agent is the team lead. It directs panelists via task assignment (`TaskCreate` + `TaskUpdate(owner)`) — panelists read their assignment via `TaskGet` and do not self-serve from TaskList for phase transitions.
 
 When spawned as a team member:
 
@@ -313,14 +282,12 @@ When spawned as a team member:
 |-------------|--------|
 | **Spawn prompt** | Parse review target, begin ASSESS |
 | **User output preference** (relayed by caller) | Set output destination, proceed to REPORT |
-| **Panelist findings** | Collect, wait for all panelists before proceeding to CONVERGENCE |
-| **Panelist convergence responses** | Collect, resolve findings, determine verdict |
-| **Stall self-reports** | Check if silent panelist is running, message it, re-spawn if needed |
+| **Stall self-reports** | Check if silent panelist is running via TaskList, re-spawn if needed |
 | **Shutdown requests** | Shut down all active panelists first, then approve own shutdown |
 
-### Stall Self-Reporting
+### Stall Detection
 
-If waiting for an expected panelist response and 3 consecutive TaskList checks show no progress, check if the silent panelist is still running. If running, message it directly. If not running, re-spawn it. If re-spawn also stalls, report the stall to the calling context.
+TaskList is the only completion signal. Poll for `completed` status on panelist tasks. Only intervene after 3 consecutive idle notifications with no task status change. If a panelist's task is stuck: check if the panelist is still running, re-spawn if needed. If re-spawn also stalls, report the stall to the calling context.
 
 ### Shutdown Protocol
 
