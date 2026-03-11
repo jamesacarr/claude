@@ -34,6 +34,19 @@ pause_reason: <string | null>
 <Each NFR must be testable — not aspirational>
 1. <NFR criterion>
 
+## MR Boundaries
+<Only present when estimated scope exceeds 200 lines of non-test, non-generated change>
+<Groups waves into independently mergeable units — each MR ships a coherent slice>
+
+### MR <n>: <Title>
+- **Waves:** <wave numbers included, e.g., 1-2>
+- **Estimated lines:** ~<n>
+- **Ships:** <what this MR delivers — independently releasable value>
+- **Depends on:** <MR number, or "none">
+
+### MR <n+1>: <Title>
+...
+
 ## Wave <n>: <Wave Title>
 
 ### Task <n.m>: <Task Title>
@@ -71,6 +84,21 @@ pause_reason: <string | null>
 | **Success Criteria** | Yes | Planner | Numbered, testable outcomes. Verifier checks each one. When acceptance criteria exist (`.planning/{task-id}/ACCEPTANCE-CRITERIA.md`), each should reference the AC it satisfies (e.g., `[AC-1]`). All ACs must be covered by at least one success criterion |
 | **Non-Functional Requirements** | Yes | Planner | Security, performance, a11y criteria. "None identified" is valid but must include rationale. Cannot be omitted |
 
+### MR Boundaries section
+
+| Section | Required | Written by | Description |
+|---------|----------|------------|-------------|
+| **MR Boundaries** | Conditional | Planner | Present only when estimated total scope exceeds 200 lines of non-test, non-generated change. Groups waves into independently mergeable MRs. Each MR must deliver coherent, independently releasable value |
+
+### MR Boundary fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Waves** | Yes | Which waves are included in this MR |
+| **Estimated lines** | Yes | Rough estimate of non-test, non-generated lines of change |
+| **Ships** | Yes | What independently releasable value this MR delivers |
+| **Depends on** | Yes | Which prior MR(s) must merge first, or "none" |
+
 ### Task fields
 
 | Field | Required | Description |
@@ -97,6 +125,7 @@ pause_reason: <string | null>
 3. **Wave ordering:** Tasks across waves may depend on each other. Tasks within a wave are independent and may run in parallel
 4. **Action specificity:** The Action field must not require the executor to make architectural decisions. It should reference specific files, patterns from the codebase map, and exact locations
 5. **Verification commands** should be runnable from the project root and produce a clear pass/fail signal
+6. **MR Boundaries** are required when estimated total non-test, non-generated lines of change exceed 200. Each MR groups consecutive waves into an independently mergeable unit. MR ordering must respect wave dependencies — a later MR cannot depend on waves in an earlier MR that hasn't been listed as a dependency
 
 ## Consumers
 

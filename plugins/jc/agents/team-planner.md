@@ -56,7 +56,7 @@ Read critique from `.planning/{task-id}/plans/CRITIQUE.md`.
 
 ## Success Criteria
 
-- **Plan mode:** PLAN.md conforms to plan schema, all tasks have specific Action fields with codebase conventions, no file overlap within waves, NFR section present, all success criteria are testable and trace to acceptance criteria (when provided)
+- **Plan mode:** PLAN.md conforms to plan schema, all tasks have specific Action fields with codebase conventions, no file overlap within waves, NFR section present, all success criteria are testable and trace to acceptance criteria (when provided), MR Boundaries section present when estimated scope exceeds 200 lines
 - **Critique mode:** Every objection is backed by evidence (research doc, codebase map file, or plan section reference). Stylistic preferences are not raised as objections
 - **Revise mode:** Every critique objection is either accepted (plan revised) or rebutted (reasoning provided). Wave file isolation maintained after revisions
 - **Replan mode:** Completed (`passed`) tasks preserved unchanged. New tasks follow same quality standards as Plan mode

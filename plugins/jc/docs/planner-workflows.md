@@ -19,6 +19,7 @@ Shared reference for plan/critique/revise/replan workflows. Used by both `team-p
 - **NFR coverage** — security, performance, a11y implications from research translated to plan
 - **Codebase alignment** — plans reference correct conventions, patterns, and file locations
 - **Action specificity** — each task's Action field is detailed enough for an executor to act without interpretation
+- **MR boundary identification** — when estimated scope exceeds 200 non-test, non-generated lines, group waves into independently mergeable MRs that each ship coherent value
 
 ## Constraints
 
@@ -49,9 +50,15 @@ Shared reference for plan/critique/revise/replan workflows. Used by both `team-p
 7. **Identify NFRs** — extract security, performance, and accessibility implications from research. Translate to testable criteria. If none apply, write "None identified" with rationale
 8. **Decompose into tasks** — break the work into atomic tasks. Each task must specify: files affected, action (with codebase map conventions embedded), verification command, done-when condition. Action field quality standards apply — see below
 9. **Organise into waves** — group independent tasks into waves for parallel execution. Enforce file isolation: no two tasks in the same wave touch the same file. Tasks with dependencies go in later waves
-10. **Get timestamp** — call `mcp__time__get_current_time`
-11. **Write PLAN.md** — write to `.planning/{task-id}/plans/PLAN.md` conforming to plan schema. Set `status: planning`, all tasks `pending`, all waves `pending`
-12. **Confirm** — return short confirmation
+10. **Assess MR boundaries** — estimate total non-test, non-generated lines of change across all tasks (use Action field scope and file count as signals). If estimated >200 lines:
+    - Group consecutive waves into MRs, each delivering independently releasable value
+    - Look for natural boundaries: independent features/behaviors, refactoring vs behavioral changes, infrastructure vs application logic, test-only additions
+    - Each MR must be coherent — not an arbitrary wave split, but a meaningful unit a reviewer can understand in isolation
+    - Record MR dependencies (later MRs that require earlier ones to merge first)
+    - If ≤200 lines: omit the MR Boundaries section entirely
+11. **Get timestamp** — call `mcp__time__get_current_time`
+12. **Write PLAN.md** — write to `.planning/{task-id}/plans/PLAN.md` conforming to plan schema. Set `status: planning`, all tasks `pending`, all waves `pending`
+13. **Confirm** — return short confirmation
 
 ### Action Field Quality
 
@@ -86,6 +93,7 @@ Wave 1: Task 1.1 (auth.ts), Task 1.2 (auth.ts, routes.ts)       ← VIOLATION, m
    - NFR gaps (research identified risks not reflected in NFRs)
    - Missing edge cases from research
    - Acceptance criteria coverage: do success criteria cover every AC? Are any ACs dropped without rationale?
+   - MR boundary assessment: if plan scope appears >200 lines but MR Boundaries section is missing, raise as objection. If MR Boundaries exist, check: are MRs coherent (not arbitrary wave splits)? Do dependencies make sense? Are estimates plausible given the task Actions?
 6. **Review: codebase alignment** — cross-reference plan against codebase map:
    - `CONVENTIONS.md`: Do tasks follow naming, file location, import, error handling patterns?
    - `TESTING.md`: Do verification commands use the correct test runner and match test patterns?
@@ -108,9 +116,10 @@ Wave 1: Task 1.1 (auth.ts), Task 1.2 (auth.ts, routes.ts)       ← VIOLATION, m
    - **Accept:** revise the plan to address the objection. Action field quality standards still apply (see Plan Mode)
    - **Rebut:** explain with evidence why the objection is wrong or does not apply
 8. **Re-verify wave file isolation** after any task moves
-9. **Get timestamp** — call `mcp__time__get_current_time`
-10. **Overwrite PLAN.md** — write revised plan to `.planning/{task-id}/plans/PLAN.md`. Update the `updated` timestamp
-11. **Confirm** — return short confirmation listing which objections were accepted vs rebutted
+9. **Re-assess MR boundaries** — if tasks were added, removed, or moved between waves, re-run the MR boundary assessment (step 10 from Plan Mode). Update or add the MR Boundaries section as needed
+10. **Get timestamp** — call `mcp__time__get_current_time`
+11. **Overwrite PLAN.md** — write revised plan to `.planning/{task-id}/plans/PLAN.md`. Update the `updated` timestamp
+12. **Confirm** — return short confirmation listing which objections were accepted vs rebutted
 
 ### Replan Mode
 
@@ -126,9 +135,10 @@ Wave 1: Task 1.1 (auth.ts), Task 1.2 (auth.ts, routes.ts)       ← VIOLATION, m
 6. **Read acceptance criteria** — read `.planning/{task-id}/ACCEPTANCE-CRITERIA.md` from the path provided in the assignment. If the path is not provided or the file doesn't exist, return ERROR. Acceptance criteria represent task goals and persist across replans
 7. **Replan remaining work** — create new tasks/waves for incomplete work while preserving completed task entries unchanged. Action field quality standards still apply (see Plan Mode). Ensure new tasks still cover all acceptance criteria
 8. **Re-verify wave file isolation** for new/changed waves
-9. **Get timestamp** — call `mcp__time__get_current_time`
-10. **Overwrite PLAN.md** — write replanned document. Completed tasks retain their original content and status
-11. **Confirm** — return short confirmation listing what was preserved vs replanned
+9. **Re-assess MR boundaries** — re-run the MR boundary assessment (step 10 from Plan Mode) accounting for completed work. Completed tasks contribute to earlier MRs (already merged). Only remaining work needs MR boundary analysis
+10. **Get timestamp** — call `mcp__time__get_current_time`
+11. **Overwrite PLAN.md** — write replanned document. Completed tasks retain their original content and status
+12. **Confirm** — return short confirmation listing what was preserved vs replanned
 
 ## Output Formats
 
