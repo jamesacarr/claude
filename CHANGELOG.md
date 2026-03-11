@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Restructure team-review-lead report findings as tables with issue, category, file, description, suggested fix, and notes columns
+- Omit empty findings sections instead of showing placeholders
+- Use full report format for PR/MR comments instead of condensed version
+- Add AI-generated review attribution footer to report output
+
+### Fixed
+
+- Remove tool and MCP server restrictions from team-refiner and team-review-lead to grant full tool access
+- Clarify team-refiner and team-review-lead as lead agents, not subagents
+- Harden team-leader idle notification handling
+
 ## [1.7.1] - 2026-03-11
 
 ### Fixed
