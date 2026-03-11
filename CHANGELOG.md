@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-03-11
+
 ### Fixed
 
 - Address audit findings in review-lead and review-panelist agents
@@ -163,7 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/jamesacarr/claude/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/jamesacarr/claude/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/jamesacarr/claude/compare/v1.7.2...v1.8.0
 [1.7.2]: https://github.com/jamesacarr/claude/compare/v1.7.1...v1.7.2
