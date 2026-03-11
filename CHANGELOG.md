@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace static 4-task pipeline with re-assignment chain
+- Adopt spawn-then-assign and notification-driven patterns
+
+### Fixed
+
+- Strengthen team-reviewer with senior engineer review lens
+
 ## [1.6.1] - 2026-03-10
 
 ### Changed
