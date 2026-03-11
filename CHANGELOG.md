@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-03-12
+
 ### Changed
 
 - Rename `team-review-lead` to `team-review-leader`, `team-refiner` to `team-refinement-leader`, and `team-shaper` to `team-refinement-panelist` for consistent leader/panelist naming
@@ -173,7 +175,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.8.2...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.8.3...HEAD
+[1.8.3]: https://github.com/jamesacarr/claude/compare/v1.8.2...v1.8.3
 [1.8.2]: https://github.com/jamesacarr/claude/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/jamesacarr/claude/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/jamesacarr/claude/compare/v1.7.2...v1.8.0

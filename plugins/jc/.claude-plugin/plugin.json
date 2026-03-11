@@ -1,7 +1,7 @@
 {
   "name": "jc",
   "description": "James' Claude Toolkit — agent-based workflow system with TDD, verification, and codebase mapping",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "homepage": "https://github.com/jamesacarr/claude",
   "license": "UNLICENSED",
   "keywords": ["workflow", "agents", "planning", "tdd", "code-review", "debugging", "authoring"]
