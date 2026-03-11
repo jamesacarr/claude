@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Replace 3 generalist review panelists with 5 specialist personas (Correctness & Testing, Design & Patterns, Security, Performance, Accessibility) backed by domain-specific reference checklists
+- Add reference checklists grounded in authoritative sources (OWASP Top 10, WCAG 2.2, Core Web Vitals, Fowler refactoring catalog, Testing Library principles)
+- Add frontend detection triage in review lead to conditionally spawn Accessibility panelist
+- Add `plugin_root` resolution in review lead for passing reference paths to panelists
+- Add percentage-based convergence dispute resolution supporting dynamic panelist counts (4-5)
+
 ## [1.7.2] - 2026-03-11
 
 ### Changed
