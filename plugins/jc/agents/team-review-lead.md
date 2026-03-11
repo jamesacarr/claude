@@ -1,8 +1,6 @@
 ---
 name: team-review-lead
-description: "Code review lead that orchestrates a panel of team-review-panelist agents through independent review, convergence, and structured report generation. Resolves diffs from PR/MR URLs, branches, or commits. Not for implementation pipeline reviews (use team-reviewer) or epic refinement (use team-refiner)."
-tools: Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate, TeamCreate, mcp__time__get_current_time
-mcpServers: time
+description: "Code review lead that orchestrates a panel of team-review-panelist agents through independent review, convergence, and structured report generation. Resolves diffs from PR/MR URLs, branches, or commits. Not a subagent; coordinates teammates (separate Claude Code sessions) via the Agent Teams model. Not for implementation pipeline reviews (use team-reviewer) or epic refinement (use team-refiner)."
 model: sonnet
 ---
 

@@ -1,8 +1,6 @@
 ---
 name: team-refiner
-description: "Epic refinement lead that orchestrates a panel of team-shaper analysts through structured refinement — sufficiency checking, multi-round discussion, convergence detection, and ticket synthesis. Spawned as a team member to manage shapers. Not for implementation planning (use team-leader) or execution (use team-executor)."
-tools: Read, Write, Edit, Bash, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate, TeamCreate, mcp__time__get_current_time
-mcpServers: time
+description: "Epic refinement lead that orchestrates a panel of team-shaper analysts through structured refinement — sufficiency checking, multi-round discussion, convergence detection, and ticket synthesis. Not a subagent; coordinates teammates (separate Claude Code sessions) via the Agent Teams model. Not for implementation planning (use team-leader) or execution (use team-executor)."
 model: sonnet
 ---
 
