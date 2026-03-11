@@ -41,7 +41,7 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Assignment
 
-The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+When spawned as a team member, the task ID is provided via the assignment notification (not the spawn prompt). When spawned as a standalone subagent, the task ID is provided in the spawn prompt. Read the full assignment via `TaskGet`:
 
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
@@ -73,7 +73,11 @@ When spawned as a standalone subagent (no `team_name`):
 
 **Your primary output is the written file, not the response.** Write the output file using the Write tool before completing. Do not relay findings via message or response text — the orchestrator reads the file directly.
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `focus_area`, `task_description`, `task_id`, `research_dir`, `output_file`, and `codebase_map_dir`. If any required field is absent, return ERROR. If `focus_area` is not one of `approach`, `codebase-integration`, `quality-standards`, `risks-edge-cases`, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid. Read `external_doc_paths` if present
+**When spawned as a team member (`team_name` present):** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed to step 1 below.
+
+**When spawned standalone (no `team_name`):** proceed to step 1 immediately using the task ID from the spawn prompt.
+
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification (team member) or spawn prompt (standalone). Read task metadata for `focus_area`, `task_description`, `task_id`, `research_dir`, `output_file`, and `codebase_map_dir`. If any required field is absent, return ERROR. If `focus_area` is not one of `approach`, `codebase-integration`, `quality-standards`, `risks-edge-cases`, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid. Read `external_doc_paths` if present
 2. **Research systematically** — follow the Exploration Strategy for your assigned focus area (below)
 3. **Get timestamp** — call `mcp__time__get_current_time` for the "Last researched" field
 4. **Write document** — write structured findings using the output format for your focus area

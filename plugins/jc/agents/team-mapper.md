@@ -38,7 +38,7 @@ You are assigned one of four focus areas per invocation. Each focus area produce
 
 ## Assignment
 
-The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+When spawned as a team member, the task ID is provided via the assignment notification (not the spawn prompt). When spawned as a standalone subagent, the task ID is provided in the spawn prompt. Read the full assignment via `TaskGet`:
 
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
@@ -65,7 +65,11 @@ When spawned as a standalone subagent (no `team_name`):
 
 **Your primary output is the written file, not the response.** Write files using the Write tool before completing. Do not relay findings via message or response text — the orchestrator reads the files directly.
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `focus_area` and `codebase_map_dir`. If `focus_area` is absent or not one of `technology`, `architecture`, `quality`, `concerns`, return ERROR immediately. If `codebase_map_dir` is absent, return ERROR
+**When spawned as a team member (`team_name` present):** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed to step 1 below.
+
+**When spawned standalone (no `team_name`):** proceed to step 1 immediately using the task ID from the spawn prompt.
+
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification (team member) or spawn prompt (standalone). Read task metadata for `focus_area` and `codebase_map_dir`. If `focus_area` is absent or not one of `technology`, `architecture`, `quality`, `concerns`, return ERROR immediately. If `codebase_map_dir` is absent, return ERROR
 2. **Explore systematically** — use Glob for project structure, Grep for patterns, Read for key files
 3. **Get timestamp** — call `mcp__time__get_current_time` for the "Last mapped" field
 4. **Write documents** — for each output file in your focus area, write structured findings using the output format below

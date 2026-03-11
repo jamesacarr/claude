@@ -58,7 +58,7 @@ Do NOT read the other 4 codebase map files — task-specific conventions are alr
 
 ## Assignment
 
-The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+When spawned as a team member, the task ID is provided via the assignment notification (not the spawn prompt). When spawned as a standalone subagent, the task ID is provided in the spawn prompt. Read the full assignment via `TaskGet`:
 
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
@@ -72,7 +72,11 @@ On escalation: `TaskUpdate(taskId, status: completed, metadata: {"failure_summar
 
 ## Workflow
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `task_id` and `task_number`. If either is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid. If `previous_failure` and `retry_attempt` are present, note them for deviation handling
+**When spawned as a team member (`team_name` present):** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed to step 1 below.
+
+**When spawned standalone (no `team_name`):** proceed to step 1 immediately using the task ID from the spawn prompt.
+
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification (team member) or spawn prompt (standalone). Read task metadata for `task_id` and `task_number`. If either is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid. If `previous_failure` and `retry_attempt` are present, note them for deviation handling
 2. **Read codebase context** — read `STACK.md` and `TESTING.md` from `.planning/codebase/`. If either file is missing, return ERROR directing the orchestrator to run `/jc:map` first
 3. **Read task** — read `.planning/{task-id}/plans/PLAN.md` and extract the assigned task by number. If PLAN.md is missing, return ERROR directing the orchestrator to run `/jc:plan`. If the task number does not match any entry, return ERROR listing the valid task numbers found
 4. **Create directories** — run `mkdir -p` for any directories needed by the files in scope

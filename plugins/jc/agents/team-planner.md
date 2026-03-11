@@ -29,7 +29,7 @@ All workflows, constraints, focus areas, and output formats are defined in the s
 
 ## Assignment
 
-The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+The task ID is provided via the assignment notification (not the spawn prompt). Read the full assignment via `TaskGet`:
 
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
@@ -43,6 +43,10 @@ The spawn prompt provides only the task ID. Read the full assignment via `TaskGe
 | `execution_learnings_dir` | No (replan only) | Path to execution learnings |
 
 On completion: `TaskUpdate(taskId, status: completed, metadata: {"result": "<PASS|OBJECTIONS|ERROR>"})`. For critique mode, `result` is `PASS` (no objections) or `OBJECTIONS` (issues found). For plan/revise/replan modes, `result` is `PASS` (file written) or `ERROR`.
+
+**When spawned as a team member (`team_name` present):** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then call `TaskGet` to read your assignment and begin work.
+
+**When spawned standalone (no `team_name`):** proceed immediately — call `TaskGet` with the task ID from the spawn prompt.
 
 ## Mode-Specific Behavior
 

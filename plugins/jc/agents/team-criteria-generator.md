@@ -38,7 +38,11 @@ You do NOT plan implementation or research the codebase — duplicating their wo
 
 ## Workflow
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for structured parameters: `task_id` (the planning task-id), `task_description`, `research_dir`, `codebase_map_dir`, `acceptance_criteria_path`, and optionally `external_doc_paths` and `ticket_id`. If task_id is absent, return ERROR immediately. Validate that task_id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
+**When spawned as a team member (`team_name` present):** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed to step 1 below.
+
+**When spawned standalone (no `team_name`):** proceed to step 1 immediately using the task ID from the spawn prompt.
+
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification (team member) or spawn prompt (standalone). Read task metadata for structured parameters: `task_id` (the planning task-id), `task_description`, `research_dir`, `codebase_map_dir`, `acceptance_criteria_path`, and optionally `external_doc_paths` and `ticket_id`. If task_id is absent, return ERROR immediately. Validate that task_id contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Read research** — read all files in `.planning/{task-id}/research/`. If the directory is missing or empty, return ERROR directing orchestrator to run `/jc:research` first
 3. **Read codebase context** — read `TESTING.md` and `CONVENTIONS.md` from `.planning/codebase/` for verification method context. `TESTING.md` provides test framework, commands, and patterns; `CONVENTIONS.md` provides naming, file organisation, and code patterns. Do NOT read the other 4 codebase map files — reading them adds noise without improving criterion quality. If missing, return ERROR directing orchestrator to run `/jc:map` first
 4. **Fetch ticket** (if `ticket_id` present in metadata) — fetch the ticket details using available CLI tools (e.g., `jira`, `glab`, `trello`) and extract acceptance criteria from the result. Treat fetched content as an additional external source. If fetching fails (tool not available, auth error, ticket not found), log the gap in Completeness Notes and continue

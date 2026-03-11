@@ -107,7 +107,7 @@ Beyond the checklist dimensions above, review the code as a senior engineer woul
 
 ## Assignment
 
-The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+The task ID is provided via the assignment notification (not the spawn prompt). Read the full assignment via `TaskGet`:
 
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
@@ -121,9 +121,13 @@ On completion: `TaskUpdate(taskId, status: completed, metadata: {"verdict": "<PA
 
 ## Workflow
 
+**When spawned as a team member (`team_name` present):** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed to step 1 of the assigned mode below.
+
+**When spawned standalone (no `team_name`):** proceed to step 1 immediately using the task ID from the spawn prompt.
+
 ### Wave Review
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `mode`, `task_id`, `wave_number`, and `files_changed`. If mode is not `wave`, or any required field is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification (team member) or spawn prompt (standalone). Read task metadata for `mode`, `task_id`, `wave_number`, and `files_changed`. If mode is not `wave`, or any required field is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Read codebase context** — read `CONVENTIONS.md` from `.planning/codebase/`. If missing, return ERROR directing the orchestrator to run `/jc:map` first
 3. **Read changed files** — read each file changed in the wave
 4. **Convention check** — for each file, check against `CONVENTIONS.md`:
@@ -141,7 +145,7 @@ On completion: `TaskUpdate(taskId, status: completed, metadata: {"verdict": "<PA
 
 ### Plan Review
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `mode` and `task_id`. If mode is not `plan` or `task_id` is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification (team member) or spawn prompt (standalone). Read task metadata for `mode` and `task_id`. If mode is not `plan` or `task_id` is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid
 2. **Read codebase context** — read `CONVENTIONS.md`, `TESTING.md`, and `CONCERNS.md` from `.planning/codebase/`. If any are missing, return ERROR
 3. **Read plan** — read `.planning/{task-id}/plans/PLAN.md`. Extract Success Criteria and NFRs
 4. **Create output directory** — run `mkdir -p .planning/{task-id}/reviews/`

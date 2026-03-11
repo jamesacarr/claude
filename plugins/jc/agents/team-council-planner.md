@@ -22,7 +22,9 @@ All core workflows (plan, critique, revise), constraints, focus areas, and outpu
 
 The Team Leader spawns 3 council planners. The lead's initial assignment specifies the starting mode (`propose`) and a planner number (1, 2, or 3).
 
-**Parse assignment:** Call `TaskGet` with the task ID from the spawn prompt. Read task metadata for: `planner_number` (1 | 2 | 3), `task_id` (the planning task-id), `mode` (starting mode, typically `propose`), `planner_workflows_path`, `acceptance_criteria_path`, `research_dir`, and `codebase_map_dir`. If `planner_number` or `task_id` is absent, return ERROR using the structured error format.
+**IMPORTANT:** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed below.
+
+**Parse assignment:** Call `TaskGet` with the task ID from the assignment notification. Read task metadata for: `planner_number` (1 | 2 | 3), `task_id` (the planning task-id), `mode` (starting mode, typically `propose`), `planner_workflows_path`, `acceptance_criteria_path`, `research_dir`, and `codebase_map_dir`. If `planner_number` or `task_id` is absent, return ERROR using the structured error format.
 
 **Mode transitions:** propose → vote → plan/critique/revise (via lead messaging). Replan mode is not supported in council — because replan requires a single authoritative view of completed tasks. The lead uses a standalone `team-planner` for replans.
 

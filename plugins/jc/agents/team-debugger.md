@@ -90,7 +90,7 @@ Synthesise findings into a root cause diagnosis:
 
 ## Assignment
 
-The spawn prompt provides only the task ID. Read the full assignment via `TaskGet`:
+The task ID is provided via the assignment notification (not the spawn prompt). Read the full assignment via `TaskGet`:
 
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
@@ -107,7 +107,11 @@ On completion: `TaskUpdate(taskId, status: completed, metadata: {"verdict": "<RO
 
 ## Workflow
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for `task_id`, `problem_description`, and `apply_fix`. If any required field is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid. Read optional metadata: `session_id`, `error_output`, `failing_test`, `escalation_context`. If `session_id` is absent from metadata, generate one from the problem description (e.g., `fix-login-timeout`). If a log with that session-id already exists in the debug directory, append an incrementing suffix (`-2`, `-3`, etc.)
+**When spawned as a team member (`team_name` present):** STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed to step 1 below.
+
+**When spawned standalone (no `team_name`):** proceed to step 1 immediately using the task ID from the spawn prompt.
+
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification (team member) or spawn prompt (standalone) (team member) or spawn prompt (standalone). Read task metadata for `task_id`, `problem_description`, and `apply_fix`. If any required field is absent, return ERROR. Validate that `task_id` contains only alphanumeric characters, hyphens, and underscores — return ERROR if invalid. Read optional metadata: `session_id`, `error_output`, `failing_test`, `escalation_context`. If `session_id` is absent from metadata, generate one from the problem description (e.g., `fix-login-timeout`). If a log with that session-id already exists in the debug directory, append an incrementing suffix (`-2`, `-3`, etc.)
 2. **Create output directory** — run `mkdir -p {project-root}/.planning/{task-id}/debug/`
 3. **Observe** — gather all available evidence:
    - Read the problem description and any provided error output

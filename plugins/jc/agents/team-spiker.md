@@ -38,7 +38,9 @@ You do NOT implement features, write tests, or produce production code — your 
 
 ## Workflow
 
-1. **Read assignment** — call `TaskGet` with the task ID from the spawn prompt. Read task metadata for structured parameters: `assumptions`, `report_output_path`, `codebase_map_dir`, and optionally `research_dir`. If `assumptions`, `report_output_path`, or `codebase_map_dir` are missing, return ERROR
+STOP. Do NOT call any tools yet. Wait for your task assignment notification — the lead creates your task and assigns it to you after spawning. You will be notified when the task is assigned. Only then proceed to step 1 below.
+
+1. **Read assignment** — call `TaskGet` with the task ID from the assignment notification. Read task metadata for structured parameters: `assumptions`, `report_output_path`, `codebase_map_dir`, and optionally `research_dir`. If `assumptions`, `report_output_path`, or `codebase_map_dir` are missing, return ERROR
 2. **Read codebase context** — read `STACK.md`, `TESTING.md`, and `ARCHITECTURE.md` from `.planning/codebase/`. If missing, return ERROR directing the orchestrator to run `/jc:map` first
 3. **Read research** (if research directory path provided) — read `approach.md` and `risks-edge-cases.md` to understand the uncertainty context. Read other research files if referenced by the assumptions. Skip this step if no research directory was provided in the task metadata (assumptions are provided directly in the metadata)
 4. **Plan experiments** — for each assumption (1-3), define:
@@ -133,7 +135,7 @@ When spawned as a teammate (by the Team Leader or team-refinement-leader), the s
 
 ### Assignment
 
-The spawn prompt provides only the task ID. The spiker reads its full assignment via `TaskGet`:
+The task ID is provided via the assignment notification (not the spawn prompt). The spiker reads its full assignment via `TaskGet`:
 
 | Metadata Key | Required | Description |
 |-------------|----------|-------------|
