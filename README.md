@@ -36,8 +36,8 @@ plugins/
 | `team-executor` | Implements tasks from PLAN.md using TDD (RED → GREEN → REFACTOR) |
 | `team-verifier` | Verifies task completion against done-when criteria |
 | `team-reviewer` | Reviews code for quality, security, performance, and architectural fit |
-| `team-refiner` | Epic refinement lead — orchestrates shapers through structured multi-phase refinement |
-| `team-shaper` | Epic refinement analyst — participates in refinement with a specific persona |
+| `team-refinement-leader` | Epic refinement lead — orchestrates shapers through structured multi-phase refinement |
+| `team-refinement-panelist` | Epic refinement analyst — participates in refinement with a specific persona |
 | `team-debugger` | Investigates bugs and failures using scientific method |
 | `audit-agent-auditor` | Audits agent definitions for correctness and best practices |
 | `audit-skill-auditor` | Audits skill definitions for compliance |

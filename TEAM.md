@@ -75,8 +75,8 @@ How the agent team works together to take a feature from description to working 
 
 | Agent | Lifecycle | What it does |
 |-------|-----------|-------------|
-| `team-refiner` | Main session (always running during refinement) | Orchestrates shapers through sufficiency, discussion, and convergence. Never participates in shaping |
-| `team-shaper` | 4 spawned initially, 5th joins in Round 2 → shut down after Round 3 | Analyses epics from a specific persona's lens (Product Analyst, Technical Architect, Delivery Strategist, Risk Analyst, Tech Debt Scout) |
+| `team-refinement-leader` | Main session (always running during refinement) | Orchestrates shapers through sufficiency, discussion, and convergence. Never participates in shaping |
+| `team-refinement-panelist` | 4 spawned initially, 5th joins in Round 2 → shut down after Round 3 | Analyses epics from a specific persona's lens (Product Analyst, Technical Architect, Delivery Strategist, Risk Analyst, Tech Debt Scout) |
 
 ---
 
@@ -451,9 +451,9 @@ The refiner is spawned as a team member — it's not invoked directly via a skil
 ASSESS → MAP (if needed) → SUFFICIENCY LOOP → DISCUSSION (Round 1 → Round 2 → Round 3) → RETROSPECTIVE
 ```
 
-The **team-refiner** is the orchestration lead. It manages the process — spawning shapers, monitoring discussion, detecting convergence and stalls, writing ticket files, and producing the final epic overview. It never participates in shaping.
+The **team-refinement-leader** is the orchestration lead. It manages the process — spawning shapers, monitoring discussion, detecting convergence and stalls, writing ticket files, and producing the final epic overview. It never participates in shaping.
 
-**team-shaper** agents are persona-bound analysts. Each evaluates the epic through one lens. See [Shaper Personas](#shaper-personas).
+**team-refinement-panelist** agents are persona-bound analysts. Each evaluates the epic through one lens. See [Shaper Personas](#shaper-personas).
 
 ---
 

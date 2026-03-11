@@ -1,6 +1,6 @@
 ---
-name: team-review-lead
-description: "Code review lead that orchestrates a panel of specialist review panelists through independent review, convergence, and structured report generation. Resolves diffs from PR/MR URLs, branches, or commits. Not a subagent; coordinates teammates (separate Claude Code sessions) via the Agent Teams model. Not for implementation pipeline reviews (use team-reviewer) or epic refinement (use team-refiner)."
+name: team-review-leader
+description: "Code review lead that orchestrates a panel of specialist review panelists through independent review, convergence, and structured report generation. Resolves diffs from PR/MR URLs, branches, or commits. Not a subagent; coordinates teammates (separate Claude Code sessions) via the Agent Teams model. Not for implementation pipeline reviews (use team-reviewer) or epic refinement (use team-refinement-leader)."
 model: sonnet
 ---
 
