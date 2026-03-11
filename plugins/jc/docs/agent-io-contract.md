@@ -112,7 +112,7 @@ Key differences:
 
 Agents detect whether they are running in a team by checking for team context — if a team name is available, the agent is in a team. Agents with dual behavior (team mode vs subagent mode) use this to branch:
 
-- **Team context available** → follow Team Behavior (persistent polling, message-based coordination, wait for pipeline tasks)
+- **Team context available** → follow Team Behavior (notification-driven re-assignment, message-based collaboration, persistent across waves)
 - **No team context** → follow standard subagent workflow (one-shot execution, return result to caller)
 
 ### blockedBy Discipline
@@ -120,9 +120,8 @@ Agents detect whether they are running in a team by checking for team context �
 The Task API's `blockedBy` is **advisory, not enforced** — the API will let an agent mark a task `in_progress` or `completed` while its blockers are still open. Agents MUST enforce the constraint themselves:
 
 1. **NEVER pick up a task that shows `[blocked by ...]` in TaskList.** A blocked task's dependencies are incomplete. Working on it produces results built on unfinished prerequisites
-2. **NEVER mark a task `in_progress` or `completed` while it has unresolved blockers** — unless the agent itself owns the blocked task and is deliberately holding it open during a fix cycle (verifier/reviewer holding verify/review `in_progress` while a fix task blocks it)
+2. **NEVER mark a task `in_progress` or `completed` while it has unresolved blockers.** No exceptions
 3. **Before acting on any task from TaskList, confirm it has no `[blocked by]` annotation.** If it does, skip it and poll for the next unblocked task
-4. **The only exception** is the fix-cycle hold pattern: a verifier/reviewer may keep a task `in_progress` and add a new blocker to it (the fix task). This is the held-open model — the task was already in progress before the blocker was added. The agent does not complete the task until the blocker resolves
 
 Completing a task with unresolved blockers corrupts the pipeline by unblocking downstream tasks prematurely.
 
@@ -131,80 +130,63 @@ Completing a task with unresolved blockers corrupts the pipeline by unblocking d
 `TaskCreate` creates tasks with no owner. Ownership is assigned via `TaskUpdate` **after the target agent is spawned** — agents are notified when tasks are assigned to them:
 
 ```
-task = TaskCreate(subject: "verify-1.2", metadata: {...})
+task = TaskCreate(subject: "implement-1.2", metadata: {...})
 # ... spawn agent first ...
-TaskUpdate(taskId: task.id, owner: "verifier")  → agent receives notification
+TaskUpdate(taskId: task.id, owner: "executor-1.2")  → agent receives notification
 ```
 
 All task assignment flows through `TaskUpdate(owner: "{name}")` — there is no `assigned` parameter on `TaskCreate`. In team mode, owners are always assigned after agents are spawned. In subagent mode, no owner is assigned — the skill tracks task progression directly.
 
 ## Unified Task Graph
 
-Both the Team Leader (EXECUTE phase) and `/jc:implement` skill (GRAPH step) create the same static task graph. All pipeline tasks are created upfront with `blockedBy` dependencies. Agents hold their tasks open until satisfied. Fix cycles create dynamic fix tasks that block the parent task.
+Both the Team Leader (EXECUTE phase) and `/jc:implement` skill (GRAPH step) create the same static task graph. Each plan item gets a single `implement-{n.m}` task that moves through the pipeline via re-assignment (`TaskUpdate(owner, metadata)`). No separate verify, review, or commit tasks are created. This produces N+W tasks (N implement + W wave-review) instead of 4N+W.
 
-### Per plan item (4 static tasks):
+### Per plan item (1 task, re-assigned through chain):
 
 ```
-implement-{n.m}
-       |
-       v
-verify-{n.m} ──── review-{n.m}      (parallel, both blockedBy implement)
-       |               |
-       v               v
-         commit-{n.m}                (blockedBy verify AND review)
+implement-{n.m}   (re-assigned: executor → verifier → reviewer → executor → completed)
 ```
 
 ### Per wave (1 static wave review task):
 
 ```
-commit-{n.1} ──┐
-commit-{n.2} ──┤
-               v
-        wave-review-{n}              (blockedBy: all commit tasks in wave)
-               |
-               v
-Wave N+1: implement-{n+1.m}         (blockedBy: wave-review-{n})
+implement-{n.1} ──┐
+implement-{n.2} ──┤
+                   v
+            wave-review-{n}              (blockedBy: all implement tasks in wave)
+                   |
+                   v
+Wave N+1: implement-{n+1.m}             (blockedBy: wave-review-{n})
 ```
 
 ### Graph creation sequence:
 
 ```
 For each plan item {n.m}:
-  1. TaskCreate(subject: "implement-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "plan_path": "..."})
-  2. TaskCreate(subject: "verify-{n.m}", metadata: {"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"})
-  3. TaskCreate(subject: "review-{n.m}", metadata: {"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"})
-  4. TaskCreate(subject: "commit-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}"})
-  5. TaskUpdate(verify-{n.m}, addBlockedBy: [implement-{n.m}])
-  6. TaskUpdate(review-{n.m}, addBlockedBy: [implement-{n.m}])
-  7. TaskUpdate(commit-{n.m}, addBlockedBy: [verify-{n.m}, review-{n.m}])
+  1. TaskCreate(subject: "implement-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "plan_path": "...", "stage": "implement"})
 
 For each wave {n}:
-  8. TaskCreate(subject: "wave-review-{n}", metadata: {"mode": "wave", "task_id": "{task-id}", "wave_number": {n}, "files_changed": [<union of "Files affected" for all tasks in wave>]})
-  9. TaskUpdate(wave-review-{n}, addBlockedBy: [commit-{n.1}, commit-{n.2}, ...])
+  2. TaskCreate(subject: "wave-review-{n}", metadata: {"mode": "wave", "task_id": "{task-id}", "wave_number": {n}, "files_changed": [<union of "Files affected" for all tasks in wave>]})
+  3. TaskUpdate(wave-review-{n}, addBlockedBy: [implement-{n.1}, implement-{n.2}, ...])
 
 For cross-wave deps (wave N+1 items):
-  10. TaskUpdate(implement-{n+1.m}, addBlockedBy: [wave-review-{n}])
+  4. TaskUpdate(implement-{n+1.m}, addBlockedBy: [wave-review-{n}])
 
 For file overlap within a wave:
-  11. TaskUpdate(implement-{n.m2}, addBlockedBy: [implement-{n.m1}])
+  5. TaskUpdate(implement-{n.m2}, addBlockedBy: [implement-{n.m1}])
 ```
 
 ### On-demand tasks (not pre-created):
 
-- `fix-{n.m}-v{attempt}` — created by verifier on FAIL, blocks verify-{n.m}
-- `fix-{n.m}-r{attempt}` — created by reviewer on REVISE, blocks review-{n.m}
-- `investigate-{n.m}` — created by executor on escalation, blocks executor's current task
+- `investigate-{n.m}` — created by executor on escalation, blocks executor's implement task
+- `wave-fix-{n}-{attempt}` — created by reviewer on wave-review REVISE, assigned to lead for routing
 
 ### Task naming convention:
 
-- `implement-{n.m}` — implementation (static, one per plan item)
-- `verify-{n.m}` — verification (static, held open through fix cycles)
-- `review-{n.m}` — per-task review (static, held open through fix cycles)
-- `commit-{n.m}` — commit (static, unblocks when verify + review complete)
-- `wave-review-{n}` — wave-level review (static, one per wave, blockedBy all wave commits)
-- `fix-{n.m}-v{attempt}` — fix from verifier (dynamic, blocks verify)
-- `fix-{n.m}-r{attempt}` — fix from reviewer (dynamic, blocks review)
-- `investigate-{n.m}` — debugger investigation (dynamic, blocks executor's current task)
+- `implement-{n.m}` — implementation (static, one per plan item, re-assigned through pipeline stages)
+- `wave-review-{n}` — wave-level review (static, one per wave, blockedBy all implement tasks in wave)
+- `investigate-{n.m}` — debugger investigation (dynamic, blocks executor's implement task)
+- `wave-fix-{n}-{attempt}` — wave-review fix (dynamic, created by reviewer on REVISE, assigned to lead)
 
 ### Owner assignment:
 
@@ -212,33 +194,32 @@ In team mode, owners are assigned **after all agents are spawned** (spawn-then-a
 
 ```
 After spawning all agents for the current wave:
-  TaskUpdate(implement-{n.m}, owner: "executor-{n.m}")
-  TaskUpdate(verify-{n.m}, owner: "verifier")
-  TaskUpdate(review-{n.m}, owner: "reviewer")
-  TaskUpdate(commit-{n.m}, owner: "executor-{n.m}")
-  TaskUpdate(wave-review-{n}, owner: "reviewer")
+  TaskUpdate(implement-{n.m}, owner: "executor-{n.m}")   (current wave only)
+  TaskUpdate(wave-review-{n}, owner: "reviewer")          (all waves)
 ```
 
-- **Subagent mode:** No owner assignment — the Implement skill tracks which task to spawn next
+- **Subagent mode:** No owner assignment — the Implement skill tracks stage-based dispatch directly
 
-### Fix-task-blocks-parent pattern:
+### Re-assignment chain:
 
-Fix cycles use a held-open model: the verifier/reviewer keeps their task `in_progress` and creates a dynamic fix task that blocks the parent:
+The implement task moves through pipeline stages via `TaskUpdate(owner, metadata)`. Each agent re-assigns the task to the next agent in the chain on completion:
 
 ```
-Verifier FAIL:
-  1. TaskCreate(fix-{n.m}-v{attempt}, metadata: {...})
-  2. TaskUpdate(fix-{n.m}-v{attempt}, owner: "executor-{n.m}")  → executor is notified
-  3. TaskUpdate(verify-{n.m}, addBlockedBy: [fix-{n.m}-v{attempt}])
-  → verify stays in_progress but blocked; executor picks up fix via notification
-  → executor completes fix → verify unblocks → verifier re-checks
-
-Reviewer REVISE:
-  1. TaskCreate(fix-{n.m}-r{attempt}, metadata: {...})
-  2. TaskUpdate(fix-{n.m}-r{attempt}, owner: "executor-{n.m}")  → executor is notified
-  3. TaskUpdate(review-{n.m}, addBlockedBy: [fix-{n.m}-r{attempt}])
-  → review stays in_progress but blocked; executor picks up fix via notification
-  → executor completes fix → review unblocks → reviewer re-reviews
+executor completes impl  → TaskUpdate(owner: "verifier", metadata: {stage: "verify"})
+verifier PASS             → TaskUpdate(owner: "reviewer", metadata: {stage: "review"})
+verifier FAIL             → TaskUpdate(owner: "executor-{n.m}", metadata: {stage: "fix", fix_source: "verifier", report_path: "...", deviation_count: N+1})
+executor completes fix    → TaskUpdate(owner: <fix_source>, metadata: {stage: "verify" if fix_source is verifier, "review" if reviewer})
+reviewer PASS             → TaskUpdate(owner: "executor-{n.m}", metadata: {stage: "commit"})
+reviewer REVISE           → TaskUpdate(owner: "executor-{n.m}", metadata: {stage: "fix", fix_source: "reviewer", findings_path: "...", deviation_count: N+1})
+executor commits          → TaskUpdate(status: completed, metadata: {stage: "committed", commit_hash: "...", commit_msg: "..."})
 ```
 
-Messages are optional collaboration alongside fix tasks — they accelerate the executor's work but the fix task + referenced file contains everything needed.
+**Stage values:** `implement` (initial), `verify`, `review`, `fix`, `commit`, `committed` (terminal).
+
+**Metadata merging:** `TaskUpdate(metadata: {...})` **merges** with existing metadata — it does not replace it. Original keys (`task_id`, `task_number`, `plan_path`) persist through all re-assignments. Agents adding stage-specific keys (e.g., `fix_source`, `report_path`) extend the metadata; they do not need to re-include the original keys.
+
+**deviation_count:** Tracked in task metadata, incremented by the verifier (on FAIL) and reviewer (on REVISE) when re-assigning with `stage: "fix"`. The executor reads it to decide whether to escalate (limit: 3). The orchestrator resets it to 0 when the user provides guidance after an escalation.
+
+**Subagent mode:** Agents do NOT re-assign tasks. They return verdicts to the skill, and the skill handles stage transitions externally via `TaskUpdate`.
+
+Messages are optional collaboration alongside re-assignment — they accelerate the executor's work but the task metadata contains everything needed.

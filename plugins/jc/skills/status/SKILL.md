@@ -36,11 +36,11 @@ Agent prompt must include the full scanning methodology:
   3. If no hash (never committed): report "unknown"
 
 **Execution state (from TaskList — primary source):**
-1. Check TaskList for tasks matching task-id patterns (`implement-*`, `verify-*`, `review-*`, `commit-*`, `wave-review-*`, `fix-*`, `investigate-*`)
-2. If tasks exist: count by status (pending, in_progress, completed), group by wave (from task subject numbering), report live state
-3. Include fix task count per plan item (deviation tracking)
+1. Check TaskList for tasks matching task-id patterns (`implement-*`, `wave-review-*`, `investigate-*`, `wave-fix-*`)
+2. If tasks exist: count by status (pending, in_progress, completed), group by wave (from task subject numbering), report live state. For implement tasks, read `stage` from metadata to show pipeline position
+3. Include deviation_count from implement task metadata (deviation tracking)
 4. Include blocked-by annotations for in-progress tasks
-5. Report wave progress: which waves have all commit tasks completed, which wave-review tasks are done
+5. Report wave progress: which waves have all implement tasks completed (stage: "committed"), which wave-review tasks are done
 
 **Phase detection per task directory** (excluding `codebase/`):
 
@@ -52,7 +52,7 @@ Agent prompt must include the full scanning methodology:
 | **Planned** | `plans/PLAN.md` exists, frontmatter `status: planning`, no tasks in TaskList |
 | **Executing** | Tasks exist in TaskList (derive progress from task statuses) |
 | **Paused** | `plans/PLAN.md` frontmatter `status: paused` |
-| **Completed** | All commit tasks completed in TaskList, or PLAN.md `status: completed`. Check for `PLAN-VERIFICATION.md` and `PLAN-REVIEW.md` |
+| **Completed** | All implement tasks completed (stage: "committed") in TaskList, or PLAN.md `status: completed`. Check for `PLAN-VERIFICATION.md` and `PLAN-REVIEW.md` |
 
 **What status reads from PLAN.md** (fallback only):
 - Plan title (from frontmatter)
@@ -61,8 +61,8 @@ Agent prompt must include the full scanning methodology:
 
 **What status reads from TaskList** (primary):
 - Task statuses (pending/in_progress/completed)
-- Wave progress (derived from commit and wave-review task completion)
-- Fix task counts (deviation tracking)
+- Wave progress (derived from implement task stage metadata and wave-review task completion)
+- deviation_count from implement task metadata (deviation tracking)
 - Blocked-by annotations
 
 **Report format** — group tasks by phase (active first, completed last):
@@ -79,7 +79,7 @@ Missing files: {list | none}
 Wave progress: {completed waves}/{total waves}
 Tasks: {n} completed, {n} in_progress, {n} pending (from TaskList)
 PLAN.md terminal: {n} passed, {n} skipped, {n} manual (crash-recovery state)
-Fix cycles: {n} fix tasks created across all plan items
+Deviation cycles: {n} total across all implement tasks (from deviation_count metadata)
 {Verification: PLAN-VERIFICATION.md exists}
 {Review: PLAN-REVIEW.md exists}
 {Paused: reason}

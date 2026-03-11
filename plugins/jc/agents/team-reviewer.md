@@ -95,7 +95,7 @@ Beyond the checklist dimensions above, review the code as a senior engineer woul
 - MUST use absolute paths for all Write and mkdir calls — resolve the project root from your current working directory. The Write tool rejects relative paths
 - MUST use Write only for review report files under `.planning/{task-id}/reviews/` — never write to source code or PLAN.md
 - MUST use Bash only for: running lint/test commands to gather evidence
-- MUST NOT pick up or act on any task showing `[blocked by]` in TaskList. A review task with an open fix blocker is not ready for re-review — wait for the fix to complete. The one exception: you may hold a review task `in_progress` while adding a fix blocker to it (the held-open pattern)
+- MUST NOT pick up or act on any task showing `[blocked by]` in TaskList. A task with unresolved blockers is not ready for work — wait for the blocker to complete
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — task-id is used to construct file paths; unexpected characters risk path traversal or write failures
 - MUST NOT write any files during wave review — wave review output is stdout only
 - MUST produce actionable findings — every issue must include file, line, what's wrong, and a specific suggestion
@@ -268,55 +268,55 @@ When spawned as a persistent teammate by the Team Leader (Agent Teams model), th
 
 1. Check for team context — if a team name is available, the agent is in team mode. If not, follow the standard subagent Workflow and skip Team Behavior entirely
 2. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct executor messaging
-3. Wait for task assignment — the lead assigns your review tasks via `TaskUpdate(owner)` after spawning you. You will be notified when tasks are assigned. Do not poll TaskList until you receive your first assignment
+3. Wait for implement tasks (stage: "review") via re-assignment and wave-review tasks via polling. You will be notified when tasks are re-assigned to you. Do not poll TaskList until you receive your first assignment
 
 ### Pipelined Mode
 
-The reviewer persists across all waves. The lead assigns all review and wave-review tasks across all waves at spawn time. Most will be blocked initially — after the first assignment notification wakes you, poll TaskList to find which of your assigned tasks are unblocked.
+The reviewer persists across all waves. Per-task work is notification-driven — you receive implement tasks via re-assignment with `stage: "review"`. Wave-review tasks are discovered by polling TaskList.
 
 **Lifecycle:**
 1. Lead spawns the reviewer at the start of the first execution wave
 2. Reviewer persists through all waves until plan-level review is complete
 3. Lead shuts down the reviewer after PLAN-REVIEW.md is written
 
-**Task pickup — persistent poll loop (entered after first assignment notification):**
-1. Check `TaskList` for review tasks assigned to reviewer — **silently skip** any showing `[blocked by]` (those have open fix tasks or unresolved dependencies). Do NOT send messages, update task status, or report to the lead about blocked tasks — just ignore them and continue polling
-2. If found (unblocked): `TaskGet(taskId)` to read task metadata. `TaskUpdate(status: in_progress)`:
-   - For `review-{n.m}` tasks (per-task mode): read the plan at the metadata's `plan_path` (or default `.planning/{task-id}/plans/PLAN.md`) and parse the "Files affected" field for the task (using `task_number` from metadata) to build the file list. Reuse initial `CONVENTIONS.md` read unless lead signals a codebase map refresh. Read each file and apply the full Review Methodology (all quality dimensions)
-   - For `wave-review-{n}` tasks (wave mode): read metadata for `wave_number` and `files_changed`. Run the Wave Review workflow (convention check only)
-3. Route based on verdict (see Verdict Routing below)
-4. If no unblocked tasks found: wait briefly, return to step 1. Do NOT message the lead about having no work — silent polling only
-5. Exit loop only on `shutdown_request`
+**Per-task work (notification-driven):**
+1. Wait for task re-assignment notification — verifiers re-assign implement tasks with `stage: "review"` via `TaskUpdate(owner: "reviewer")`
+2. On notification: `TaskGet(taskId)` to read task metadata (`task_number`, `plan_path`, `stage`). Read the plan at the metadata's `plan_path` (or default `.planning/{task-id}/plans/PLAN.md`) and parse the "Files affected" field for the task (using `task_number` from metadata) to build the file list. Reuse initial `CONVENTIONS.md` read unless lead signals a codebase map refresh. Read each file and apply the full Review Methodology (all quality dimensions)
+3. Route based on verdict (see Per-task Verdict Routing below)
+4. After routing, wait for next task re-assignment notification
 
-**Verdict routing:**
+**Wave-review work (poll-driven):**
+Between per-task notifications, poll TaskList for `wave-review-*` tasks assigned to you. Skip any showing `[blocked by]`. For unblocked wave-review tasks: read metadata for `wave_number` and `files_changed`, run the Wave Review workflow (convention check only).
 
-All pipeline progression is handled by the static task graph. Messages are optional collaboration — they help the executor prioritise but the task + findings file contains everything needed.
+**Exit only on `shutdown_request`.**
 
-For per-task review (`review-{n.m}`):
+**Per-task verdict routing:**
+
+Pipeline progression is handled by re-assigning the implement task. Messages are optional collaboration — they help the executor prioritise but the task metadata + findings file contains everything needed.
 
 | Verdict | Actions |
 |---------|---------|
-| **PASS** | `TaskUpdate(review-{n.m}, completed, metadata: {"verdict": "PASS"})` |
-| **REVISE** | Write findings to `.planning/{task-id}/reviews/task-{n.m}-review-{attempt}.md`. `TaskCreate(fix-{n.m}-r{attempt}, metadata: {"task_number": "{n.m}", "source": "reviewer", "findings_path": ".planning/{task-id}/reviews/task-{n.m}-review-{attempt}.md"})` + `TaskUpdate(fix task, owner: "executor-{n.m}")`. `TaskUpdate(review-{n.m}, addBlockedBy: [fix-{n.m}-r{attempt}])` — review stays in_progress, now blocked. Optionally message executor with priority guidance |
+| **PASS** | `TaskUpdate(implement-{n.m}, owner: "executor-{n.m}", metadata: {stage: "commit"})` |
+| **REVISE** | Write findings to `.planning/{task-id}/reviews/task-{n.m}-review-{attempt}.md`. Increment `deviation_count` from task metadata. `TaskUpdate(implement-{n.m}, owner: "executor-{n.m}", metadata: {stage: "fix", fix_source: "reviewer", findings_path: ".planning/{task-id}/reviews/task-{n.m}-review-{attempt}.md", deviation_count: N+1})`. Optionally message executor with priority guidance |
 
-On PASS: review task completes — the static graph handles downstream unblocking (commit task). No TaskCreate for commit tasks.
+On PASS: implement task is re-assigned to the executor for the commit stage.
 
-On REVISE: review task stays `in_progress` but blocked by the new fix task. When executor completes the fix, review-{n.m} unblocks in TaskList and the reviewer re-reviews through the normal poll loop.
+On REVISE: implement task is re-assigned back to the executor with fix context in metadata. The executor applies the fix and re-assigns back to the reviewer (via `fix_source`).
 
-For wave review (`wave-review-{n}`):
+**Wave-review verdict routing:**
 
 | Verdict | Actions |
 |---------|---------|
 | **PASS** | `TaskUpdate(wave-review-{n}, completed, metadata: {"verdict": "PASS"})` — next wave's implement tasks unblock automatically |
-| **REVISE** | Create fix task for executor, re-review (max 3 rounds). If still REVISE: present remaining issues to lead |
+| **REVISE** | Create `wave-fix-{n}-{attempt}` task with metadata: `{"wave_number": {n}, "files": [<affected files>], "issues": "<summary>", "implement_tasks": ["implement-{n.m1}", ...], "findings_path": ".planning/{task-id}/reviews/wave-{n}-review.md"}`. `TaskUpdate(wave-fix task, owner: "lead")` — leader reads metadata to determine which executor(s) to assign the fix to. Max 3 rounds, then escalate to lead |
 
 No CC to lead on per-task PASS or REVISE.
 
 If the task details cannot be read (PLAN.md missing, task number not found, files not readable), message the lead with an ERROR result using the structured error format from the Confirmation Response section.
 
-**Re-review after fix:** After the executor completes a fix task, review-{n.m} reappears unblocked in TaskList. You pick up re-review requests via the normal poll loop. Re-evaluate only previously-blocking items per the re-review handling rule.
+**Re-review after fix:** When the executor re-assigns the implement task back after a fix (via `fix_source: "reviewer"`), the reviewer re-reviews. Re-evaluate only previously-blocking items per the re-review handling rule.
 
-**Plan-level review:** When the lead requests plan review (after all waves), run the Plan Review workflow as normal. This catches cross-cutting concerns that per-task review misses.
+**Plan-level review:** When the lead requests plan review (after all waves), run the Plan Review workflow as normal. This is a separate task assigned directly by the leader — unrelated to the per-task re-assignment chain.
 
 ### Shutdown Protocol
 
@@ -334,5 +334,5 @@ On receiving `shutdown_request`:
 - Wave review stays lightweight — convention adherence only, no deep analysis
 - No secrets, credentials, or .env contents in review reports
 - Blocking vs suggestion vs observation severity is consistently applied
-- **Pipelined mode:** Tasks reviewed as they unblock in the static graph; on REVISE creates fix task that blocks review (held-open model), on PASS completes review task — graph handles downstream unblocking
+- **Pipelined mode:** Receives implement tasks via re-assignment (stage: "review"). On PASS: re-assigns to executor (stage: "commit"). On REVISE: re-assigns to executor (stage: "fix") with deviation_count incremented. Wave-review REVISE creates wave-fix task assigned to lead
 - **Pipelined mode:** Lead is NOT messaged on per-task PASS or REVISE — only on ERROR, stall, or wave-review issues

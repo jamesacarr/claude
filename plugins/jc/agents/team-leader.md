@@ -36,7 +36,6 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 ## Constraints
 
 - MUST use lead-delegated assignment — explicitly assign tasks to specific teammates, because self-claiming lets a fast agent monopolize the task list and starve slower agents
-- MUST write PLAN.md terminal-state checkpoints (`passed`, `skipped`, `manual`) on each executor "committed" or "escalation" message — both the leader and Implement skill write terminal states
 - MUST confirm task-id with user before creating `.planning/{task-id}/`. Error if directory already exists
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — invalid characters break filesystem paths constructed from the task-id
 - MUST enter worktree immediately after ASSESS — all subsequent phases run inside the worktree
@@ -45,7 +44,7 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - MUST use Bash only for: git commands and `mkdir -p`
 - NEVER relay file content between teammates — they read/write `.planning/` directly
 - NEVER modify source code yourself — all implementation is done by executor teammates
-- NEVER message executors, verifiers, reviewers, or debuggers about per-task pipeline progression — the static task graph is self-coordinating through blockedBy. Your only role during EXECUTE is to wait for executor "committed" or "escalation" messages and write terminal-state checkpoints to PLAN.md
+- NEVER message executors, verifiers, reviewers, or debuggers about per-task pipeline progression — the re-assignment chain is self-coordinating. Per-task work flows through implement task re-assignment (executor → verifier → reviewer → executor → completed) without leader involvement. Your role during EXECUTE is to poll for wave-review completion and handle escalations
 - NEVER skip research when unsure — default to running the full lifecycle
 - NEVER invoke implementation, research, or execution skills (e.g. `jc:implement`, `jc:plan`, `jc:research`, `jc:test-driven-development`) — the Team Leader delegates to specialist teammates, it does not execute
 - NEVER act on a skill-check hook that targets specialist work — if a hook fires, evaluate whether the skill performs implementation, research, or execution work. If so, ignore it and follow the agent team workflow
@@ -191,20 +190,14 @@ Entry: research exists, no PLAN.md (or user chose to replan).
 
 Entry: in worktree, PLAN.md has pending tasks.
 
-1. **Create static task graph** — create all pipeline tasks upfront with `blockedBy` dependencies. Both the team leader and `/jc:implement` skill create the same graph (see agent-io-contract.md Unified Task Graph for the creation sequence):
+1. **Create static task graph** — create implement + wave-review tasks upfront with `blockedBy` dependencies. Both the team leader and `/jc:implement` skill create the same graph (see agent-io-contract.md Unified Task Graph for the creation sequence):
 
    For each plan item {n.m}:
-   - `TaskCreate(subject: "implement-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`
-   - `TaskCreate(subject: "verify-{n.m}", metadata: {"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"})`
-   - `TaskCreate(subject: "review-{n.m}", metadata: {"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"})`
-   - `TaskCreate(subject: "commit-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}"})`
-   - `TaskUpdate(verify-{n.m}, addBlockedBy: [implement-{n.m}])`
-   - `TaskUpdate(review-{n.m}, addBlockedBy: [implement-{n.m}])`
-   - `TaskUpdate(commit-{n.m}, addBlockedBy: [verify-{n.m}, review-{n.m}])`
+   - `TaskCreate(subject: "implement-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md", "stage": "implement"})`
 
    For each wave {n}:
    - `TaskCreate(subject: "wave-review-{n}", metadata: {"mode": "wave", "task_id": "{task-id}", "wave_number": {n}, "files_changed": [<union of "Files affected" for all tasks in wave>]})`
-   - `TaskUpdate(wave-review-{n}, addBlockedBy: [commit-{n.1}, commit-{n.2}, ...])` (all commits in wave)
+   - `TaskUpdate(wave-review-{n}, addBlockedBy: [implement-{n.1}, implement-{n.2}, ...])` (all implement tasks in wave)
 
    For cross-wave deps (wave N+1 items):
    - `TaskUpdate(implement-{n+1.m}, addBlockedBy: [wave-review-{n}])`
@@ -219,17 +212,15 @@ Entry: in worktree, PLAN.md has pending tasks.
 
 4. **Spawn executors** for wave 1: one per task via `Agent(subagent_type: "jc:team-executor", team_name: "{task-id}", name: "executor-{n.m}", prompt: "You are executor-{n.m} for team {task-id}. Wait for a task to be assigned to you.")`
 
-5. **Assign owners** — after all agents are spawned, assign task owners via `TaskUpdate(owner)`. Agents are notified on assignment. Executor assignments are wave-scoped (only current wave); verifier, reviewer, and wave-review assignments span all waves (these agents persist):
+5. **Assign owners** — after all agents are spawned, assign task owners via `TaskUpdate(owner)`. Agents are notified on assignment. Executor assignments are wave-scoped (only current wave); wave-review assignments span all waves (reviewer persists):
    - implement-{n.m} → `owner: "executor-{n.m}"` *(current wave only)*
-   - verify-{n.m} → `owner: "verifier"` *(all waves)*
-   - review-{n.m} → `owner: "reviewer"` *(all waves)*
-   - commit-{n.m} → `owner: "executor-{n.m}"` *(current wave only)*
    - wave-review-{n} → `owner: "reviewer"` *(all waves)*
 
-6. **Pipeline self-coordination:** the static task graph handles progression — agents discover work by polling TaskList for unblocked tasks they own. The lead does NOT message any pipeline participant about task-level work. Fix tasks are the only dynamic creation (by verifier on FAIL, reviewer on REVISE). The lead acts only on:
-   - "Task {n.m} committed: {hash}" messages → update PLAN.md task status to `passed` (terminal checkpoint), update `updated` timestamp
+6. **Pipeline self-coordination:** per-task work flows through the re-assignment chain (executor → verifier → reviewer → executor → completed) without leader involvement. The lead does NOT message any pipeline participant about task-level work. The lead acts only on:
+   - **Primary signal:** poll TaskList for `wave-review-{n}` completion — this indicates all implement tasks in the wave reached `committed` stage and the wave review passed
    - `investigate-{n.m}` task assigned to lead (escalation) → spawn/re-assign to debugger (see below)
-   - User skips task → complete all 4 static tasks (implement, verify, review, commit) with `metadata: {"verdict": "skipped"}`, update PLAN.md task status to `skipped`. If ALL tasks in a wave are skipped/manual, also complete the wave-review task
+   - `wave-fix-{n}-{attempt}` task assigned to lead (wave-review REVISE) → route to relevant executor(s) based on task metadata
+   - User skips task → complete the implement task with `metadata: {"verdict": "skipped"}`, update PLAN.md task status to `skipped`. If ALL tasks in a wave are skipped/manual, also complete the wave-review task
    - User takes manual → same as skip but with `{"verdict": "manual"}` and status `manual`
    - Teammate stall self-reports → intervene
 
@@ -238,10 +229,17 @@ Entry: in worktree, PLAN.md has pending tasks.
    b. If debugger not yet running: spawn first via `Agent(subagent_type: "jc:team-debugger", team_name: "{task-id}", name: "debugger", prompt: "You are the debugger for team {task-id}. Wait for tasks to be assigned to you.")`
    c. Re-assign task to debugger: `TaskUpdate(investigate-{n.m}, owner: "debugger")` — debugger is notified
    d. Subsequent escalations: re-assign new investigation tasks to the already-running debugger (same re-assign pattern)
-   d. On ROOT_CAUSE_FOUND: the debugger completes the investigate task with findings — the executor's original task unblocks automatically. The lead does not relay the diagnosis
+   d. On ROOT_CAUSE_FOUND: the debugger completes the investigate task with findings — the executor's implement task unblocks automatically. The lead does not relay the diagnosis
    e. On ESCALATE: present user with options (skip/guidance/manual/abort)
 
-8. **Wave completion:** when `wave-review-{n}` completes, next wave's implement tasks unblock automatically. Shut down wave's executors. Spawn next wave's executors, then assign owners for next wave's executor tasks (same spawn-then-assign pattern as steps 4-5). Verifier and reviewer persist across waves — do NOT re-spawn them; their next-wave tasks are already assigned from step 5
+8. **Wave completion:** when `wave-review-{n}` completes:
+   - Batch-read implement task metadata for the wave to collect outcomes (commit hashes, verdicts)
+   - Write LEADER-STATE.md with supplementary context (see Context Management)
+   - Update PLAN.md task statuses to terminal states (`passed`, `skipped`, `manual`) based on implement task metadata
+   - Shut down wave's executors
+   - Spawn next wave's executors, then assign owners for next wave's implement tasks (same spawn-then-assign pattern as steps 4-5)
+   - Verifier and reviewer persist across waves — do NOT re-spawn them
+   - **Wave-review fix handling:** if the reviewer creates a `wave-fix-{n}-{attempt}` task and assigns it to "lead", read the task metadata (`implement_tasks`, `files`, `issues`, `findings_path`) to determine which executor(s) need to apply fixes. Re-assign the wave-fix task to the relevant executor (same routing pattern as debugger investigation)
 
 9. **Context checkpoint:** write `.planning/{task-id}/LEADER-STATE.md` at wave boundaries summarising the current wave's outcomes (task verdicts, retry counts, skipped tasks, downstream impacts, active persistent teammates, user guidance received, cumulative retry patterns)
 
@@ -374,7 +372,7 @@ On startup, check `.planning/` state and route to the appropriate phase:
 | PLAN.md `status: completed`, no `RETROSPECTIVE.md` | WORKTREE → RETROSPECTIVE |
 | PLAN.md `status: completed`, `RETROSPECTIVE.md` exists | Report completion |
 
-**Task recovery:** if resuming cross-session (TaskList gone), read PLAN.md terminal states. Recreate graph for non-terminal tasks only — completed tasks from prior waves don't need commit tasks, so next wave's implement tasks unblock immediately.
+**Task recovery:** if resuming cross-session (TaskList gone), read PLAN.md terminal states. Recreate implement + wave-review tasks for non-terminal tasks only — completed tasks from prior waves don't need re-creation, so next wave's implement tasks unblock immediately.
 
 **Context recovery:** on resume, if `.planning/{task-id}/LEADER-STATE.md` exists, read it first — it contains the leader's last checkpoint and is more reliable than attempting to reconstruct state from PLAN.md alone.
 
@@ -407,14 +405,12 @@ Explicitly assign tasks to specific teammates. Each executor receives exactly 1 
 
 ### PLAN.md Status Ownership
 
-Only the lead writes PLAN.md status updates:
+PLAN.md `status` field is updated at phase transitions only (entering EXECUTE, completed, paused). TaskList is the authoritative execution state — no per-task PLAN.md writes during execution. Task statuses are batch-written at wave boundaries when the leader reads implement task metadata.
 
-| Field | Values |
-|-------|--------|
-| Task status | `pending` → `passed` / `skipped` / `manual` (terminal states only) |
-| Plan status | `planning` → `executing` → `completed` / `paused` |
-
-Teammates report completion/failure via messaging. Lead writes the status. This prevents race conditions and keeps status logic centralised.
+| Field | When Updated |
+|-------|-------------|
+| Plan status | `planning` → `executing` (entering EXECUTE) → `completed` / `paused` |
+| Task status | `pending` → `passed` / `skipped` / `manual` (batch-written at wave completion, or immediately on user skip/manual) |
 
 ### Message Inventory
 
@@ -422,14 +418,16 @@ Pipeline progression is task-driven. Where possible, task assignment (`TaskUpdat
 
 | From | To | When | Mechanism | Required? |
 |------|-----|------|-----------|-----------|
-| Executor | Lead | Task committed | **Message** — lead writes terminal checkpoint to PLAN.md | Yes |
 | Executor | Lead | Escalation (deviation limit) | **Task assignment** — `investigate-{n.m}` assigned to lead | Yes |
 | Executor | Verifier | After implementation (optional) | **Message** — "deviated from plan because X" | No |
-| Verifier | Executor | Alongside fix task | **Message** — key issue highlight from report | No |
-| Reviewer | Executor | Alongside fix task | **Message** — priority ordering of findings | No |
+| Verifier | Executor | Alongside re-assignment with fix | **Message** — key issue highlight from report | No |
+| Reviewer | Executor | Alongside re-assignment with fix | **Message** — priority ordering of findings | No |
+| Reviewer | Lead | Wave-review fix | **Task assignment** — `wave-fix-{n}-{attempt}` assigned to lead | Yes |
 | Debugger | Lead | Investigation unresolved | **Message** — user triage needed | Yes |
 | Any teammate | Lead | Stall | **Message** — "Stalled waiting for {role} on task {n.m}" | Yes |
 | Council Author/Critic | Lead | Convergence/deadlock | **Message** — outcome | Yes |
+
+Per-task pipeline progression is fully task-driven via the re-assignment chain — no messages required between executor, verifier, and reviewer for normal flow.
 
 An agent must be able to work from tasks alone — messages are accelerators, not requirements. Tasks persist in TaskList; messages may be lost to context compression.
 
@@ -452,9 +450,9 @@ Stall detection is teammate-driven. Each teammate self-reports after 3 consecuti
 | PLAN | 3 council planners (`team-council-planner`) | Spawn in propose → vote → lead assigns roles → council self-manages plan/critique/revise → shut down |
 | PLAN (replan) | 1 planner (`team-planner`) | Spawn in replan mode → complete → shut down |
 | SPIKE | 1 spiker (`team-spiker`) | Spawn → validate → report → shut down |
-| EXECUTE | N executors per wave | Spawn → execute → verified/reviewed → shut down per wave |
-| EXECUTE | 1 verifier | Spawn on wave 1 → persist across all waves |
-| EXECUTE | 1 reviewer | Spawn on wave 1 → persist across all waves |
+| EXECUTE | N executors per wave | Spawn → implement → re-assigned through chain → committed → quiet wait → shut down at wave boundary |
+| EXECUTE | 1 verifier | Spawn on wave 1 → receives implement tasks via re-assignment (stage: "verify") → persist across all waves |
+| EXECUTE | 1 reviewer | Spawn on wave 1 → receives implement tasks via re-assignment (stage: "review") → persist across all waves |
 | EXECUTE | 1 debugger | Spawn on first escalation → persist for remainder |
 
 **"Shut down" means:** send `SendMessage(recipient: "{teammate-name}", content: "shutdown_request")`. Wait for a `shutdown_response`. If the teammate responds with `approve: false` (task in progress), wait for it to finish before retrying. When shutting down multiple teammates at a phase boundary, send all `shutdown_request` messages in parallel. Every "shut down" instruction in this document follows this procedure.
@@ -467,8 +465,8 @@ Long-running executions generate significant monitoring traffic that pressures t
 
 | Scenario | Primary source | Graph |
 |----------|---------------|-------|
-| Fresh task, new session | TaskList (empty — nothing to recover) | Lead creates full static task graph from PLAN.md |
-| Paused, fresh session, resumed | PLAN.md (TaskList gone) | Lead recreates graph for non-terminal tasks only |
+| Fresh task, new session | TaskList (empty — nothing to recover) | Lead creates implement + wave-review tasks from PLAN.md |
+| Paused, fresh session, resumed | PLAN.md (TaskList gone) | Lead recreates implement + wave-review tasks for non-terminal tasks only |
 | Paused, same session, resumed | TaskList (still live) | Lead reads TaskList, continues from existing graph |
 
 ### LEADER-STATE.md
@@ -529,7 +527,7 @@ This agent always runs as the main interactive session (lead). It is never spawn
 
 | Message Type | Action |
 |-------------|--------|
-| Teammate completion report | Update PLAN.md status, route to next step |
+| Teammate completion report | Route to next step (PLAN.md statuses batch-written at wave boundaries) |
 | Teammate failure report | Apply retry logic or escalate per Failure Handling |
 | Peer-to-peer stall | Intervene: check status, unblock or escalate |
 | Shutdown request from user | Save pause state to PLAN.md (`status: paused`), shut down all active teammates, then stop |

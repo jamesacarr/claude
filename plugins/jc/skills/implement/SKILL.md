@@ -8,8 +8,8 @@ description: "Orchestrates plan execution through a static task graph with poll-
 ## Essential Principles
 
 1. **Worktree-first.** Commit `.planning/` to current branch, THEN create worktree via `EnterWorktree` — so PLAN.md is visible from the worktree without a separate sync step. All source changes happen in the worktree — never in the main tree. When resuming, route to the existing worktree — never create a new one over it
-2. **Static task graph.** Create all pipeline tasks upfront with `blockedBy` dependencies. The graph encodes the full pipeline including wave boundaries. Agents discover work by polling TaskList for unblocked tasks — no explicit state machine steps for verify/review/wave-review
-3. **TaskList is the execution state.** PLAN.md receives terminal-state checkpoints only (`passed`, `skipped`, `manual`) for crash recovery. No `in_progress` or `failed` writes during execution
+2. **Static task graph.** Create implement + wave-review tasks upfront with `blockedBy` dependencies (N+W tasks). The skill drives stage transitions externally after each subagent completes — no agents re-assign tasks in subagent mode
+3. **TaskList is the execution state.** PLAN.md `status` field updated at phase transitions only (entering EXECUTE, completed, paused). No per-task PLAN.md writes during execution
 4. **Verify before re-executing.** When resuming same-session, TaskList is live — continue from current state. Cross-session: recreate graph from PLAN.md terminal states
 5. **Pre-flight at graph creation.** Parse "Files affected" from each task in a wave. Build file→task map. Add `blockedBy` between overlapping implement tasks to force sequential execution. Encoded in the graph, not checked at runtime
 6. **Hard retry limits.** 3 per task (fix cycle limit). 3 per plan-review revision round. After limit: escalate to user via AskUserQuestion — never override
@@ -53,12 +53,12 @@ Determine the current environment and route accordingly:
 
 ### Step 1b: RECOVER — Resume from Existing State
 
-1. **Check TaskList** — if tasks exist matching the task-id patterns (`implement-*`, `verify-*`, `review-*`, `commit-*`, `wave-review-*`):
-   - Same-session resume: TaskList is live. Derive state from task statuses and continue to Step 4 (EXECUTE)
+1. **Check TaskList** — if tasks exist matching the task-id patterns (`implement-*`, `wave-review-*`):
+   - Same-session resume: TaskList is live. Derive state from task statuses and stage metadata, continue to Step 4 (EXECUTE)
 2. **If no tasks in TaskList** (cross-session resume):
    - Read PLAN.md terminal states (`passed`, `skipped`, `manual`)
-   - Recreate task graph for non-terminal tasks only (Step 3: GRAPH, skipping terminal tasks)
-   - Completed tasks from prior waves don't need commit tasks, so next wave's implement tasks unblock immediately
+   - Recreate implement + wave-review tasks for non-terminal tasks only (Step 3: GRAPH, skipping terminal tasks)
+   - Completed tasks from prior waves don't need re-creation, so next wave's implement tasks unblock immediately
 3. Present status summary to user via AskUserQuestion:
 
 ```
@@ -112,17 +112,11 @@ Install project dependencies in the worktree.
 3. Create the full static task graph (all waves) using the creation sequence from agent-io-contract.md:
 
    For each plan item {n.m}:
-   - `TaskCreate(subject: "implement-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md"})`
-   - `TaskCreate(subject: "verify-{n.m}", metadata: {"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"})`
-   - `TaskCreate(subject: "review-{n.m}", metadata: {"mode": "task", "task_id": "{task-id}", "task_number": "{n.m}"})`
-   - `TaskCreate(subject: "commit-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}"})`
-   - `TaskUpdate(verify-{n.m}, addBlockedBy: [implement-{n.m}])`
-   - `TaskUpdate(review-{n.m}, addBlockedBy: [implement-{n.m}])`
-   - `TaskUpdate(commit-{n.m}, addBlockedBy: [verify-{n.m}, review-{n.m}])`
+   - `TaskCreate(subject: "implement-{n.m}", metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "plan_path": ".planning/{task-id}/plans/PLAN.md", "stage": "implement"})`
 
    For each wave {n}:
    - `TaskCreate(subject: "wave-review-{n}", metadata: {"mode": "wave", "task_id": "{task-id}", "wave_number": {n}, "files_changed": [<union of "Files affected" for all tasks in wave>]})`
-   - `TaskUpdate(wave-review-{n}, addBlockedBy: [commit-{n.1}, commit-{n.2}, ...])` (all commits in wave)
+   - `TaskUpdate(wave-review-{n}, addBlockedBy: [implement-{n.1}, implement-{n.2}, ...])` (all implement tasks in wave)
 
    For cross-wave deps (wave N+1 items):
    - `TaskUpdate(implement-{n+1.m}, addBlockedBy: [wave-review-{n}])`
@@ -130,7 +124,7 @@ Install project dependencies in the worktree.
    For file overlap within a wave:
    - `TaskUpdate(implement-{n.m2}, addBlockedBy: [implement-{n.m1}])` (sequential fallback)
 
-   No owner assignment — the skill tracks which task to spawn next
+   No owner assignment — the skill tracks stage-based dispatch directly
 
 4. Get timestamp: call `mcp__time__get_current_time`
 5. Update PLAN.md: `status: executing`, `updated: <timestamp>`
@@ -138,44 +132,54 @@ Install project dependencies in the worktree.
 
 ### Step 4: EXECUTE — Poll-Spawn Loop
 
-Run a generic poll-spawn loop driven by TaskList. The task graph encodes the full pipeline including wave boundaries — no explicit state machine steps needed.
+Run a stage-based poll-spawn loop driven by TaskList. The skill drives stage transitions externally after each subagent completes.
 
 **Loop:**
 1. Poll TaskList for unblocked, non-completed tasks (no `[blocked by]` annotation)
-2. Determine subagent type from task subject prefix:
+2. Determine dispatch by task subject and stage:
+
+   For `implement-*` tasks: call `TaskGet` to read `stage` metadata, then dispatch by stage:
+
+   | Stage | Subagent | After completion |
+   |-------|----------|-----------------|
+   | `implement` (pending) | `team-executor` | Skill sets `stage: "verify"`, spawns verifier |
+   | `verify` | `team-verifier` | On PASS: skill sets `stage: "review"`, spawns reviewer. On FAIL: skill sets `stage: "fix"`, `fix_source: "verifier"`, increments `deviation_count`, spawns executor |
+   | `review` | `team-reviewer` | On PASS: skill sets `stage: "commit"`, spawns executor. On REVISE: skill sets `stage: "fix"`, `fix_source: "reviewer"`, increments `deviation_count`, spawns executor |
+   | `fix` | `team-executor` | Skill reads `fix_source` from metadata. Sets `stage: "verify"` and spawns verifier if fix_source is "verifier", or sets `stage: "review"` and spawns reviewer if fix_source is "reviewer" |
+   | `commit` | `team-executor` | Skill marks task completed with `stage: "committed"` |
+
+   For other task prefixes (prefix-based dispatch):
 
    | Prefix | Subagent | Notes |
    |--------|----------|-------|
-   | `implement-*` | `team-executor` | Implementation |
-   | `verify-*` | `team-verifier` | Task verification |
-   | `review-*` | `team-reviewer` | Per-task review (mode: task) |
-   | `commit-*` | `team-executor` | Commit after verify+review pass |
    | `wave-review-*` | `team-reviewer` | Wave review (mode: wave) |
-   | `fix-*` | `team-executor` | Fix from verifier/reviewer |
    | `investigate-*` | `team-debugger` | Debug investigation |
+   | `wave-fix-*` | `team-executor` | Wave-review fix |
 
-3. Spawn subagent: `Agent(subagent_type, prompt: "Your task is {task-id}.")`
+3. **Spawn subagent** with an ephemeral task:
+   - For each dispatch, create a new `TaskCreate` with the metadata the subagent expects (e.g., verifier needs `mode: "task"`, `task_id`, `task_number`; executor needs `task_id`, `task_number`, plus `previous_failure` context for fix stage). The implement task tracks stage; the ephemeral task carries the subagent's I/O contract
+   - `Agent(subagent_type, prompt: "Your task is {ephemeral-task-id}.")`
 
-   **Parallelism within a wave:** Multiple implement tasks in the same wave may be unblocked simultaneously (if no file overlap). Spawn executor subagents in parallel. Similarly, verify and review for the same plan item are both unblocked after implement completes — spawn both in parallel.
+   **Parallelism within a wave:** Multiple implement tasks at different stages can be dispatched concurrently (e.g., one at "verify" and another at "review"). Multiple implement tasks in the same wave may also be unblocked simultaneously (if no file overlap) — spawn executor subagents in parallel.
 
-4. On subagent completion: read `TaskGet` for result metadata
+4. On subagent completion: read `TaskGet` on the ephemeral task for result metadata. Apply the stage transition from the table above to the implement task via `TaskUpdate(metadata: {stage: ...})`.
 
-5. **Handle results by task type:**
-   - **commit task completed:** update PLAN.md task status to `passed` (terminal checkpoint), update `updated` timestamp
+5. **Handle results:**
+   - **implement task completed (stage: "committed"):** task is done — no per-task PLAN.md write. Statuses batch-written at wave boundaries
    - **investigate task completed:** check metadata verdict — if ESCALATE, present user with options (skip/guidance/manual/abort). If ROOT_CAUSE_FOUND, the executor's task auto-unblocks and will appear in the next poll
-   - **wave-review REVISE:** spawn executor to fix, re-spawn reviewer (max 3 rounds). If still REVISE: present remaining issues to user, then advance
-   - **skip/manual:** complete all 4 static tasks in the chain (implement, verify, review, commit) with `metadata: {"verdict": "skipped"}` or `{"verdict": "manual"}`. Update PLAN.md task status. If ALL tasks in a wave are skipped/manual, also complete the wave-review task
+   - **wave-review REVISE:** reviewer creates `wave-fix-{n}-{attempt}` task. Spawn executor to fix, re-spawn reviewer (max 3 rounds). If still REVISE: present remaining issues to user, then advance
+   - **skip/manual:** complete the implement task with `metadata: {"verdict": "skipped"}` or `{"verdict": "manual"}`. If ALL tasks in a wave are skipped/manual, also complete the wave-review task
 
 6. **Escalation** (deviation limit or user request):
 
    | Option | Label | Action |
    |--------|-------|--------|
-   | 1 | **Skip task** | Complete all 4 static tasks + wave-review with verdict, mark PLAN.md `skipped`. Warn about downstream dependents |
-   | 2 | **Provide guidance** | User enters guidance. Relevant fix task gets context in metadata |
-   | 3 | **Implement manually** | Complete all 4 static tasks, mark PLAN.md `manual` |
+   | 1 | **Skip task** | Complete implement task + wave-review with verdict. Warn about downstream dependents |
+   | 2 | **Provide guidance** | User enters guidance. Reset `deviation_count` to 0 in implement task metadata, set stage back to fix_source's stage, re-spawn |
+   | 3 | **Implement manually** | Complete implement task, mark PLAN.md `manual` |
    | 4 | **Abort execution** | Update PLAN.md: `status: paused`, `pause_reason`. Stop |
 
-7. Repeat until all tasks completed (graph gates wave progression automatically)
+7. Repeat until all tasks completed (graph gates wave progression automatically). At wave boundaries: batch-update PLAN.md task statuses from implement task metadata
 8. Proceed to Step 5 (PLAN_VERIFY + PLAN_REVIEW)
 
 ### Step 5: PLAN_VERIFY + PLAN_REVIEW (parallel)
@@ -227,10 +231,10 @@ Spawn both in parallel. After each completes, read results via `TaskGet` — che
 |-------------|-----------------|
 | Executing in main tree "to save time" | Always create worktree — isolation protects main branch |
 | Explicit state machine for verify/review/wave-review | Use the poll-spawn loop — the task graph encodes progression |
-| Tracking `current_wave` / `current_task` in PLAN.md | TaskList is execution state. PLAN.md gets terminal checkpoints only |
+| Tracking `current_wave` / `current_task` in PLAN.md | TaskList is execution state. PLAN.md updated at phase transitions and wave boundaries only |
 | Parallelizing without pre-flight check | Always check file overlap at graph creation time |
 | Writing `in_progress` or `failed` to PLAN.md | Only write terminal states: `passed`, `skipped`, `manual` |
-| Creating verify/review/commit tasks dynamically | All pipeline tasks are pre-created in the static graph |
+| Creating separate verify/review/commit tasks | Use stage-based dispatch on implement tasks — one task per plan item |
 | Spawning debugger autonomously on failure | Escalate to user — they choose whether to debug, skip, or guide |
 | Creating a new worktree when one already exists | Prompt user to switch to existing worktree |
 | Retrying dependency install failures | Stop immediately, escalate to user |
@@ -238,7 +242,7 @@ Spawn both in parallel. After each completes, read results via `TaskGet` — che
 ## Success Criteria
 
 - Every task in PLAN.md has terminal status (`passed`, `skipped`, or `manual`) — none left `pending`
-- Verification reports exist for every `passed` task and for the plan overall
+- Every implement task reached `stage: "committed"` or was explicitly skipped/manual
 - Wave review ran after each wave (via `wave-review-{n}` tasks in the graph)
 - Plan review report exists at `.planning/{task-id}/reviews/PLAN-REVIEW.md`
-- TaskList shows all tasks completed at end of execution
+- TaskList shows all implement and wave-review tasks completed at end of execution
