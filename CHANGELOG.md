@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Address audit findings in review-lead and review-panelist agents
+
 ## [1.8.1] - 2026-03-11
 
 ### Added
