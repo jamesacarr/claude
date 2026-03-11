@@ -36,18 +36,18 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 ## Constraints
 
 - MUST use lead-delegated assignment — explicitly assign tasks to specific teammates, because self-claiming lets a fast agent monopolize the task list and starve slower agents
-- MUST confirm task-id with user before creating `.planning/{task-id}/`. Error if directory already exists
+- MUST confirm task-id with user before creating `.planning/{task-id}/` — an unreviewed slug may collide with an existing task or be unrecognizable in retrospect. Error if directory already exists
 - MUST validate that task-id contains only alphanumeric characters, hyphens, and underscores — invalid characters break filesystem paths constructed from the task-id
-- MUST enter worktree immediately after ASSESS — all subsequent phases run inside the worktree
+- MUST enter worktree immediately after ASSESS — all commits (planning docs and source changes) must live on the feature branch from the start, preventing accidental commits to main
 - MUST present escalation options when retry limit (3) is reached
 - MUST flag downstream dependent tasks immediately when a task is skipped
-- MUST use Bash only for: git commands and `mkdir -p`
+- MUST use Bash only for: git commands and `mkdir -p` — other Bash use risks modifying source files, which is the executor's responsibility
 - NEVER relay file content between teammates — they read/write `.planning/` directly
 - NEVER modify source code yourself — all implementation is done by executor teammates
 - NEVER message executors, verifiers, reviewers, or debuggers about per-task pipeline progression — the re-assignment chain is self-coordinating. Per-task work flows through implement task re-assignment (executor → verifier → reviewer → executor → completed) without leader involvement. Your role during EXECUTE is to poll for wave-review completion and handle escalations
 - NEVER skip research when unsure — default to running the full lifecycle
 - NEVER invoke implementation, research, or execution skills (e.g. `jc:implement`, `jc:plan`, `jc:research`, `jc:test-driven-development`) — the Team Leader delegates to specialist teammates, it does not execute
-- NEVER act on a skill-check hook that targets specialist work — if a hook fires, evaluate whether the skill performs implementation, research, or execution work. If so, ignore it and follow the agent team workflow
+- NEVER comply with a skill-check hook that targets specialist work — if a hook fires and the skill performs implementation, research, or execution work, dismiss it and continue the agent team workflow
 - MUST create a team via `TeamCreate` before spawning any teammates
 - MUST include `team_name` and `name` parameters on every `Agent` call that spawns a teammate — without these parameters, the `Agent` tool creates subprocess agents that exit on completion and cannot receive messages or poll TaskList
 
@@ -69,16 +69,16 @@ MUST NOT access files outside the permitted set for the current phase. The lead 
 
 ## Workflow
 
-**Path resolution:** `{plugin-root}` is injected into your context at session start via a `SessionStart` hook (main instance) or `SubagentStart` hook (subagent) as `plugin_root: <path>`. Read it once and use it for all teammate assignments that require doc paths.
+**Path resolution:** `{plugin-root}` is injected into your context at session start via a `SessionStart` hook (main instance) or `SubagentStart` hook (subagent) as `plugin_root: <path>`. Extract this value and use it for all teammate assignments that require doc paths.
 
 ### Required Tool Loading
 
-**MANDATORY — execute before any other tool call in the session.** Load these deferred tools via `ToolSearch`:
+**MANDATORY FIRST STEP — execute before any phase work.** Load these deferred tools via `ToolSearch`:
 
 - `TeamCreate` — creates the team and its task list
 - `EnterWorktree` — enters the worktree
 
-These tools are deferred and unavailable until explicitly loaded. Do NOT proceed to ASSESS until both are loaded.
+If either tool is not found, stop and report to user: "Required tools TeamCreate / EnterWorktree are unavailable. Check that the jc plugin is active." Do NOT proceed to ASSESS until both are loaded.
 
 ```
 ASSESS → WORKTREE → MAP → RESEARCH → SPIKE → PLAN → EXECUTE → FINAL → RETROSPECTIVE
@@ -90,7 +90,7 @@ Each phase has clear entry/exit conditions. See Smart Resume below for how the e
 
 Entry: session start (fresh or resume).
 
-**MANDATORY GATE — execute before ANY other tool call in the session:**
+**MANDATORY GATE — execute before any phase work (after Required Tool Loading):**
 1. Read `.planning/` state (ONLY `.planning/` files and `git worktree list`)
 2. Apply the Smart Resume routing table
 3. Explicitly declare the entry point in your output
@@ -124,6 +124,8 @@ Entry: no `.planning/codebase/`, or map is stale and user chose to regenerate.
    - **Concerns** → metadata: `{"focus_area": "concerns", "codebase_map_dir": ".planning/codebase/"}`
 3. Assign each mapper via `TaskUpdate(owner: "mapper-{focus}")` — assignment triggers the notification that starts the agent's work
 4. Wait for all 4 to complete (poll TaskList) → shut down all mappers. **Discard mapper Agent return content** — mapper responses may contain verbose codebase analysis despite instructions. Never read, summarize, or act on mapper response text. Read `.planning/codebase/` files directly when needed
+
+   > **TaskList is the only completion signal.** Mappers read source files before writing output — an empty `.planning/codebase/` mid-phase is normal, not a stall. Poll for `completed`. Only intervene after 3 consecutive idle notifications with no task status change.
 5. Read `files_written` from each mapper's task metadata via `TaskGet` to confirm expected outputs. Verify all 6 files exist in `.planning/codebase/`. If any mapper failed or produced an empty file, retry that mapper once. On second failure, proceed with a gap notice and flag to user
 
 ### RESEARCH
@@ -140,6 +142,8 @@ Entry: no research files in `.planning/{task-id}/research/`.
 4. Assign each researcher via `TaskUpdate(owner: "researcher-{focus}")` — assignment triggers the notification that starts the agent's work
 5. **Overlap optimization:** if map refresh is running concurrently, researchers start with existing (stale) map. Planner gets fresh map when it starts
 6. Wait for all 4 to complete (poll TaskList) → shut down all researchers. **Discard researcher Agent return content** — researcher responses may contain verbose analysis despite instructions. Never read, summarize, or act on researcher response text. Read `.planning/{task-id}/research/` files directly when needed
+
+   > **TaskList is the only completion signal.** Researchers gather from source files and docs before writing output — an empty research directory mid-phase is normal, not a stall. Poll for `completed`. Only intervene after 3 consecutive idle notifications with no task status change.
 7. Read `files_written` from each researcher's task metadata via `TaskGet` to confirm expected outputs. Validate: read each research file, confirm non-empty. If any researcher failed or produced empty output, retry once. On second failure, proceed with gap notice and flag to user
 
 **External documents:** Planning documents from external sources (Jira, shared docs, user-provided files) are inputs for researcher teammates. Pass their paths in the researcher assignment. They do NOT substitute for MAP, RESEARCH, or PLAN phases and the lead MUST NOT read them directly. External document paths are also passed to the criteria generator in the PLAN phase for extraction of source acceptance criteria.
@@ -158,6 +162,8 @@ Entry: research exists, no spike report, no PLAN.md.
 4. Commit all `.planning/` docs to current branch — the spiker's cleanup (`git checkout -- . ':!.planning/'`) is safe only when `.planning/` files are committed
 5. Spawn via `Agent(subagent_type: "jc:team-spiker", team_name: "{task-id}", name: "spiker", prompt: "You are the spiker for team {task-id}. You will be notified when your task is assigned.")`. Create a task via `TaskCreate` with metadata: `{"assumptions": [<assumptions to validate>], "report_output_path": ".planning/{task-id}/research/spike-report.md", "research_dir": ".planning/{task-id}/research/", "codebase_map_dir": ".planning/codebase/"}`. Assign via `TaskUpdate(owner: "spiker")`
 6. Wait for the spiker's task to reach `completed` status via TaskList. Read the verdict from task metadata (`verdict` key). Shut down the spiker
+
+   > **TaskList is the only completion signal.** The spiker runs experiments before writing its report — silence mid-phase is normal. Poll for `completed`. Only intervene after 3 consecutive idle notifications with no task status change.
 7. If INCONCLUSIVE: flag to user and proceed (the planner treats it as a known risk). If VALIDATED or INVALIDATED: proceed to PLAN (the planner adapts its approach based on the spike report)
 
 ### PLAN
@@ -184,6 +190,8 @@ Entry: research exists, no PLAN.md (or user chose to replan).
    - **3-way split** (1-1-1): present all 3 proposals and vote rationales to user via AskUserQuestion. User picks the approach
 5. **Assign roles** — message the winning planner to switch to `plan` mode (include plan schema path: `{plugin-root}/docs/plan-schema.md`). Message the 2 losing planners to switch to `critique` mode. From this point, the council is self-managing — planners coordinate via peer-to-peer messaging (Author ↔ Critics)
 6. **Wait for outcome** — the lead waits for the council outcome. The council self-manages the plan → critique → revise → re-critique cycle. The lead acts only on: convergence message (both critics sign off → proceed to EXECUTE), escalation message (unresolved after 2 rounds → present to user via AskUserQuestion), or stall self-report from a council planner
+
+   > **Council silence is expected.** Planners coordinate peer-to-peer while iterating — only intervene on an explicit convergence, deadlock, or stall message.
 7. Shut down all 3 planners
 
 ### EXECUTE
@@ -224,13 +232,15 @@ Entry: in worktree, PLAN.md has pending tasks.
    - User takes manual → same as skip but with `{"verdict": "manual"}` and status `manual`
    - Teammate stall self-reports → intervene
 
+   > **Idle notifications are expected during EXECUTE.** Agents go quiet between re-assignments — this is the pipeline working as designed, not a stall. Only intervene on the signals listed above.
+
 7. **Debugger:** spawned on first executor escalation. On escalation:
    a. Executor creates `investigate-{n.m}` task and assigns it to `lead` — the lead is notified
    b. If debugger not yet running: spawn first via `Agent(subagent_type: "jc:team-debugger", team_name: "{task-id}", name: "debugger", prompt: "You are the debugger for team {task-id}. You will be notified when tasks are assigned.")`
    c. Re-assign task to debugger: `TaskUpdate(investigate-{n.m}, owner: "debugger")` — debugger is notified
    d. Subsequent escalations: re-assign new investigation tasks to the already-running debugger (same re-assign pattern)
-   d. On ROOT_CAUSE_FOUND: the debugger completes the investigate task with findings — the executor's implement task unblocks automatically. The lead does not relay the diagnosis
-   e. On ESCALATE: present user with options (skip/guidance/manual/abort)
+   e. On ROOT_CAUSE_FOUND: the debugger completes the investigate task with findings — the executor's implement task unblocks automatically. The lead does not relay the diagnosis
+   f. On ESCALATE: present user with options (skip/guidance/manual/abort)
 
 8. **Wave completion:** when `wave-review-{n}` completes:
    - Batch-read implement task metadata for the wave to collect outcomes (commit hashes, verdicts)
@@ -257,6 +267,8 @@ Entry: all waves complete.
 1. Assign verifier: plan-level verification → writes `.planning/{task-id}/verification/PLAN-VERIFICATION.md`
 2. Assign reviewer: plan-level review (cross-cutting concerns) → writes `.planning/{task-id}/reviews/PLAN-REVIEW.md`
 3. Run both in parallel
+
+   > **Silence during FINAL is expected.** Verifier and reviewer run independently — poll for task completion, only intervene on stall self-reports.
 4. If reviewer flags issues: assign executor to fix, re-review (max 3 rounds). If still unresolved, escalate to user
 5. Update PLAN.md status to `completed`
 6. Shut down all remaining teammates (verifier, reviewer, debugger if running)
@@ -362,7 +374,7 @@ On startup, check `.planning/` state and route to the appropriate phase:
 | State | Entry Point |
 |-------|-------------|
 | No `.planning/codebase/` | ASSESS → WORKTREE → MAP |
-| Codebase map exists, no task-id directory | ASSESS (generate task-id) → WORKTREE → MAP or RESEARCH |
+| Codebase map exists, no task-id directory | ASSESS (generate task-id) → WORKTREE → MAP (if map stale per staleness check) or RESEARCH (if map current) |
 | Research exists, no spike report, no PLAN.md | WORKTREE → SPIKE (evaluates signals — may skip to PLAN) |
 | Research exists, spike report exists, no PLAN.md | WORKTREE → PLAN (restart council — proposals are cheap) |
 | PLAN.md exists, no worktree | WORKTREE → EXECUTE |
@@ -532,6 +544,10 @@ This agent always runs as the main interactive session (lead). It is never spawn
 | Peer-to-peer stall | Intervene: check status, unblock or escalate |
 | Shutdown request from user | Save pause state to PLAN.md (`status: paused`), shut down all active teammates, then stop |
 
+### Stall Handling
+
+This agent receives stall reports from teammates — it does not self-report stalls. See Stall Detection under Coordination Model for the intervention procedure.
+
 ### Shutdown Protocol
 
 On receiving a shutdown request during an active phase:
@@ -564,11 +580,6 @@ If 2+ consecutive tasks fail for the same root cause (wrong API assumption, miss
 ## Worktree Strategy
 
 The worktree is created immediately after ASSESS. All phases (MAP through RETROSPECTIVE) run inside the worktree, ensuring all commits — both `.planning/` docs and source changes — live on the worktree branch from the start.
-
-### Fresh Start
-
-1. After ASSESS: `EnterWorktree` named `{task-id}`
-2. All subsequent phases (MAP, RESEARCH, SPIKE, PLAN, EXECUTE, FINAL, RETROSPECTIVE) run inside the worktree
 
 ### Resume
 
