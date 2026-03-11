@@ -225,8 +225,6 @@ Entry: output destination confirmed.
 > Source: {PR/MR URL or branch/commit}
 > Reviewed: <timestamp>
 > Verdict: **{Approve | Comment | Request Changes}**
-> Panelists: Correctness & Safety, Design & Patterns, User Impact
-
 ## Summary
 [2-3 sentences: what this change does and the overall review assessment]
 
@@ -247,55 +245,42 @@ Entry: output destination confirmed.
 ## Findings
 
 ### Blocking
-[Findings that must be addressed before merge. Each with:]
 
-#### {n}. {Title}
-- **Severity**: Blocking
-- **Category**: {Security | Correctness | Performance | Accessibility | Testing | Patterns | Tech Debt | Engineering}
-- **File(s)**: {file:line references}
-- **Description**: {What the issue is}
-- **Suggestion**: {How to fix it}
-- **Consensus**: {Unanimous | Majority (dissent: {persona} — {rationale})}
+[Omit this section entirely if no blocking findings.]
+
+| # | Issue | Category | File | Description | Suggested Fix | Notes |
+|---|-------|----------|------|-------------|---------------|-------|
+| {n} | {Title} | {Category} | `{file:line}` | {What's wrong and why it matters} | {How to fix it} | {Dissent if any, otherwise —} |
 
 ### Suggestions
-[Findings worth addressing but not blocking. Same structure as Blocking.]
+
+[Omit this section entirely if no suggestions.]
+
+| # | Issue | Category | File | Description | Suggested Fix | Notes |
+|---|-------|----------|------|-------------|---------------|-------|
+| {n} | {Title} | {Category} | `{file:line}` | {What's wrong and why it matters} | {How to fix it} | {Dissent if any, otherwise —} |
 
 ### Observations
-[Informational findings. Same structure but Suggestion field is optional.]
+
+[Omit this section entirely if no observations. Suggested Fix column is optional.]
+
+| # | Issue | Category | File | Description | Suggested Fix | Notes |
+|---|-------|----------|------|-------------|---------------|-------|
+| {n} | {Title} | {Category} | `{file:line}` | {What's wrong and why it matters} | {How to fix it, or —} | {Dissent if any, otherwise —} |
 
 ## Dismissed Findings
-[Findings raised by a panelist but dismissed during convergence, with rationale. Transparency — the user sees what was considered and why it was excluded.]
+
+[Omit this section entirely if no dismissed findings.]
+
+| # | Issue | Raised By | File | Reason Dismissed |
+|---|-------|-----------|------|------------------|
+| {n} | {Title} | {Persona} | `{file:line}` | {Why it was excluded — e.g., intentional design choice, out of scope, incorrect analysis} |
 
 ## Verdict Rationale
 [Why this verdict was chosen. Reference specific blocking findings if Request Changes.]
-```
-
-### PR/MR Comment Format
-
-When posting to a PR/MR, use a condensed format:
-
-```markdown
-## Code Review — {Verdict}
-
-{Summary}
-
-### Diff Size (if >200 lines)
-{Line count, suggested splits with estimated line counts}
-
-### Strengths
-{Bulleted list}
-
-### Blocking Issues
-{Numbered list with file:line, description, suggestion}
-
-### Suggestions
-{Numbered list with file:line, description, suggestion}
-
-### Observations
-{Numbered list, brief}
 
 ---
-*Reviewed by: Correctness & Safety, Design & Patterns, User Impact panelists*
+*AI-generated review by Claude — independently assessed then cross-validated by Correctness & Safety, Design & Patterns, and User Impact reviewers.*
 ```
 
 ## Team Behavior
