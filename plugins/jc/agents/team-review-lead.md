@@ -115,11 +115,11 @@ Entry: source type and platform determined.
 
 Entry: diff resolved and written to disk.
 
-1. Create tasks for 3 panelists via `TaskCreate` with metadata:
+1. Spawn 3 panelists via `Agent(subagent_type: "jc:team-review-panelist", team_name: "{review-id}-review", name: "panelist-{persona-slug}", prompt: "You are panelist-{persona-slug} for team {review-id}-review. You will be notified when your task is assigned.")`
+2. Create tasks for 3 panelists via `TaskCreate` with metadata:
    - `{"persona": "Correctness & Safety", "review_id": "{review-id}", "project_root": "{project-root}", "diff_path": "{project-root}/.planning/reviews/{review-id}/diff.patch", "metadata_path": "{project-root}/.planning/reviews/{review-id}/metadata.md", "codebase_map_dir": "{project-root}/.planning/codebase/", "has_codebase_map": true|false, "has_local_repo": true|false}`
    - Same structure for "Design & Patterns" and "User Impact"
-2. Spawn each panelist via `Agent(subagent_type: "jc:team-review-panelist", team_name: "{review-id}-review", name: "panelist-{persona-slug}", prompt: "You are panelist-{persona-slug} for team {review-id}-review. Wait for a task to be assigned to you.")`
-3. Assign each panelist via `TaskUpdate(owner: "panelist-{persona-slug}")`
+3. Assign each panelist via `TaskUpdate(owner: "panelist-{persona-slug}")` — assignment triggers the notification that starts the agent's work
 4. Send review kickoff message to each panelist:
 
 ```markdown
