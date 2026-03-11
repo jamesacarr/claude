@@ -27,7 +27,7 @@ Metadata contains all structured parameters the agent needs — paths, focus are
 Agent tool with subagent_type: "<agent-type>", prompt: "Your task is <task-id-from-TaskCreate>."
 ```
 
-The spawn prompt is minimal — just the task ID. The agent calls `TaskGet` to read its full assignment from the task metadata.
+The spawn prompt is minimal — just the task ID. The agent calls `TaskGet` to read its full assignment from the task metadata. For the team-mode equivalent (spawn-then-assign), see the Agent Team Mode section below.
 
 ### Reading results
 
@@ -93,8 +93,8 @@ When agents are coordinated by the Team Leader (or Refinement Lead) as an Agent 
 ```
 1. TeamCreate(team_name: "{id}")              → create team + task list (once per workflow)
 2. TaskCreate(subject: "...", metadata: {...}) → create task with structured assignment
-3. TaskUpdate(taskId, owner: "{name}")         → assign task to teammate by name
-4. Agent(subagent_type: "...", team_name: "{id}", name: "{name}", prompt: "Your task is {task-id}.") → spawn teammate
+3. Agent(subagent_type: "...", team_name: "{id}", name: "{name}", prompt: "...wait for task assignment...") → spawn teammate
+4. TaskUpdate(taskId, owner: "{name}")         → assign task — agent is notified on assignment
 ```
 
 **Contrast with skill mode** (steps 2 + 4 only, no TeamCreate, no `team_name`/`name` on Agent):
@@ -128,14 +128,15 @@ Completing a task with unresolved blockers corrupts the pipeline by unblocking d
 
 ### Task Ownership
 
-`TaskCreate` creates tasks with no owner. Ownership is set via `TaskUpdate`:
+`TaskCreate` creates tasks with no owner. Ownership is assigned via `TaskUpdate` **after the target agent is spawned** — agents are notified when tasks are assigned to them:
 
 ```
 task = TaskCreate(subject: "verify-1.2", metadata: {...})
-TaskUpdate(taskId: task.id, owner: "verifier")
+# ... spawn agent first ...
+TaskUpdate(taskId: task.id, owner: "verifier")  → agent receives notification
 ```
 
-All task assignment flows through `TaskUpdate(owner: "{name}")` — there is no `assigned` parameter on `TaskCreate`.
+All task assignment flows through `TaskUpdate(owner: "{name}")` — there is no `assigned` parameter on `TaskCreate`. In team mode, owners are always assigned after agents are spawned. In subagent mode, no owner is assigned — the skill tracks task progression directly.
 
 ## Unified Task Graph
 
@@ -207,7 +208,17 @@ For file overlap within a wave:
 
 ### Owner assignment:
 
-- **Team mode:** `TaskUpdate(owner: "executor-{n.m}")`, `TaskUpdate(owner: "verifier")`, `TaskUpdate(owner: "reviewer")`
+In team mode, owners are assigned **after all agents are spawned** (spawn-then-assign pattern). Agents are notified on assignment and begin work:
+
+```
+After spawning all agents for the current wave:
+  TaskUpdate(implement-{n.m}, owner: "executor-{n.m}")
+  TaskUpdate(verify-{n.m}, owner: "verifier")
+  TaskUpdate(review-{n.m}, owner: "reviewer")
+  TaskUpdate(commit-{n.m}, owner: "executor-{n.m}")
+  TaskUpdate(wave-review-{n}, owner: "reviewer")
+```
+
 - **Subagent mode:** No owner assignment — the Implement skill tracks which task to spawn next
 
 ### Fix-task-blocks-parent pattern:
@@ -217,14 +228,16 @@ Fix cycles use a held-open model: the verifier/reviewer keeps their task `in_pro
 ```
 Verifier FAIL:
   1. TaskCreate(fix-{n.m}-v{attempt}, metadata: {...})
-  2. TaskUpdate(verify-{n.m}, addBlockedBy: [fix-{n.m}-v{attempt}])
-  → verify stays in_progress but blocked; executor picks up fix
+  2. TaskUpdate(fix-{n.m}-v{attempt}, owner: "executor-{n.m}")  → executor is notified
+  3. TaskUpdate(verify-{n.m}, addBlockedBy: [fix-{n.m}-v{attempt}])
+  → verify stays in_progress but blocked; executor picks up fix via notification
   → executor completes fix → verify unblocks → verifier re-checks
 
 Reviewer REVISE:
   1. TaskCreate(fix-{n.m}-r{attempt}, metadata: {...})
-  2. TaskUpdate(review-{n.m}, addBlockedBy: [fix-{n.m}-r{attempt}])
-  → review stays in_progress but blocked; executor picks up fix
+  2. TaskUpdate(fix-{n.m}-r{attempt}, owner: "executor-{n.m}")  → executor is notified
+  3. TaskUpdate(review-{n.m}, addBlockedBy: [fix-{n.m}-r{attempt}])
+  → review stays in_progress but blocked; executor picks up fix via notification
   → executor completes fix → review unblocks → reviewer re-reviews
 ```
 

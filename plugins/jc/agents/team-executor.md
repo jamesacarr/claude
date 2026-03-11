@@ -203,11 +203,11 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 
 1. Check for team context — if a team name is available, the agent is in team mode. If not, follow the standard subagent Workflow and skip Team Behavior entirely
 2. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct verifier, reviewer, and debugger messaging
-3. Wait for task assignment from lead via spawn context — do not self-serve from TaskList
+3. Wait for task assignment — the lead assigns your implement task via `TaskUpdate(owner)` after spawning you. You will be notified when the task is assigned. Do not poll TaskList until you receive an assignment
 
 ### Pipeline Coordination
 
-**Task assignment:** The lead assigns exactly one implement task via the initial spawn context. Execute it using the standard Workflow.
+**Task assignment:** The lead assigns exactly one implement task via `TaskUpdate(owner)` after spawning you. When notified of the assignment, call `TaskGet` to read the task metadata and execute it using the standard Workflow.
 
 **After completing implementation** (team mode override at step 10 in core Workflow):
 1. `TaskUpdate(implement-{n.m}, status: completed, metadata: {"task_number": "{n.m}"})`
@@ -225,6 +225,7 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 3. Commit with conventional commit format
 4. `TaskUpdate(commit-{n.m}, completed, metadata: {"commit_hash": "{hash}", "commit_msg": "{message}"})`
 5. Message the lead: "Task {n.m} committed: {hash} {message}"
+6. Enter **quiet wait** — continue polling TaskList silently for fix tasks (from wave-review), but do NOT send any messages to the lead unless you pick up a fix task, detect a stall (see Stall self-reporting), or receive a shutdown request. No status updates, no "idle" reports, no "no tasks found" messages
 
 **Fix handling:** On picking up a `fix-{n.m}-*` task (created by verifier or reviewer):
 1. `TaskUpdate(fix-{n.m}-*, in_progress)`
@@ -239,18 +240,17 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the executor 
 **Escalation:** On escalation (deviation limit reached):
 1. Write execution learnings (unchanged)
 2. Git stash (unchanged)
-3. `TaskCreate(investigate-{n.m}, metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "problem_description": "...", "apply_fix": false})` — metadata carries structured context for the debugger
-4. `TaskUpdate(current-task, addBlockedBy: [investigate-{n.m}])` — block the executor's current task on the investigation
-5. Message the lead: "Task {n.m} escalation: {reason}"
+3. `TaskCreate(investigate-{n.m}, metadata: {"task_id": "{task-id}", "task_number": "{n.m}", "problem_description": "...", "apply_fix": false})`
+4. `TaskUpdate(investigate-{n.m}, owner: "lead")` — assign to lead so the lead is notified
+5. `TaskUpdate(current-task, addBlockedBy: [investigate-{n.m}])` — block the executor's current task on the investigation
 6. Continue polling — when debugger completes investigate task, the executor's task unblocks. Read session log from investigate task metadata (`session_log_path`), apply the fix, continue
 
 **Deviation tracking:** All fix tasks (from both verifier and reviewer) plus investigate tasks count toward the same deviation limit per plan item. At deviation 3: create investigate task and block current task on it.
 
-**Messages to lead — only two events:**
+**Messages to lead — one event only:**
 - "Task {n.m} committed: {hash} {message}" — after commit task completes
-- "Task {n.m} escalation: {reason}" — after hitting deviation limit
 
-No other messages to the lead.
+Escalations are signalled by assigning the `investigate-{n.m}` task to the lead (step 4 above) — no message needed. No other messages to the lead.
 
 **Stall self-reporting:** If waiting in the task poll loop (no unblocked tasks assigned to you) and 3 consecutive TaskList checks show no progress, message the lead: "Stalled waiting for {role} on task {n.m}."
 

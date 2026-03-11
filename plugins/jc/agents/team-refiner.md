@@ -81,28 +81,30 @@ Entry: spawn prompt received with epic description and epic-id.
 
 Entry: no `.planning/codebase/` directory or map files missing.
 
-1. Create tasks for 4 mappers via `TaskCreate` with focus-area metadata, then assign each via `TaskUpdate(owner)`:
-   - **Technology** → metadata: `{"focus_area": "technology", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-technology`
-   - **Architecture** → metadata: `{"focus_area": "architecture", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-architecture`
-   - **Quality** → metadata: `{"focus_area": "quality", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-quality`
-   - **Concerns** → metadata: `{"focus_area": "concerns", "codebase_map_dir": ".planning/codebase/"}`, owner: `mapper-concerns`
-2. Spawn each mapper via `Agent(subagent_type: "jc:team-mapper", team_name: "{epic-id}-refinement", name: "mapper-{focus}", prompt: "Your task is {task-id-from-TaskCreate}.")`
-3. Wait for all 4 to complete → shut down all mappers
-4. Verify all 6 files exist in `.planning/codebase/`. If any mapper failed or produced an empty file, retry that mapper once. On second failure, proceed with a gap notice and flag in REFINER-STATE.md
-5. Update REFINER-STATE.md
+1. Create tasks for 4 mappers via `TaskCreate` with focus-area metadata:
+   - **Technology** → metadata: `{"focus_area": "technology", "codebase_map_dir": ".planning/codebase/"}`
+   - **Architecture** → metadata: `{"focus_area": "architecture", "codebase_map_dir": ".planning/codebase/"}`
+   - **Quality** → metadata: `{"focus_area": "quality", "codebase_map_dir": ".planning/codebase/"}`
+   - **Concerns** → metadata: `{"focus_area": "concerns", "codebase_map_dir": ".planning/codebase/"}`
+2. Spawn each mapper via `Agent(subagent_type: "jc:team-mapper", team_name: "{epic-id}-refinement", name: "mapper-{focus}", prompt: "You are mapper-{focus} for team {epic-id}-refinement. Wait for a task to be assigned to you.")`
+3. Assign each mapper via `TaskUpdate(owner: "mapper-{focus}")`
+4. Wait for all 4 to complete → shut down all mappers
+5. Verify all 6 files exist in `.planning/codebase/`. If any mapper failed or produced an empty file, retry that mapper once. On second failure, proceed with a gap notice and flag in REFINER-STATE.md
+6. Update REFINER-STATE.md
 
 ### SUFFICIENCY LOOP
 
 Entry: codebase map exists.
 
-1. Create tasks for 4 shapers via `TaskCreate` with metadata `{"persona": "<persona name>", "epic_id": "<epic-id>", "codebase_map_dir": ".planning/codebase/"}`, then assign each via `TaskUpdate(owner)`:
-   - Product Analyst → owner: `shaper-product-analyst`
-   - Technical Architect → owner: `shaper-technical-architect`
-   - Delivery Strategist → owner: `shaper-delivery-strategist`
-   - Risk Analyst → owner: `shaper-risk-analyst`
-2. Spawn each shaper via `Agent(subagent_type: "jc:team-shaper", team_name: "{epic-id}-refinement", name: "shaper-{persona-slug}", prompt: "Your task is {task-id-from-TaskCreate}.")`
-3. Tech Debt Scout is NOT spawned yet
-4. Send structured kickoff message to each shaper:
+1. Create tasks for 4 shapers via `TaskCreate` with metadata `{"persona": "<persona name>", "epic_id": "<epic-id>", "codebase_map_dir": ".planning/codebase/"}`:
+   - Product Analyst
+   - Technical Architect
+   - Delivery Strategist
+   - Risk Analyst
+2. Spawn each shaper via `Agent(subagent_type: "jc:team-shaper", team_name: "{epic-id}-refinement", name: "shaper-{persona-slug}", prompt: "You are shaper-{persona-slug} for team {epic-id}-refinement. Wait for a task to be assigned to you.")`
+3. Assign each shaper via `TaskUpdate(owner: "shaper-{persona-slug}")`
+4. Tech Debt Scout is NOT spawned yet
+5. Send structured kickoff message to each shaper:
 
 ```markdown
 ## Phase: Sufficiency Check
@@ -125,14 +127,14 @@ Entry: codebase map exists.
 Assess whether there is enough information to break this epic into actionable tickets. If not, list the specific missing information or questions that need answering.
 ```
 
-5. Collect responses from all 4 shapers
-6. **Unanimous consent** required to proceed:
+6. Collect responses from all 4 shapers
+7. **Unanimous consent** required to proceed:
    - All 4 say Sufficient → proceed to DISCUSSION Round 1
    - Any say Insufficient → consolidate and deduplicate questions across all shapers
-7. If insufficient: report consolidated questions back to the calling context via your completion message and update REFINER-STATE.md with outstanding questions. The calling context relays user answers back to you
-8. On receiving user answers: relay to all 4 shapers, reassess
-9. **Max 3 rounds** — after 3 rounds, send a message to all shapers instructing them to proceed with stated assumptions
-10. Update REFINER-STATE.md at each sufficiency round
+8. If insufficient: report consolidated questions back to the calling context via your completion message and update REFINER-STATE.md with outstanding questions. The calling context relays user answers back to you
+9. On receiving user answers: relay to all 4 shapers, reassess
+10. **Max 3 rounds** — after 3 rounds, send a message to all shapers instructing them to proceed with stated assumptions
+11. Update REFINER-STATE.md at each sufficiency round
 
 ### DISCUSSION — Round 1
 
@@ -157,7 +159,7 @@ Propose your view of the ticket breakdown from your persona's lens. Broadcast yo
 
 Entry: all 4 Round 1 proposals received.
 
-1. Create task for Tech Debt Scout via `TaskCreate` with metadata `{"persona": "Tech Debt Scout", "epic_id": "<epic-id>", "codebase_map_dir": ".planning/codebase/"}`, then `TaskUpdate(owner: "shaper-tech-debt-scout")`. Spawn via `Agent(subagent_type: "jc:team-shaper", team_name: "{epic-id}-refinement", name: "shaper-tech-debt-scout", prompt: "Your task is {task-id-from-TaskCreate}.")`
+1. Create task for Tech Debt Scout via `TaskCreate` with metadata `{"persona": "Tech Debt Scout", "epic_id": "<epic-id>", "codebase_map_dir": ".planning/codebase/"}`. Spawn via `Agent(subagent_type: "jc:team-shaper", team_name: "{epic-id}-refinement", name: "shaper-tech-debt-scout", prompt: "You are shaper-tech-debt-scout for team {epic-id}-refinement. Wait for a task to be assigned to you.")`. Assign via `TaskUpdate(owner: "shaper-tech-debt-scout")`
 2. Send kickoff to Tech Debt Scout:
 
 ```markdown
@@ -193,22 +195,19 @@ React to other proposals. Challenge, agree, propose new ideas. Reference tickets
 Tech Debt Scout: shaper-tech-debt-scout
 ```
 
-4. **Monitor discussion** — read shaper messages and poll TaskList on each cycle:
-   - Messages: discussion content (proposals, challenges, agreements)
-   - TaskList: spike requests (tasks with `spike:` prefix created by shapers)
+4. **Monitor discussion** — read shaper messages. Shapers assign spike tasks to the refiner when they need validation (you will be notified on assignment)
 5. **Expect early burst** — Tech Debt Scout's initial contributions will trigger a wave of new discussion. Do not mistake this for lack of convergence
 6. **Incremental ticket writing** — when the ticket agreement signal is met (see Constraints):
    a. Synthesise the agreed ticket details from the discussion into the full ticket schema
    b. Write `tickets/TICKET-{nn}-{slug}.md`
    c. Update CONSENSUS-BOARD.md with the new entry
-7. **Spike handling** — when a `spike:` task appears on TaskList with status pending:
+7. **Spike handling** — when a shaper assigns a `spike:` task to you (you are notified on assignment):
    a. Pause discussion — message ALL shapers: "Discussion paused for spike on: {assumption}"
-   b. `TaskGet` the spike task to read its full description and metadata (`affected_tickets`, `requesting_persona`). Create a spiker task via `TaskCreate` with metadata `{"assumptions": [<from spike task description>], "report_output_path": ".planning/epics/{epic-id}/spikes/spike-{n}.md", "codebase_map_dir": ".planning/codebase/"}`, then `TaskUpdate(owner: "spiker-{n}")`. Spawn via `Agent(subagent_type: "jc:team-spiker", team_name: "{epic-id}-refinement", name: "spiker-{n}", prompt: "Your task is {task-id-from-TaskCreate}.")`. The spiker reads its assignment via `TaskGet`, writes the spike report, and marks the task `completed`
-   c. Poll TaskList for the spike task to reach `completed` status. Read the verdict from task metadata (`verdict` key)
+   b. Spawn via `Agent(subagent_type: "jc:team-spiker", team_name: "{epic-id}-refinement", name: "spiker-{n}", prompt: "You are spiker-{n} for team {epic-id}-refinement. Wait for a task to be assigned to you.")`. Re-assign task to spiker: `TaskUpdate(spike task, owner: "spiker-{n}")`. The spiker reads its assignment via `TaskGet`, writes the spike report, and marks the task `completed`
+   c. Wait for the spiker's task to reach `completed` status via TaskList (the refiner is no longer the task owner after re-assignment, so no completion notification is delivered). Read the verdict from task metadata (`verdict` key)
    d. Read the spike report from disk for full details
    e. Relay spike results to ALL shapers via SendMessage
-   f. If more `spike:` tasks are pending, repeat from (b) before resuming
-   g. Resume discussion — message ALL shapers: "Discussion resumed. Spike results: {summary}"
+   f. Resume discussion — message ALL shapers: "Discussion resumed. Spike results: {summary}"
 8. **Convergence detection** — read all shapers' latest messages. Converged when:
    - No new ticket proposals in any shaper's latest Position section
    - No open concerns listed (or all concerns are "None")

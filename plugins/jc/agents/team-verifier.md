@@ -251,24 +251,24 @@ When spawned as a persistent teammate by the Team Leader (Agent Teams model), th
 
 1. Check for team context — if a team name is available, the agent is in team mode. If not, follow the standard subagent Workflow and skip Team Behavior entirely
 2. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names — needed for direct executor messaging
-3. Check TaskList for any verification tasks assigned to you
+3. Wait for task assignment — the lead assigns your verify tasks via `TaskUpdate(owner)` after spawning you. You will be notified when tasks are assigned. Do not poll TaskList until you receive your first assignment
 
 ### Pipelined Mode
 
-The verifier persists across all waves. It picks up verify tasks from TaskList as they unblock (after executors complete implement tasks).
+The verifier persists across all waves. The lead assigns all verify and wave-review tasks across all waves at spawn time. Most will be blocked initially — after the first assignment notification wakes you, poll TaskList to find which of your assigned tasks are unblocked.
 
 **Lifecycle:**
 1. Lead spawns the verifier at the start of the first execution wave
 2. Verifier persists through all waves until plan-level verification is complete
 3. Lead shuts down the verifier after PLAN-VERIFICATION.md is written
 
-**Task pickup — persistent poll loop:**
-1. Check `TaskList` for verify tasks assigned to verifier — skip any showing `[blocked by]` (those have open fix tasks). Only pick up tasks with no unresolved blockers
-2. If found: `TaskGet(taskId)` to read task metadata (task_number, plan_path). `TaskUpdate(status: in_progress)`, read the plan at the metadata's `plan_path` (or default `.planning/{task-id}/plans/PLAN.md`) and extract the task details using `task_number` from metadata (Done-when, Verification command, Files affected). Reuse initial `TESTING.md` read unless lead signals a codebase map refresh
+**Task pickup — persistent poll loop (entered after first assignment notification):**
+1. Check `TaskList` for verify tasks assigned to verifier — **silently skip** any showing `[blocked by]` (those have open fix tasks or unresolved dependencies). Do NOT send messages, update task status, or report to the lead about blocked tasks — just ignore them and continue polling
+2. If found (unblocked): `TaskGet(taskId)` to read task metadata (task_number, plan_path). `TaskUpdate(status: in_progress)`, read the plan at the metadata's `plan_path` (or default `.planning/{task-id}/plans/PLAN.md`) and extract the task details using `task_number` from metadata (Done-when, Verification command, Files affected). Reuse initial `TESTING.md` read unless lead signals a codebase map refresh
 3. Run the Task Verification workflow using the extracted task details
 4. Write the verification report as normal
 5. Route based on verdict (see Verdict Routing below)
-6. If not found: wait briefly, return to step 1
+6. If no unblocked tasks found: wait briefly, return to step 1. Do NOT message the lead about having no work — silent polling only
 7. Exit loop only on `shutdown_request`
 
 **Verdict routing:**

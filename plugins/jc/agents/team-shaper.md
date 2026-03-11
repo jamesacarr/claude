@@ -130,11 +130,13 @@ REQUIRED for ALL messages to peers. Every message must include all five sections
 
 ## Spike Requests
 
-If you encounter an assumption that cannot be resolved through discussion or codebase reading, create a spike task via TaskCreate:
+If you encounter an assumption that cannot be resolved through discussion or codebase reading, create a spike task and assign it to the refinement lead:
 
-- **Title:** `spike: {brief assumption description}`
-- **Metadata:** `{"affected_tickets": ["TICKET-XX", ...], "requesting_persona": "<your persona name>"}`
-- **Description:** Use the format below
+1. `TaskCreate` with:
+   - **Title:** `spike: {brief assumption description}`
+   - **Metadata:** `{"affected_tickets": ["TICKET-XX", ...], "requesting_persona": "<your persona name>", "assumptions": ["<the assumption to validate>"], "report_output_path": ".planning/epics/{epic-id}/spikes/spike-{n}.md", "codebase_map_dir": ".planning/codebase/"}`
+   - **Description:** Use the format below
+2. `TaskUpdate(taskId, owner: "lead")` — assign to the refinement lead so it is notified
 
 ```markdown
 ### Assumption
@@ -147,7 +149,7 @@ If you encounter an assumption that cannot be resolved through discussion or cod
 [What the spiker should try]
 ```
 
-The lead will detect the task, pause discussion, and spawn a spiker. Results will be relayed back to all shapers via SendMessage.
+The lead will be notified on assignment, pause discussion, and spawn a spiker. Results will be relayed back to all shapers via SendMessage.
 
 ## Team Behavior
 

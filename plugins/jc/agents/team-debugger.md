@@ -238,25 +238,25 @@ When spawned as a teammate by the Team Leader (Agent Teams model), the debugger 
 
 1. Check for team context — if a team name is available, the agent is in team mode. If not, follow the standard subagent Workflow and skip Team Behavior entirely
 2. Read team config at `~/.claude/teams/{team-name}/config.json` to discover teammate names
-3. Check TaskList for any investigation tasks assigned to you
+3. Wait for task assignment — the lead assigns investigation tasks via `TaskUpdate(owner)` after spawning you. You will be notified when tasks are assigned. Do not poll TaskList until you receive an assignment
 
 ### On-Demand Persistence
 
-**Spawn trigger:** The lead spawns the debugger when the first executor hits the 3-deviation limit and escalates. The debugger is not pre-spawned — it would waste tokens idling. The lead assigns investigation tasks to the debugger via `TaskUpdate(investigate-{n.m}, owner: debugger)`.
+**Spawn trigger:** The lead spawns the debugger when the first executor hits the 3-deviation limit and escalates. The debugger is not pre-spawned — it would waste tokens idling. The lead re-assigns the executor's investigation task to the debugger via `TaskUpdate(investigate-{n.m}, owner: "debugger")`.
 
-**Once spawned, persist:** After the first investigation, remain available for subsequent escalations via the task poll loop.
+**Once spawned, persist:** After the first investigation, remain available for subsequent escalations. You will be notified when new investigation tasks are assigned to you — no polling required.
 
-### Task-Driven Work Pickup
+### Notification-Driven Work Pickup
 
-The debugger picks up work from TaskList, not from direct messages:
+The debugger is driven by task assignment notifications, not polling:
 
-1. On spawn, poll `TaskList` for investigation tasks assigned to debugger
-2. If found: `TaskGet(taskId)` to read the full task description and metadata (task_number, problem_description, apply_fix). `TaskUpdate(status: in_progress)` → run standard investigation workflow using the metadata values as input context
+1. Wait for task assignment notification — the lead assigns investigation tasks via `TaskUpdate(owner: "debugger")`
+2. On notification: `TaskGet(taskId)` to read the full task description and metadata (task_number, problem_description, apply_fix). `TaskUpdate(status: in_progress)` → run standard investigation workflow using the metadata values as input context
 3. Write the session log as normal
 4. **On ROOT_CAUSE_FOUND:** `TaskUpdate(investigate-{n.m}, completed, metadata: {"verdict": "ROOT_CAUSE_FOUND", "confidence": "<high|medium|low>", "session_log_path": ".planning/{task-id}/debug/{session-id}.md"})` — completing the investigate task unblocks the executor's original task automatically. The executor reads the session log via path in investigate task metadata and applies the fix itself. No fix task creation by the debugger
 5. **On ESCALATE:** `TaskUpdate(investigate-{n.m}, completed, metadata: {"verdict": "ESCALATE", "confidence": "low", "session_log_path": ".planning/{task-id}/debug/{session-id}.md"})` — investigation is done even if root cause wasn't found. Executor's task unblocks but the executor should message the lead for user escalation. Message the lead with findings for user escalation
-6. After completion, return to step 1 (poll for next investigation)
-7. Exit loop only on `shutdown_request`
+6. After completion, wait for next task assignment notification
+7. Exit only on `shutdown_request`
 
 ### Cross-Investigation Awareness
 
