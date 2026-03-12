@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-03-12
+
 ### Fixed
 
 - Handle TeamCreate returning a generated team name on conflict
@@ -180,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.8.3...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.8.4...HEAD
+[1.8.4]: https://github.com/jamesacarr/claude/compare/v1.8.3...v1.8.4
 [1.8.3]: https://github.com/jamesacarr/claude/compare/v1.8.2...v1.8.3
 [1.8.2]: https://github.com/jamesacarr/claude/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/jamesacarr/claude/compare/v1.8.0...v1.8.1
