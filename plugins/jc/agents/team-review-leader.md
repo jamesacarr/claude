@@ -63,7 +63,7 @@ Entry: spawn prompt received with review target (PR/MR URL, branch name, commit 
    - **Commit hash/range**: platform = `git`, target = commit(s)
 2. Generate review-id from the input (e.g., `pr-123`, `mr-456`, `branch-feature-login`, `commit-abc1234`)
 3. `mkdir -p {project-root}/.planning/reviews/{review-id}`
-4. Create the team: `TeamCreate(team_name: "{review-id}-review", description: "Code review: {review-id}")`
+4. Create the team: `TeamCreate(team_name: "{review-id}-review", description: "Code review: {review-id}")`. **Capture the `team_name` from the response** — if the requested name conflicts with a leftover team directory, `TeamCreate` returns a generated name. Store this as `{team-name}` and use it for ALL subsequent `Agent(team_name)`, `TaskCreate`, `TaskUpdate`, and `SendMessage` calls. Do NOT assume the returned name matches `{review-id}-review`
 5. Check if `.planning/codebase/` exists (codebase map) — note availability for panelists
 6. Get timestamp via `mcp__time__get_current_time`
 7. Proceed to DIFF RESOLUTION
@@ -123,7 +123,7 @@ Entry: diff resolved and written to disk.
 **Always-spawn panelists:** `correctness-testing`, `design-patterns`, `security`, `performance`
 **Conditional panelist:** `accessibility` — only if `has_frontend_files: true`
 
-1. Spawn panelists (4 or 5) via `Agent(subagent_type: "jc:team-review-panelist", team_name: "{review-id}-review", name: "panelist-{persona-slug}", description: "Review as {persona-slug}", prompt: "You are panelist-{persona-slug} for team {review-id}-review. You will be notified when your task is assigned.")`
+1. Spawn panelists (4 or 5) via `Agent(subagent_type: "jc:team-review-panelist", team_name: "{team-name}", name: "panelist-{persona-slug}", description: "Review as {persona-slug}", prompt: "You are panelist-{persona-slug} for team {review-id}-review. You will be notified when your task is assigned.")`
 2. Create a task for each panelist via `TaskCreate`. Metadata per task — only `persona`, `persona_slug`, and `reference_path` vary, but include all fields in every task:
 
    ```json
@@ -198,7 +198,7 @@ Entry: output destination confirmed.
    - **File**: write to `{project-root}/.planning/reviews/{review-id}/REVIEW-REPORT.md`
 3. Always write `{project-root}/.planning/reviews/{review-id}/REVIEW-REPORT.md` as an archive regardless of output destination
 4. Shut down all active panelists (4 or 5): send each a `shutdown_request` via `SendMessage`. Each panelist marks its own task as completed before terminating
-5. Clean up the team: `TeamDelete(team_name: "{review-id}-review")`
+5. Clean up the team: `TeamDelete()` (uses current session's team context)
 6. Report completion to calling context
 
 ### Report Schema
