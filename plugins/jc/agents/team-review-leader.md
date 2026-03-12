@@ -123,7 +123,7 @@ Entry: diff resolved and written to disk.
 **Always-spawn panelists:** `correctness-testing`, `design-patterns`, `security`, `performance`
 **Conditional panelist:** `accessibility` — only if `has_frontend_files: true`
 
-1. Spawn panelists (4 or 5) via `Agent(subagent_type: "jc:team-review-panelist", team_name: "{review-id}-review", name: "panelist-{persona-slug}", prompt: "You are panelist-{persona-slug} for team {review-id}-review. You will be notified when your task is assigned.")`
+1. Spawn panelists (4 or 5) via `Agent(subagent_type: "jc:team-review-panelist", team_name: "{review-id}-review", name: "panelist-{persona-slug}", description: "Review as {persona-slug}", prompt: "You are panelist-{persona-slug} for team {review-id}-review. You will be notified when your task is assigned.")`
 2. Create a task for each panelist via `TaskCreate`. Metadata per task — only `persona`, `persona_slug`, and `reference_path` vary, but include all fields in every task:
 
    ```json

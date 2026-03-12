@@ -79,7 +79,7 @@ Entry: spawn prompt received with epic description and epic-id.
 
 Entry: no `.planning/codebase/` directory or map files missing.
 
-1. Spawn 4 mappers via `Agent(subagent_type: "jc:team-mapper", team_name: "{epic-id}-refinement", name: "mapper-{focus}", prompt: "You are mapper-{focus} for team {epic-id}-refinement. You will be notified when your task is assigned.")`
+1. Spawn 4 mappers via `Agent(subagent_type: "jc:team-mapper", team_name: "{epic-id}-refinement", name: "mapper-{focus}", description: "Map {focus} dimension", prompt: "You are mapper-{focus} for team {epic-id}-refinement. You will be notified when your task is assigned.")`
 2. Create tasks for 4 mappers via `TaskCreate` with focus-area metadata:
    - **Technology** → metadata: `{"focus_area": "technology", "codebase_map_dir": ".planning/codebase/"}`
    - **Architecture** → metadata: `{"focus_area": "architecture", "codebase_map_dir": ".planning/codebase/"}`
@@ -94,7 +94,7 @@ Entry: no `.planning/codebase/` directory or map files missing.
 
 Entry: codebase map exists.
 
-1. Spawn 4 shapers via `Agent(subagent_type: "jc:team-refinement-panelist", team_name: "{epic-id}-refinement", name: "shaper-{persona-slug}", prompt: "You are shaper-{persona-slug} for team {epic-id}-refinement. You will be notified when your task is assigned.")`
+1. Spawn 4 shapers via `Agent(subagent_type: "jc:team-refinement-panelist", team_name: "{epic-id}-refinement", name: "shaper-{persona-slug}", description: "Shape as {persona-slug}", prompt: "You are shaper-{persona-slug} for team {epic-id}-refinement. You will be notified when your task is assigned.")`
 2. Create tasks for 4 shapers via `TaskCreate` with metadata `{"persona": "<persona name>", "epic_id": "<epic-id>", "codebase_map_dir": ".planning/codebase/"}`:
    - Product Analyst
    - Technical Architect
@@ -157,7 +157,7 @@ Propose your view of the ticket breakdown from your persona's lens. Broadcast yo
 
 Entry: all 4 Round 1 proposals received.
 
-1. Spawn via `Agent(subagent_type: "jc:team-refinement-panelist", team_name: "{epic-id}-refinement", name: "shaper-tech-debt-scout", prompt: "You are shaper-tech-debt-scout for team {epic-id}-refinement. You will be notified when your task is assigned.")`. Create task via `TaskCreate` with metadata `{"persona": "Tech Debt Scout", "epic_id": "<epic-id>", "codebase_map_dir": ".planning/codebase/"}`. Assign via `TaskUpdate(owner: "shaper-tech-debt-scout")`
+1. Spawn via `Agent(subagent_type: "jc:team-refinement-panelist", team_name: "{epic-id}-refinement", name: "shaper-tech-debt-scout", description: "Shape as tech-debt-scout", prompt: "You are shaper-tech-debt-scout for team {epic-id}-refinement. You will be notified when your task is assigned.")`. Create task via `TaskCreate` with metadata `{"persona": "Tech Debt Scout", "epic_id": "<epic-id>", "codebase_map_dir": ".planning/codebase/"}`. Assign via `TaskUpdate(owner: "shaper-tech-debt-scout")`
 2. Send kickoff to Tech Debt Scout:
 
 ```markdown
@@ -201,7 +201,7 @@ Tech Debt Scout: shaper-tech-debt-scout
    c. Update CONSENSUS-BOARD.md with the new entry
 7. **Spike handling** — when a shaper assigns a `spike:` task to you (you are notified on assignment):
    a. Pause discussion — message ALL shapers: "Discussion paused for spike on: {assumption}"
-   b. Spawn via `Agent(subagent_type: "jc:team-spiker", team_name: "{epic-id}-refinement", name: "spiker-{n}", prompt: "You are spiker-{n} for team {epic-id}-refinement. You will be notified when your task is assigned.")`. Re-assign task to spiker: `TaskUpdate(spike task, owner: "spiker-{n}")`. The spiker reads its assignment via `TaskGet`, writes the spike report, and marks the task `completed`
+   b. Spawn via `Agent(subagent_type: "jc:team-spiker", team_name: "{epic-id}-refinement", name: "spiker-{n}", description: "Spike assumption {n}", prompt: "You are spiker-{n} for team {epic-id}-refinement. You will be notified when your task is assigned.")`. Re-assign task to spiker: `TaskUpdate(spike task, owner: "spiker-{n}")`. The spiker reads its assignment via `TaskGet`, writes the spike report, and marks the task `completed`
    c. Wait for the spiker's task to reach `completed` status via TaskList (the refiner is no longer the task owner after re-assignment, so no completion notification is delivered). Read the verdict from task metadata (`verdict` key)
    d. Read the spike report from disk for full details
    e. Relay spike results to ALL shapers via SendMessage
