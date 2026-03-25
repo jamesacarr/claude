@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add frontend-design skill
+- Add use-gh, use-glab, and use-jira skills
+
+### Fixed
+
+- Resolve reference file paths in author-skill subagent prompts
+
 ## [1.8.4] - 2026-03-12
 
 ### Fixed
