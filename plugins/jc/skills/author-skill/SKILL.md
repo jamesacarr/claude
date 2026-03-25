@@ -14,7 +14,7 @@ description: Creates, edits, audits, upgrades, and deletes Claude Code Skills. U
 3. **SKILL.md is always loaded.** Keep it lean — details go in workflows/ and references/. Layout: references/skill-structure.md.
 4. **Pure Markdown structure.** No XML tags. Standardized headings per template. Details: references/skill-structure.md. Anti-patterns: references/anti-patterns.md.
 5. **Token efficiency.** Every token loads on every invocation. Say it once, tables over prose, eliminate filler. Checklist: references/token-efficiency.md.
-6. **Delegate heavy work to subagents.** Main context handles intake, routing, and presenting results. Details: references/tdd-for-skills.md and references/validation-gates.md.
+6. **Delegate heavy work to subagents.** Main context handles intake, routing, and presenting results. Resolve `{skill-base-dir}` from this skill's announced base directory and pass absolute paths to reference files in subagent prompts. Details: references/tdd-for-skills.md and references/validation-gates.md.
 7. **Write for understanding.** Models generalize better from reasoning than mandates — explain why, not just what. Escalate to authority language only when reasoning fails in TDD. Details: references/writing-effective-skills.md.
 8. **Validation gates enforced** on all new/changed skills (references/validation-gates.md).
 

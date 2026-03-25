@@ -20,6 +20,7 @@ Task tool parameters:
 
     ## Input
     Skill directory: {skills-dir}/{skill-name}/
+    Reference files: {skill-base-dir}/references/
 
     ## Expected Output
     Per your standard output format.
