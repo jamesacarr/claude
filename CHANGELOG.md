@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-03-26
+
 ### Changed
 
 - Rename `debug-code` skill to `debug-methodology` with negative trigger for agents that can spawn subagents
@@ -204,7 +206,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/jamesacarr/claude/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/jamesacarr/claude/compare/v1.8.4...v1.9.0
 [1.8.4]: https://github.com/jamesacarr/claude/compare/v1.8.3...v1.8.4
 [1.8.3]: https://github.com/jamesacarr/claude/compare/v1.8.2...v1.8.3
