@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Rename `debug-code` skill to `debug-methodology` with negative trigger for agents that can spawn subagents
+- Move debugging reference files and `find-polluter.sh` script to shared `references/debugging/` directory
+- Refactor `team-debugger` agent to load `debug-methodology` skill at runtime instead of duplicating methodology inline
+- Add `plugin_root` resolution to `team-debugger` (SessionStart hook for main agent, task metadata for subagent)
+- Update `debug` skill to pass `plugin_root` in task metadata when spawning the debugger
+- Fix `apply-fix` vs `apply_fix` naming inconsistency in `debug` skill
+- Strengthen revert-on-test-failure wording in `team-debugger` to prevent rationalising "unrelated" failures
+- Add Stall Self-Reporting, coordination model label, and `task_number` team-mode validation to `team-debugger`
+
 ## [1.9.0] - 2026-03-25
 
 ### Added
