@@ -6,7 +6,8 @@ description: "Investigates bugs and failures by spawning the team-debugger agent
 ## Path Resolution
 
 Resolve from the skill's base directory (the directory containing this SKILL.md):
-- `{plugin-docs}` = `{skill-base-dir}/../../docs/`
+- `{plugin-root}` = `{skill-base-dir}/../../`
+- `{plugin-docs}` = `{plugin-root}/docs/`
 
 ## Essential Principles
 
@@ -19,7 +20,7 @@ Resolve from the skill's base directory (the directory containing this SKILL.md)
 
 1. Identify the task-id from the active `.planning/` directory
 2. Collect problem context (error output, failing tests, escalation details)
-3. Determine if fix application is needed (`apply-fix: true` or diagnosis only)
+3. Determine if fix application is needed (`apply_fix: true` or diagnosis only)
 4. Spawn `team-debugger` with the I/O contract
 5. Present the diagnosis to the user
 
@@ -55,7 +56,7 @@ Applying changes without consent can disrupt uncommitted work or conflict with a
 - **Diagnose only** — debugger investigates and recommends a fix but does not modify source files
 - **Diagnose and fix** — debugger investigates, applies the fix if confidence is high or medium, and verifies it passes tests
 
-Map to `apply-fix: true` or `apply-fix: false` in the prompt context.
+Map to `apply_fix: true` or `apply_fix: false` in the task metadata.
 
 ### Step 4: Spawn Debugger
 
@@ -64,7 +65,7 @@ Create a task and spawn `team-debugger` via the Task tool:
 1. `TaskCreate` with:
    - subject: `debug-{task-id}`
    - description: `Investigate: {brief problem description}`
-   - metadata: `{"task_id": "{task-id}", "problem_description": "{user's description or executor escalation summary}", "apply_fix": {true|false}}` — also include optional fields if available: `"error_output": "{verbatim error output}"`, `"failing_test": "{test name and command}"`, `"escalation_context": "{stash ref, attempted fixes, failure count}"`
+   - metadata: `{"task_id": "{task-id}", "problem_description": "{user's description or executor escalation summary}", "apply_fix": {true|false}, "plugin_root": "{plugin-root}"}` — also include optional fields if available: `"error_output": "{verbatim error output}"`, `"failing_test": "{test name and command}"`, `"escalation_context": "{stash ref, attempted fixes, failure count}"`
 
 2. Spawn agent with `subagent_type: "team-debugger"`, prompt: `Your task is {task-id-from-TaskCreate}.`
 
@@ -76,7 +77,7 @@ Read the debugger's response and present to the user:
 
 **If ROOT_CAUSE_FOUND:**
 - Show the root cause, affected file, and recommended fix
-- If fix was applied (`apply-fix: true`), confirm it was applied and tests pass
+- If fix was applied (`apply_fix: true`), confirm it was applied and tests pass
 - Show path to the session log for audit trail
 
 **If ESCALATE:**
