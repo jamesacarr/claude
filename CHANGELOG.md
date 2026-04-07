@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add obsidian-wiki skill for maintaining a personal knowledge wiki in Obsidian with citation-backed claims, conflict detection, and staleness auditing
+
 ## [1.11.0] - 2026-04-07
 
 ### Added
