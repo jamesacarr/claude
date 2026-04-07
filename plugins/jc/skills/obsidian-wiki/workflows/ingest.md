@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Wiki vault initialised (folders exist)
+- Wiki vault `wiki` exists with `sources/`, `projects/`, `topics/`, `notes/` folders
 - Read `references/conventions.md` for frontmatter, citation format, and primary/secondary target rules
 
 ## Steps

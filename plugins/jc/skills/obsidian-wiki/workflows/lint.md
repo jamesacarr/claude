@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Wiki vault initialised
+- Wiki vault `wiki` exists
 - Read `references/conventions.md` for expected formats
 
 ## Steps
