@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-04-07
+
 ### Fixed
 
 - Fix vault verification syntax in obsidian-wiki skill — `obsidian vault vault=wiki` instead of `obsidian vault=wiki`
@@ -224,7 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.12.1...HEAD
+[1.12.1]: https://github.com/jamesacarr/claude/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/jamesacarr/claude/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/jamesacarr/claude/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/jamesacarr/claude/compare/v1.9.0...v1.10.0
