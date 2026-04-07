@@ -12,7 +12,7 @@ description: Maintains a personal knowledge wiki in Obsidian — ingesting sourc
 - **Primary and secondary targets** — every ingest has one primary page (gets full detail) and zero or more secondary pages (get a brief mention with a wikilink back). Keeps topic pages focused
 - **Flag conflicts, don't silently overwrite** — when new information contradicts existing claims, add a `> [!conflict]` callout with both claims and their sources for the user to resolve
 - **Confirm with user before mutations** — creating pages, updating existing pages, moving files. Present what will change before doing it
-- **Vault name is `wiki`** — all CLI commands use `vault=wiki`. Run `obsidian vault=wiki` to verify. If the vault has no wiki structure (`sources/`, `projects/`, `topics/`, `notes/`), offer to run the init workflow
+- **Vault name is `wiki`** — all CLI commands use `vault=wiki`. Run `obsidian vault vault=wiki` to verify. If the vault has no wiki structure (`sources/`, `projects/`, `topics/`, `notes/`), offer to run the init workflow
 - **Use Obsidian CLI for all vault operations** — read the `use-obsidian` skill for CLI details
 - **Use defuddle for web page extraction** — read the `use-defuddle` skill for CLI details
 - **Use Obsidian Markdown conventions** — wikilinks, callouts, frontmatter, tags. Read the `obsidian-markdown` skill for syntax details

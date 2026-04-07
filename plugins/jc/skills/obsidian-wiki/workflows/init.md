@@ -14,7 +14,7 @@
 Confirm the `wiki` vault exists and is accessible:
 
 ```bash
-obsidian vault=wiki
+obsidian vault vault=wiki
 ```
 
 If this fails, the vault doesn't exist yet — direct the user to create it in Obsidian.
@@ -59,4 +59,4 @@ Report what was created. Suggest the user open the vault in Obsidian to verify.
 
 - All four directories exist: `sources/`, `projects/`, `topics/`, `notes/`
 - Welcome page created with links to each section
-- Vault accessible via `obsidian vault=wiki`
+- Vault accessible via `obsidian vault vault=wiki`
