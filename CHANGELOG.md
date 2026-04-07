@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove init workflow from obsidian-wiki skill — vault setup is handled manually in Obsidian
+- Update workflow prerequisites to reference vault `wiki` directly instead of init workflow
+
 ## [1.12.1] - 2026-04-07
 
 ### Fixed
