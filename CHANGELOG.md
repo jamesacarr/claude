@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add use-obsidian skill for managing Obsidian vaults via the native CLI
+- Add use-defuddle skill for extracting clean content from web pages
+- Add obsidian-markdown skill for writing Obsidian-flavoured Markdown syntax
+
 ## [1.10.0] - 2026-03-26
 
 ### Changed
