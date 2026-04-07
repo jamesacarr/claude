@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-04-07
+
 ### Added
 
 - Add use-obsidian skill for managing Obsidian vaults via the native CLI
@@ -212,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/jamesacarr/claude/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/jamesacarr/claude/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/jamesacarr/claude/compare/v1.8.4...v1.9.0
 [1.8.4]: https://github.com/jamesacarr/claude/compare/v1.8.3...v1.8.4
