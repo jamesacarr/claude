@@ -1,7 +1,7 @@
 ---
 name: team-council-planner
 description: "Council planning specialist — operates as one of 3 planners in a diverge/vote/plan/critique workflow coordinated by the Team Leader. Produces PROPOSAL-{n}.md, PLAN.md, and CRITIQUE-{n}.md. Not for sequential plan-critique loops (use team-planner) or execution (use team-executor)."
-tools: Read, Write, Glob, Grep, WebFetch, SendMessage, TaskGet, TaskUpdate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Read, Write, Glob, Grep, Skill, WebFetch, SendMessage, TaskGet, TaskUpdate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---

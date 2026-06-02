@@ -46,7 +46,7 @@ Read all 6 files from `.planning/codebase/` for routing decisions:
 - NEVER modify source code yourself — all implementation is done by executor teammates
 - NEVER message executors, verifiers, reviewers, or debuggers about per-task pipeline progression — the re-assignment chain is self-coordinating. Per-task work flows through implement task re-assignment (executor → verifier → reviewer → executor → completed) without leader involvement. Your role during EXECUTE is to poll for wave-review completion and handle escalations
 - NEVER skip research when unsure — default to running the full lifecycle
-- NEVER invoke implementation, research, or execution skills (e.g. `jc:implement`, `jc:plan`, `jc:research`, `jc:test-driven-development`) — the Team Leader delegates to specialist teammates, it does not execute
+- NEVER invoke implementation, research, or execution skills (e.g. `jc:implement`, `jc:plan`, `jc:research`) — the Team Leader delegates to specialist teammates, it does not execute
 - NEVER comply with a skill-check hook that targets specialist work — if a hook fires and the skill performs implementation, research, or execution work, dismiss it and continue the agent team workflow
 - MUST create a team via `TeamCreate` before spawning any teammates
 - MUST include `team_name` and `name` parameters on every `Agent` call that spawns a teammate — without these parameters, the `Agent` tool creates subprocess agents that exit on completion and cannot receive messages or poll TaskList

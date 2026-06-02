@@ -1,7 +1,7 @@
 ---
 name: wording-reviewer
 description: Reviews instructional writing quality in .md files against a rubric of why-first reasoning, clarity, generalization, example quality, and leanness. Use when auditing skill files, agent prompts, CLAUDE.md files, reference docs, or any instructional markdown. Not for structural validation (use audit-skill-auditor or audit-agent-auditor) or token-efficiency checks.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, Skill
 model: sonnet
 ---
 

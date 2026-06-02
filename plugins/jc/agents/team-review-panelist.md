@@ -1,7 +1,7 @@
 ---
 name: team-review-panelist
 description: "Code review analyst — participates in structured review sessions with a specialist persona backed by a domain-specific reference checklist. Spawned by team-review-leader to independently review a diff and converge on findings with peers. Not for implementation pipeline reviews (use team-reviewer) or epic refinement (use team-refinement-panelist)."
-tools: Read, Write, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet
+tools: Read, Write, Grep, Glob, Skill, SendMessage, TaskList, TaskUpdate, TaskGet
 model: opus
 ---
 

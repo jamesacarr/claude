@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Grant the `Skill` tool to all restricted `jc` agents so they can invoke skills in both subagent and team-member modes
+
+### Changed
+
+- Migrate `team-debugger` to the global `debug-code` skill — feedback-loop-first methodology, regression checks at the correct seam, and mandatory instrumentation cleanup; remove `plugin_root` resolution
+- Switch `team-executor` and `team-verifier` from the `skills` preload field (ignored for team members) to runtime skill invocation via the `Skill` tool
+- Inline the evidence-based completion standard into `team-verifier` (previously sourced from the removed `verify-completion` skill)
+- Restore `{plugin-root}` resolution in the `debug` skill
+
+### Removed
+
+- **BREAKING**: Remove bundled skills now provided globally: `debug-methodology`, `test`, `test-driven-development`, `frontend-design`, `obsidian-markdown`, `obsidian-wiki`, `use-defuddle`, `use-gh`, `use-glab`, `use-jira`, `use-obsidian`, `verify-completion`
+- Remove `references/debugging/` files and `find-polluter.sh` (now bundled with the global `debug-code` skill)
+- Remove the tracked `.planning/` codebase map — it is regenerated per-project by `/jc:map`
+
 ## [1.12.2] - 2026-04-07
 
 ### Changed

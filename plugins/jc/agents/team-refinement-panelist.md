@@ -1,7 +1,7 @@
 ---
 name: team-refinement-panelist
 description: "Epic refinement analyst — participates in structured refinement sessions with a specific persona (Product Analyst, Technical Architect, Delivery Strategist, Risk Analyst, or Tech Debt Scout). Spawned by team-refinement-leader to assess sufficiency, propose ticket breakdowns, and converge on agreed tickets through multi-round discussion. Not for implementation planning (use team-planner) or execution (use team-executor)."
-tools: Read, Grep, Glob, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate
+tools: Read, Grep, Glob, Skill, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate
 model: opus
 ---
 

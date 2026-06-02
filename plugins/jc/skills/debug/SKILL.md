@@ -6,8 +6,7 @@ description: "Investigates bugs and failures by spawning the team-debugger agent
 ## Path Resolution
 
 Resolve from the skill's base directory (the directory containing this SKILL.md):
-- `{plugin-root}` = `{skill-base-dir}/../../`
-- `{plugin-docs}` = `{plugin-root}/docs/`
+- `{plugin-docs}` = `{skill-base-dir}/../../docs/`
 
 ## Essential Principles
 
@@ -65,7 +64,7 @@ Create a task and spawn `team-debugger` via the Task tool:
 1. `TaskCreate` with:
    - subject: `debug-{task-id}`
    - description: `Investigate: {brief problem description}`
-   - metadata: `{"task_id": "{task-id}", "problem_description": "{user's description or executor escalation summary}", "apply_fix": {true|false}, "plugin_root": "{plugin-root}"}` — also include optional fields if available: `"error_output": "{verbatim error output}"`, `"failing_test": "{test name and command}"`, `"escalation_context": "{stash ref, attempted fixes, failure count}"`
+   - metadata: `{"task_id": "{task-id}", "problem_description": "{user's description or executor escalation summary}", "apply_fix": {true|false}}` — also include optional fields if available: `"error_output": "{verbatim error output}"`, `"failing_test": "{test name and command}"`, `"escalation_context": "{stash ref, attempted fixes, failure count}"`
 
 2. Spawn agent with `subagent_type: "team-debugger"`, prompt: `Your task is {task-id-from-TaskCreate}.`
 

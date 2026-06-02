@@ -10,10 +10,7 @@ A complete reference for every skill in the `jc` plugin. Skills are invoked as `
   - [research](#research) — Research a task across 4 dimensions
   - [plan](#plan) — Create an implementation plan with adversarial critique
   - [implement](#implement) — Execute a plan through a static task graph
-- [Quality & Debugging](#quality--debugging)
-  - [test](#test) — Enforce test quality standards
-  - [test-driven-development](#test-driven-development) — Enforce RED-GREEN-REFACTOR TDD discipline
-  - [verify-completion](#verify-completion) — Evidence-based completion verification
+- [Debugging](#debugging)
   - [debug](#debug) — Investigate bugs using the scientific method
 - [Release Management](#release-management)
   - [changelog](#changelog) — Generate changelog entries from git history
@@ -197,83 +194,7 @@ Resuming a paused or interrupted plan uses the same command — the skill detect
 
 ---
 
-## Quality & Debugging
-
-### test
-
-Enforces test quality standards. Use this when writing, reviewing, or evaluating tests. Principles are language-agnostic; the examples below use TypeScript for illustration. For implementation process discipline, use `/jc:test-driven-development`.
-
-**What it does:**
-- Guides you toward **behavioral assertions** over internal state checks
-- Enforces **minimal mocking** — real code over mocks wherever possible
-- Requires **descriptive naming** that describes what broke
-- Ensures **no duplicate coverage** — each test verifies a unique behavior
-- Provides mock discipline gates and assertion quality checks
-
-**Core rules:**
-
-| Principle | Bad | Good |
-|-----------|-----|------|
-| Assert behavior | `expect(fn).toHaveBeenCalledTimes(3)` | `expect(attempts).toBe(3)` via real counter |
-| Descriptive names | `respects maxAttempts` | `stops retrying after N failures and throws` |
-| Real code over mocks | `vi.fn().mockResolvedValue()` | Pass a real async function |
-| One behavior per test | `handles retries and logging` | Split into two tests |
-
-**Usage:**
-
-```
-/jc:test
-```
-
-Not a standalone automation — this is an advisory skill that shapes how tests are written. Often used alongside `/jc:test-driven-development`.
-
----
-
-### test-driven-development
-
-Enforces the RED-GREEN-REFACTOR TDD cycle. Use when implementing features or bugfixes. For test quality guidance alone, use `/jc:test` instead.
-
-**What it does:**
-- **RED:** Write a failing test first. Confirm it fails for the right reason (missing behavior, not syntax error).
-- **GREEN:** Write the minimum code to pass the failing test. Nothing more.
-- **REFACTOR:** Clean up while tests stay green. No new behavior.
-- Enforces strict phase boundaries — no interleaving tests and implementation
-
-**Phase rules:**
-
-| Boundary | Rule |
-|----------|------|
-| RED → GREEN | Test must be failing before writing implementation |
-| GREEN → REFACTOR | All tests must pass before refactoring |
-| REFACTOR → RED | No new behavior during refactoring |
-
-**Usage:**
-
-```
-/jc:test-driven-development
-```
-
-Advisory skill that enforces process discipline during implementation. Works in combination with `/jc:test` for quality.
-
----
-
-### verify-completion
-
-Evidence-based completion verification. Use when you want to confirm that completed work actually meets its success criteria — not just "looks right."
-
-**What it does:**
-- Extracts every success criterion from the plan or task
-- Spawns a `general-purpose` agent to **independently gather evidence** (run tests, execute commands, check files)
-- Produces a summary table with status per criterion: VERIFIED, PARTIALLY VERIFIED, UNVERIFIED, or FAILED
-- Never accepts another agent's claim that "tests pass" — runs them independently
-
-**Usage:**
-
-```
-/jc:verify-completion
-```
-
----
+## Debugging
 
 ### debug
 
@@ -466,13 +387,13 @@ Enforces least-privilege tool access, description-driven routing, pure Markdown 
 /jc:implement add-user-dashboard     # execute the plan
 ```
 
-### Bugfix with TDD
+### Bugfix
 
 ```
-/jc:debug session cookie not set     # diagnose the issue
-/jc:test-driven-development          # fix with TDD discipline
-/jc:verify-completion                # verify the fix meets criteria
+/jc:debug session cookie not set     # diagnose, and optionally apply the fix
 ```
+
+In diagnose-and-fix mode the debugger investigates with the scientific method, adds a regression check at the correct seam, and verifies the fix before returning.
 
 ### Release cycle
 

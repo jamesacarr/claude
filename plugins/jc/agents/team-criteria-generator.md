@@ -1,7 +1,7 @@
 ---
 name: team-criteria-generator
 description: "Generates testable acceptance criteria from research outputs, task description, and optional external documents. Writes ACCEPTANCE-CRITERIA.md to .planning/{task-id}/. Use when spawned by the Plan skill or Team Leader before planning begins. Not for planning (use team-planner) or research (use team-researcher)."
-tools: Read, Write, Bash, Grep, Glob, TaskGet, TaskUpdate, mcp__time__get_current_time
+tools: Read, Write, Bash, Grep, Glob, Skill, TaskGet, TaskUpdate, mcp__time__get_current_time
 mcpServers: time
 model: sonnet
 ---

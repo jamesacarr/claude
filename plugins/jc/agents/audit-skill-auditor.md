@@ -1,7 +1,7 @@
 ---
 name: audit-skill-auditor
 description: Audits Claude Code skills for structural correctness, content quality, token efficiency, and coverage gaps. Use when auditing, reviewing, or evaluating SKILL.md files. Proactively use after creating or modifying skills to verify compliance. For SKILL.md files only — use audit-agent-auditor for agent .md files in agents/.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, Skill
 model: sonnet
 ---
 

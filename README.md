@@ -52,9 +52,6 @@ plugins/
 | `plan` | Create implementation plans through plan-critique-revise |
 | `implement` | Execute plans via wave-based parallelization with verification and review |
 | `debug` | Investigate bugs by spawning the debugger agent |
-| `test` | Enforce test quality — behavioral assertions, minimal mocking |
-| `test-driven-development` | Enforce RED → GREEN → REFACTOR TDD discipline |
-| `verify-completion` | Evidence-based completion verification |
 | `changelog` | Generate CHANGELOG.md entries from git history |
 | `release` | Bump version, finalize changelog, tag, and push |
 | `status` | Report on planning state without modifications |

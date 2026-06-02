@@ -1,7 +1,7 @@
 ---
 name: team-researcher
 description: "Researches a specific dimension of a task to produce structured findings in .planning/{task-id}/research/. Use when spawned by the Research skill or Team Leader to investigate implementation approaches, codebase integration points, quality implications, or risks. Operates as a subagent (standalone) or team member (leader-directed). Not for codebase mapping (use team-mapper)."
-tools: Read, Write, Grep, Glob, WebSearch, WebFetch, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Read, Write, Grep, Glob, Skill, WebSearch, WebFetch, SendMessage, TaskList, TaskUpdate, TaskGet, TaskCreate, mcp__time__get_current_time, mcp__context7__resolve-library-id, mcp__context7__query-docs
 mcpServers: context7, time
 model: opus
 ---

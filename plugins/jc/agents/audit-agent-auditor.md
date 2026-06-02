@@ -1,7 +1,7 @@
 ---
 name: audit-agent-auditor
 description: Audits Claude Code agents for structural correctness, content quality, completeness gaps, and security posture. Use when a new agent has been authored, an existing agent has been edited, or before an agent is deployed to production.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, Skill
 model: sonnet
 ---
 
