@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-02
+
 ### Added
 
 - Grant the `Skill` tool to all restricted `jc` agents so they can invoke skills in both subagent and team-member modes
@@ -250,7 +252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v1.12.2...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/jamesacarr/claude/compare/v1.12.2...v2.0.0
 [1.12.2]: https://github.com/jamesacarr/claude/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/jamesacarr/claude/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/jamesacarr/claude/compare/v1.11.0...v1.12.0
