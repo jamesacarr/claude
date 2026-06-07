@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Discussion-driven code review for the `team-review-leader`/`team-review-panelist` team: a cheap triage reaction pass clusters findings into resolved/merged/contested, and only contested findings go to bounded, threaded multi-round discussion (terminates on quiescence or a round cap)
+- Standing `author-advocate` (devil's advocate) panelist that steelmans author intent and challenges contested findings, bounded by a charter that forbids arguing away Blocking correctness/security/data-loss/migration findings on intent alone
+- Content-driven panel selection — `data-migration`, `operability`, and `supply-chain` personas spawn only when the diff matches their signals (generalising the existing frontend→accessibility gate)
+- New review reference checklists: `data-migration.md`, `operability.md`, `supply-chain.md`, and the `author-advocate.md` charter
+- `Needs Author Input` disposition and a "Questions for the Author" report section for intent-ambiguous findings
+- Review-leader resume support via `LEADER-STATE.md` and a headless fallback that writes the report to file when no interactive user is present
+
+### Changed
+
+- Review verdicts are now resolved from on-disk artifacts (`reactions-*.md`, per-round discussion positions) instead of ephemeral peer-to-peer messages, and a specialist-protection rule prevents cross-domain majorities from silently dropping an in-domain Blocking finding
+
 ## [2.0.0] - 2026-06-02
 
 ### Added
