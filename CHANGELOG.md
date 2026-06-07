@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-07
+
 ### Added
 
 - Discussion-driven code review for the `team-review-leader`/`team-review-panelist` team: a cheap triage reaction pass clusters findings into resolved/merged/contested, and only contested findings go to bounded, threaded multi-round discussion (terminates on quiescence or a round cap)
@@ -265,7 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/jamesacarr/claude/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/jamesacarr/claude/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/jamesacarr/claude/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/jamesacarr/claude/compare/v1.12.2...v2.0.0
 [1.12.2]: https://github.com/jamesacarr/claude/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/jamesacarr/claude/compare/v1.12.0...v1.12.1
